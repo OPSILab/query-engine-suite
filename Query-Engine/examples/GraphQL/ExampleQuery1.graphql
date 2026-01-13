@@ -1,0 +1,20 @@
+query ExampleQuery {
+    datapoints(
+    survey: "ISOC_R_BLT12_I"
+    sortBy: ["year"]
+    sortOrder: "desc"
+    dimensions: [
+      "Severozapaden"
+      "Last online purchase: in the last 3 months"
+      "Percentage of individuals"
+    ]
+    limit: 1
+  ) {
+    region
+    source
+    timestamp
+    survey
+    dimensions
+    value
+  }
+}

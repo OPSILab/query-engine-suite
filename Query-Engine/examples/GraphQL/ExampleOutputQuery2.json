@@ -1,0 +1,318 @@
+{
+    "data": {
+        "datapoints": [
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2000"
+                ],
+                "value": 1500
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2001"
+                ],
+                "value": 1700
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2002"
+                ],
+                "value": 1900
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2003"
+                ],
+                "value": 2000
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2004"
+                ],
+                "value": 2200
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2005"
+                ],
+                "value": 2400
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2006"
+                ],
+                "value": 2600
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2007"
+                ],
+                "value": 3200
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2008"
+                ],
+                "value": 3300
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2009"
+                ],
+                "value": 3200
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2010"
+                ],
+                "value": 3200
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2011"
+                ],
+                "value": 3700
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2012"
+                ],
+                "value": 3800
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2013"
+                ],
+                "value": 3900
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2014"
+                ],
+                "value": 4100
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2015"
+                ],
+                "value": 4200
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2016"
+                ],
+                "value": 4600
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2017"
+                ],
+                "value": 4800
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2018"
+                ],
+                "value": 5100
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2019"
+                ],
+                "value": 5500
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2020"
+                ],
+                "value": 6000
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2021"
+                ],
+                "value": 7200
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2022"
+                ],
+                "value": 7700
+            },
+            {
+                "region": "NUTS3",
+                "source": "ESTAT",
+                "timestamp": "2025-10-07T08:27:18.009Z",
+                "survey": "nama_10r_3gdp",
+                "dimensions": [
+                    "Annual",
+                    "Euro per inhabitant",
+                    "Lovech",
+                    "2023"
+                ],
+                "value": 9200
+            }
+        ]
+    }
+}

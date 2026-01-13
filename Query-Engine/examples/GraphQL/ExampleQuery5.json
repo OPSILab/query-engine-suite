@@ -1,0 +1,6 @@
+{
+    "query": "query FetchTotalPopulationChange($pilot_nuts3: String!) {\n  datapointsV2(\n    survey: \"demo_r_gind3\"\n    sortBy: \"year\"\n    sortOrder: \"asc\"\n    dimensions: [$pilot_nuts3, \"Total population change\"]\n  ) {\n    region\n    source\n    timestamp\n    survey\n    dimensions\n    value\n  }\n}",
+    "variables": {
+        "pilot_nuts3": "Trento"
+    }
+}

@@ -1,0 +1,6 @@
+{
+    "query": "query FetchPopulationBySexTotal($pilot_nuts3: String!) {\n  datapointsV2(\n    survey: \"demo_r_pjangrp3\"\n    sortBy: \"year\"\n    sortOrder: \"desc\"\n    limit: 3\n    dimensions: [$pilot_nuts3, \"Number\"]\n    exclude: [\"undefined\", \"Unknown\", \"85 years or over\", \"From 80 to 84 years\", \"From 75 to 79 years\", \"Less than 5 years\", \"From 70 to 74 years\", \"From 65 to 69 years\", \"From 60 to 64 years\", \"From 5 to 9 years\", \"From 50 to 54 years\", \"From 45 to 49 years\", \"From 10 to 14 years\", \"From 40 to 44 years\", \"From 35 to 39 years\", \"From 30 to 34 years\", \"From 15 to 19 years\", \"From 25 to 29 years\", \"From 20 to 24 years\", \"From 55 to 59 years\", \"90 years or over\", \"From 85 to 89 years\"]\n  ) {\n    region\n    source\n    timestamp\n    survey\n    dimensions\n    value\n  }\n}",
+    "variables": {
+        "pilot_nuts3": "Trento"
+    }
+}

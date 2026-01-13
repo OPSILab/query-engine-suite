@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+
+  query_engine:
+    image: engineeringopsilab/query_engine
+    pull_policy: always
+    build:
+      context: https://github.com/BeOpen-project/minio-sql-connector.git
+      dockerfile: ./Query-Engine/query-engine-dockerfile
+    container_name: query_engine
+    restart: always
+    ports:
+      - "3000:3000"  
+    volumes:
+      - ./config.docker.js:/app/config.js
+
+ 

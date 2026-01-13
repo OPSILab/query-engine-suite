@@ -1,0 +1,6 @@
+{
+    "query": "query FetchPopulationBySexAge($pilot_nuts3: String!) {\n  datapointsV2(\n    survey: \"demo_r_pjangrp3\"\n    dimensions: [$pilot_nuts3]\n    exclude: [\"undefined\", \"Unknown\", \"Total\"]\n  ) {\n    region\n    source\n    timestamp\n    survey\n    dimensions\n    value\n  }\n}",
+    "variables": {
+        "pilot_nuts3": "Trento"
+    }
+}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .form-group input[type="text"] {
+            width: 200px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+            margin-right: 10px;
+        }
+        .form-group label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        textarea {
+            width: calc(100% - 20px);
+            min-height: 100px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+            display: block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Query</h2>
+        <div class="form-group">
+            <label for="keyInput">Key:</label>
+            <input type="text" id="keyInput" name="keyInput" placeholder="Inserisci chiave">
+        </div>
+        <div class="form-group">
+            <label for="valueInput">Value:</label>
+            <input type="text" id="valueInput" name="valueInput" placeholder="Inserisci valore">
+            <button id="addButton">Submit</button>
+        </div>
+        <br>
+        <div>
+            <label for="resultsTextarea">Risultati:</label>
+        </div>
+        <textarea id="resultsTextarea" name="resultsTextarea" readonly></textarea>
+    </div>
+
+    <script>
+        document.getElementById('addButton').addEventListener('click', function() {
+            const key = document.getElementById('keyInput').value;
+            const value = document.getElementById('valueInput').value;
+            const token = '';
+
+            if (key && value) {
+                fetch(`http://localhost:3000/api/query?${key}=${encodeURIComponent(value)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('resultsTextarea').value = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    document.getElementById('resultsTextarea').value = 'Error: ' + error;
+                });
+            } else {
+                alert('Please enter both key and value.');
+            }
+        });
+    </script>
+</body>
+</html>

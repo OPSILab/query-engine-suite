@@ -1,0 +1,15 @@
+query ExampleQuery {
+   datapoints(
+    survey: "nama_10r_3gdp"
+    sortBy: "year"
+    sortOrder: "asc"
+    dimensions: ["Lovech", "Euro per inhabitant"]
+  ) {
+    region
+    source
+    timestamp
+    survey
+    dimensions
+    value
+  }
+}

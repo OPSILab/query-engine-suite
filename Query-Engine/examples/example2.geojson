@@ -1,0 +1,37 @@
+{
+    "type": "FeatureCollection",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "fid": 11,
+                "id": "urn:ngsi-ld:Spotted:Naples:UrbanGreenIndex:659fcdd61e270ef271e05295:11",
+                "address": "",
+                "min": -0.013008007779717445,
+                "max": 0.69080924987792969,
+                "mean": 0.49593553780603628,
+                "count": 11845,
+                "value": 0.49593553780603628
+            },
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [
+                                14.177652,
+                                40.874322
+                            ]
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}
