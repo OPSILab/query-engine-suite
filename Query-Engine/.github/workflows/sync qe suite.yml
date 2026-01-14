@@ -1,4 +1,4 @@
-name: Sync Query Engine to query engine suite
+name: Debug commit author (Query-Engine)
 
 on:
   push:
@@ -9,44 +9,43 @@ on:
   workflow_dispatch:
 
 jobs:
-  push-subtree:
+  debug:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo figlia
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  
+          fetch-depth: 0
 
-      - name: Exit if commit is from bot
+      - name: Log last commit (branch)
         run: |
-          AUTHOR=$(git log -1 --pretty=format:'%an')
-          if [[ "$AUTHOR" == "github-actions[bot]" ]]; then
-            echo "Last commit was made by bot, exiting."
-            exit 0
-          fi
+          echo "=== LAST COMMIT (branch) ==="
+          git log -1 --pretty=fuller
+          echo ""
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.1
-        with:
-          ssh-private-key: ${{ secrets.QUERY_ENGINE_SUITE_KEY }}
-
-      - name: Set Git user
+      - name: Log last commit touching Query-Engine
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "=== LAST COMMIT touching Query-Engine ==="
+          git log -1 --pretty=fuller -- Query-Engine
+          echo ""
 
-      - name: Add padre remote
-        run: git remote add qe-suite-remote git@github.com:OPSILab/query-engine-suite.git || echo "Remote already exists"
-
-      - name: Set branch name
-        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-
-      - name: Push subtree / create branch if needed
+      - name: Extract author info
         run: |
-          if git ls-remote --heads qe-suite-remote ${{ env.BRANCH_NAME }} | grep ${{ env.BRANCH_NAME }}; then
-            echo "Branch exists on remote, pushing subtree..."
-            git subtree push --prefix=Query-Engine qe-suite-remote ${{ env.BRANCH_NAME }}
-          else
-            echo "Branch does not exist on remote, creating branch..."
-            git push qe-suite-remote HEAD:refs/heads/${{ env.BRANCH_NAME }}
-          fi
+          echo "=== AUTHOR SUMMARY ==="
+
+          LAST_AUTHOR_BRANCH=$(git log -1 --pretty=format:'%an')
+          LAST_AUTHOR_QE=$(git log -1 --pretty=format:'%an' -- Query-Engine)
+
+          LAST_HASH_BRANCH=$(git log -1 --pretty=format:'%H')
+          LAST_HASH_QE=$(git log -1 --pretty=format:'%H' -- Query-Engine)
+
+          echo "Branch last author        : $LAST_AUTHOR_BRANCH"
+          echo "Query-Engine last author  : $LAST_AUTHOR_QE"
+          echo "Branch last commit hash   : $LAST_HASH_BRANCH"
+          echo "Query-Engine commit hash : $LAST_HASH_QE"
+
+      - name: List files changed in last Query-Engine commit
+        run: |
+          echo "=== FILES CHANGED IN Query-Engine COMMIT ==="
+          git show --name-only --pretty="" $(git log -1 --pretty=format:'%H' -- Query-Engine)
