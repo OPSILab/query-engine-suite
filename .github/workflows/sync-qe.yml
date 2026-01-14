@@ -5,7 +5,7 @@ on:
     branches:
       - '**'             
     paths:
-      - 'Query-Engine/**'
+      - 'Query-Engine/**'  
   workflow_dispatch:       
 
 jobs:
@@ -47,10 +47,15 @@ jobs:
 
       - name: Push subtree / create branch if needed
         run: |
-          if git ls-remote --heads qe-remote ${{ env.BRANCH_NAME }} | grep ${{ env.BRANCH_NAME }}; then
+         
+          git subtree split --prefix=Query-Engine -b tmp-subtree
+          
+          if git ls-remote --heads qe-remote ${{ env.BRANCH_NAME }} | grep -q ${{ env.BRANCH_NAME }}; then
             echo "Branch exists on remote, pushing subtree..."
-            git subtree push --prefix=Query-Engine qe-remote ${{ env.BRANCH_NAME }}
+            git push qe-remote tmp-subtree:${{ env.BRANCH_NAME }}
           else
             echo "Branch does not exist on remote, creating branch..."
-            git push qe-remote HEAD:refs/heads/${{ env.BRANCH_NAME }}
+            git push qe-remote tmp-subtree:refs/heads/${{ env.BRANCH_NAME }}
           fi
+          
+          git branch -D tmp-subtree
