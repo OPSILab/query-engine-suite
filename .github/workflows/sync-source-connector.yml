@@ -1,0 +1,48 @@
+name: Sync Source Connector
+
+on:
+  push:
+    branches:
+      - '**'             
+    paths-ignore:
+      - '.github/**'      
+  workflow_dispatch:       
+
+jobs:
+  push-subtrees:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fullstack
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SOURCE_CONNECTOR_KEY }}
+
+      - name: Set Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set branch name
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Add qe remote
+        run: git remote add sc-remote git@github.com:OPSILab/source-connector.git || echo "Remote already exists"
+
+      - name: Pull latest from subtree
+        run: |
+          git subtree pull --prefix=Source-Connector sc-remote ${{ env.BRANCH_NAME }} --squash || echo "No changes to pull"
+
+      - name: Push subtree / create branch if needed
+        run: |
+          if git ls-remote --heads sc-remote ${{ env.BRANCH_NAME }} | grep ${{ env.BRANCH_NAME }}; then
+            echo "Branch exists on remote, pushing subtree..."
+            git subtree push --prefix=Source-Connector sc-remote ${{ env.BRANCH_NAME }}
+          else
+            echo "Branch does not exist on remote, creating branch..."
+            git push sc-remote HEAD:refs/heads/${{ env.BRANCH_NAME }}
+          fi
