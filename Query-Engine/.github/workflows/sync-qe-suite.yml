@@ -1,38 +1,52 @@
-name: Notify Parent Repo
+name: Sync Query Engine
 
 on:
   push:
     branches:
-      - '**'
-  workflow_dispatch:
+      - '**'             
+  workflow_dispatch:       
 
 jobs:
-  notify-parent:
+  push-subtrees:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout fullstack
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Exit if last commit is from bot
-        run: |
-          AUTHOR=$(git log -1 --pretty=format:'%an')
-          if [[ "$AUTHOR" == "github-actions[bot]" ]]; then
-            echo "Last commit was made by bot, exiting."
-            exit 0
-          fi
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.QUERY_ENGINE_KEY }}
 
-      - name: Send repository_dispatch to parent
+      - name: Set Git user
         run: |
-          curl -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.DISPATCH_TOKEN }}" \
-            https://api.github.com/repos/OPSILab/query-engine-suite/dispatches \
-            -d '{
-              "event_type": "sync-query-engine",
-              "client_payload": {
-                "branch": "'${GITHUB_REF#refs/heads/}'"
-              }
-            }'
-            
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set branch name
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Clone repo padre
+        run: |
+          cd ..
+          git clone git@github.com:OPSILab/query-engine-suite.git
+          cd query-engine-suite
+
+      - name: Add qe remote
+        run: git remote add qe-remote git@github.com:OPSILab/query-engine.git || echo "Remote already exists"
+
+      - name: Pull latest from subtree
+        run: |
+          git subtree pull --prefix=Query-Engine qe-remote ${{ env.BRANCH_NAME }} --squash || echo "No changes to pull"
+
+      - name: Push branch / create branch if needed
+        run: |          
+          if git ls-remote --heads origin ${{ env.BRANCH_NAME }} | grep -q ${{ env.BRANCH_NAME }}; then
+            echo "Branch exists on remote, pushing subtree..."
+            git push origin ${{ env.BRANCH_NAME }}
+          else
+            echo "Branch does not exist on remote, creating branch..."
+            git push origin HEAD:refs/heads/${{ env.BRANCH_NAME }}
+          fi
