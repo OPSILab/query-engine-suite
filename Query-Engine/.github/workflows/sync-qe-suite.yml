@@ -1,19 +1,37 @@
-name: Sync Query Engine to query engine suite
+name: Notify Parent Repo
 
 on:
   push:
     branches:
-      - '**'  
+      - '**'
   workflow_dispatch:
 
 jobs:
-  sync-to-suite:
+  notify-parent:
     runs-on: ubuntu-latest
     steps:
-    - name: Trigger sync on parent repo
-      run: |
-        curl -X POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          https://api.github.com/repos/OPSILab/query-engine-suite/dispatches \
-          -d '{"event_type":"sync-query-engine"}'
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Exit if last commit is from bot
+        run: |
+          AUTHOR=$(git log -1 --pretty=format:'%an')
+          if [[ "$AUTHOR" == "github-actions[bot]" ]]; then
+            echo "Last commit was made by bot, exiting."
+            exit 0
+          fi
+
+      - name: Send repository_dispatch to parent
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.DISPATCH_TOKEN }}" \
+            https://api.github.com/repos/OPSILab/query-engine-suite/dispatches \
+            -d '{
+              "event_type": "sync-query-engine",
+              "client_payload": {
+                "branch": "'${GITHUB_REF#refs/heads/}'"
+              }
+            }'
