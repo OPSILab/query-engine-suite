@@ -6,6 +6,8 @@ on:
       - '**'             
     paths:
       - 'Query-Engine/**'  
+  repository_dispatch:
+    types: [sync-query-engine, sync-source-connector]
   workflow_dispatch:       
 
 jobs:
