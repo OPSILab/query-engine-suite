@@ -1,0 +1,53 @@
+name: Sync Query Engine
+
+on:
+  push:
+    branches:
+      - '**'             
+    paths:
+      - 'Query-Engine/**'  
+  workflow_dispatch:       
+
+jobs:
+  push-subtrees:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fullstack
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.QUERY_ENGINE_KEY }}
+
+      - name: Set Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set branch name
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Add qe remote
+        run: git remote add qe-remote git@github.com:OPSILab/query-engine.git || echo "Remote already exists"
+
+      - name: Pull latest from subtree
+        run: |
+          git subtree pull --prefix=Query-Engine qe-remote ${{ env.BRANCH_NAME }} --squash || echo "No changes to pull"
+
+      - name: Push subtree / create branch if needed
+        run: |
+         
+          git subtree split --prefix=Query-Engine -b tmp-subtree
+          
+          if git ls-remote --heads qe-remote ${{ env.BRANCH_NAME }} | grep -q ${{ env.BRANCH_NAME }}; then
+            echo "Branch exists on remote, pushing subtree..."
+            git push qe-remote tmp-subtree:${{ env.BRANCH_NAME }}
+          else
+            echo "Branch does not exist on remote, creating branch..."
+            git push qe-remote tmp-subtree:refs/heads/${{ env.BRANCH_NAME }}
+          fi
+          
+          git branch -D tmp-subtree
