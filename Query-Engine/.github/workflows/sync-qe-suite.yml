@@ -1,9 +1,9 @@
 name: Sync Query Engine
 
 on:
-  push:
-    branches:
-      - '**'             
+  push:    
+    branches-ignore:
+      - main       
   workflow_dispatch:       
 
 jobs:
