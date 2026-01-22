@@ -250,6 +250,16 @@ const resolvers = {
           'Il parametro "survey" è obbligatorio per questa query.'
         )
       }
+      
+      // Campi da rendere case-insensitive
+      const caseInsensitiveFields = ['source', 'survey', 'surveyName', 'region']
+
+      caseInsensitiveFields.forEach(field => {
+        if (query[field] && typeof query[field] === 'string') {
+          // Converti in regex case-insensitive
+          query[field] = { $regex: new RegExp(`^${query[field]}$`, 'i') }
+        }
+      })
 
       let dimensionKeysCache = null
 
