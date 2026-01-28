@@ -65,6 +65,8 @@ services:
       #- .:/workspace:cached
       command: sleep infinity
 
+      
+
   libretranslate:
     image: libretranslate/libretranslate:latest
     container_name: libretranslate
