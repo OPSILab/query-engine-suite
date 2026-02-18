@@ -245,11 +245,10 @@ const resolvers = {
 
       const query = { ...otherFilters };
 
-      if (!query.survey) {
-        throw new Error('Il parametro "survey" è obbligatorio.');
+      if (query.survey) {
+        query.survey = query.survey.toUpperCase().replace(/\./g, "");
       }
-      query.survey = query.survey.toUpperCase().replace(/\./g, ""); // Normalizza input utente
-
+      
       const fieldsToNormalize = ["source", "surveyName", "region"];
       fieldsToNormalize.forEach((field) => {
         if (query[field] && typeof query[field] === "string") {
