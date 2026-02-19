@@ -2,6 +2,7 @@ const Source = require("../models/Source");
 const Datapoint = require("../models/Datapoint");
 const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
+const logger = require('percocologger')
 
 const resolvers = {
   Query: {
@@ -141,7 +142,7 @@ const resolvers = {
 
       if (andClauses.length > 0) query.$and = andClauses
 
-      console.log(
+      logger.info(
         'MongoDB Query:',
         util.inspect(query, { depth: null, colors: true })
       )
@@ -261,10 +262,12 @@ const resolvers = {
       const getDimensionKeys = async () => {
         if (dimensionKeysCache) return dimensionKeysCache;
 
+        logger.info("Query Datapoint.find")
         const sampleDatapoints = await Datapoint.find({ survey: query.survey })
           .select("dimensions")
           .lean()
           .exec();
+        logger.info("Query Datapoint.find done")
 
         dimensionKeysCache = [
           ...new Set(
@@ -279,6 +282,7 @@ const resolvers = {
             })
           ),
         ];
+        logger.info("return dimensionsKeysCache")
         return dimensionKeysCache;
       };
 
@@ -308,6 +312,8 @@ const resolvers = {
           });
         });
       }
+
+      logger.debug("Filtro inclusione dimensioni fatto")
 
       // Filtro esclusione dimensioni
       /*
@@ -340,6 +346,7 @@ const resolvers = {
 
       // Filtro per dimensione specifica (filterBy index)
       if (typeof filterBy === "number" && filter.length > 0) {
+        logger.debug("Find un datapoint se il filtro è su una dimensione specifica")
         const sampleDoc = await Datapoint.findOne({ survey: query.survey })
           .select("dimensions")
           .lean()
@@ -388,6 +395,7 @@ const resolvers = {
 
       if (andClauses.length > 0) query.$and = andClauses;
 
+      logger.debug("Pre pipeline")
       // Pipeline di aggregazione
       const pipeline = [
         { $match: query },
@@ -436,6 +444,7 @@ const resolvers = {
         );
       }
 
+      logger.debug("ordinamento")
       // Ordinamento
       if (sortBy.length > 0) {
         const sortByArray = Array.isArray(sortBy) ? sortBy : [sortBy];
@@ -448,7 +457,7 @@ const resolvers = {
 
         sortByArray.forEach((field, i) => {
           const order = sortOrderArray[i]?.toUpperCase() === "DESC" ? -1 : 1;
-          console.log(sortOrderArray[i]);
+          logger.info(sortOrderArray[i]);
 
           if (dimensionKeys.includes(field)) {
             // Gestisci ordinamento per entrambi i formati
@@ -531,11 +540,11 @@ const resolvers = {
         },
       });
 
-      console.log("MongoDB Query Dinamica:", JSON.stringify(pipeline, null, 2));
+      logger.info("MongoDB Query Dinamica:", JSON.stringify(pipeline, null, 2));
 
-      console.log("Esecuzione query...");
+      logger.info("Esecuzione query...");
       const datapoints = await Datapoint.aggregate(pipeline).exec();
-      console.log(`Trovati datapoints.`);
+      logger.info(`Trovati datapoints.`);
 
       if (lang && lang !== "en") {
         return await translateDataPointsBatch(datapoints, lang);
