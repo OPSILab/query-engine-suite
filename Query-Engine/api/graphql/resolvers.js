@@ -1,13 +1,11 @@
 const Source = require("../models/Source");
 const Datapoint = require("../models/Datapoint");
+const Dimensions = require("../models/Dimensions");
 const QueryCache = require("../models/QueryCache")
+const QueriesMap = require("../models/QueriesMap")
 const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
 const logger = require("percocologger")
-
-function encodeUpper(str) {
-  return str.replace(/[A-Z]/g, c => `_|${c.toLowerCase()}`);
-}
 
 const resolvers = {
   Query: {
@@ -20,11 +18,13 @@ const resolvers = {
 
     datapoints: async (_parent, args, { db }) => {
 
-      let encodedQuery = encodeUpper(JSON.stringify({ _parent, args, db }))
-      const CachedQuery = QueryCache(encodedQuery)
-      const cacheFound = await CachedQuery.find().lean()
-      if(cacheFound[0])
+      let queryIn = { query: JSON.stringify({ _parent, args, db }) }
+      let queried = await QueriesMap.find(queryIn)
+      if (Array.isArray(queried) && queried[0] || queried?.query) {
+        const CachedQuery = QueryCache(args.survey + " : " + (Array.isArray(queried) ? queried[0]._id : queried._id))
+        const cacheFound = await CachedQuery.find().lean()
         return cacheFound
+      }
       // Estrai tutti gli argomenti di "controllo" che hanno una logica speciale.
       const {
         sortBy = [],
@@ -56,10 +56,12 @@ const resolvers = {
       const getDimensionKeys = async () => {
         if (dimensionKeysCache) return dimensionKeysCache;
 
-        const sampleDatapoints = await Datapoint.find({ survey: query.survey })
+        logger.info("First find")
+        const sampleDatapoints = await Dimensions.find({ survey: query.survey })
           .select("dimensions")
           .lean()
           .exec();
+        logger.info("Found")
 
         dimensionKeysCache = [
           ...new Set(
@@ -106,10 +108,12 @@ const resolvers = {
 
       // Filtro per dimensione specifica (filterBy index)
       if (typeof filterBy === "number" && filter.length > 0) {
+        logger.info("Find one")
         const sampleDoc = await Datapoint.findOne({ survey: query.survey })
           .select("dimensions")
           .lean()
           .exec();
+        logger.info("Found one")
 
         let dimensionKey = null;
 
@@ -300,16 +304,20 @@ const resolvers = {
       console.log("MongoDB Query Dinamica:", JSON.stringify(pipeline, null, 2));
 
       console.log("Esecuzione query...");
-      const datapoints = await Datapoint.aggregate(pipeline).exec();
+      const datapoints = await Datapoint.aggregate(pipeline, { allowDiskUse: true }).exec();
       console.log(`Trovati datapoints.`);
 
+      let queryMap = (await QueriesMap.insertMany([queryIn]))[0]._id.toString()
+      const CachedQuery = QueryCache(args.survey + " : " + queryMap)
       if (lang && lang !== "en") {
         let translatedDatapoints = await translateDataPointsBatch(datapoints, lang);
         await CachedQuery.insertMany(translatedDatapoints)
         return translatedDatapoints
       }
 
+      logger.info(datapoints.length)
       await CachedQuery.insertMany(datapoints)
+      logger.info("inserted")
       return datapoints;
     },
   },
