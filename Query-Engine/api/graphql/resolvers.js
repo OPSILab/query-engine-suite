@@ -1,7 +1,13 @@
 const Source = require("../models/Source");
 const Datapoint = require("../models/Datapoint");
+const QueryCache = require("../models/QueryCache")
 const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
+const logger = require("percocologger")
+
+function encodeUpper(str) {
+  return str.replace(/[A-Z]/g, c => `_|${c.toLowerCase()}`);
+}
 
 const resolvers = {
   Query: {
@@ -11,8 +17,14 @@ const resolvers = {
     source: async (parent, { id }) => {
       return await Source.findById(id);
     },
-    
+
     datapoints: async (_parent, args, { db }) => {
+
+      let encodedQuery = encodeUpper(JSON.stringify({ _parent, args, db }))
+      const CachedQuery = QueryCache(encodedQuery)
+      const cacheFound = await CachedQuery.find().lean()
+      if(cacheFound[0])
+        return cacheFound
       // Estrai tutti gli argomenti di "controllo" che hanno una logica speciale.
       const {
         sortBy = [],
@@ -31,7 +43,7 @@ const resolvers = {
       if (query.survey) {
         query.survey = query.survey.toUpperCase().replace(/\./g, "");
       }
-      
+
       const fieldsToNormalize = ["source", "surveyName", "region"];
       fieldsToNormalize.forEach((field) => {
         if (query[field] && typeof query[field] === "string") {
@@ -292,9 +304,12 @@ const resolvers = {
       console.log(`Trovati datapoints.`);
 
       if (lang && lang !== "en") {
-        return await translateDataPointsBatch(datapoints, lang);
+        let translatedDatapoints = await translateDataPointsBatch(datapoints, lang);
+        await CachedQuery.insertMany(translatedDatapoints)
+        return translatedDatapoints
       }
 
+      await CachedQuery.insertMany(datapoints)
       return datapoints;
     },
   },
