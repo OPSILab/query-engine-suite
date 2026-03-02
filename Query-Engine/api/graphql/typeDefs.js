@@ -103,6 +103,28 @@ const typeDefs = gql`
       limit: Int
       lang: String
     ): [DataPoint!]!
+
+    datapoints0(
+      survey: String
+      source: String
+      region: String
+      geo: String
+      sex: String
+      age: String
+      year: String
+      unit: String
+      frequency: String
+      dimensions: [String]
+      exclude: [String]
+      filterBy: Int
+      filter: [String]
+      sortBy: [String]
+      sortOrder: [String]
+      timestamp: String
+      value: Float
+      limit: Int
+      lang: String
+    ): [DataPoint!]!
   }
 
   type Dimension {

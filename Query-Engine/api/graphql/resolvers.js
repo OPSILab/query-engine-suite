@@ -16,7 +16,7 @@ const resolvers = {
       return await Source.findById(id);
     },
 
-    datapoints: async (_parent, args, { db }) => {
+    datapoints0: async (_parent, args, { db }) => {
 
       let queryIn = { query: JSON.stringify({ _parent, args, db }) }
       let queried = await QueriesMap.find(queryIn)
@@ -320,6 +320,107 @@ const resolvers = {
       logger.info("inserted")
       return datapoints;
     },
+    datapoints: async (_parent, { survey, dimensions, exclude, filterBy, filter, sortBy, sortOrder = ['ASC'], limit }, { db }) => {
+      let queryIn = { query: JSON.stringify({ _parent, args: { survey, dimensions, exclude, filterBy, filter, sortBy, sortOrder, limit }, db }) }
+      let queried = await QueriesMap.find(queryIn)
+      if (Array.isArray(queried) && queried[0] || queried?.query) {
+        const CachedQuery = QueryCache(survey + " : " + (Array.isArray(queried) ? queried[0]._id : queried._id))
+        const cacheFound = await CachedQuery.find().lean()
+        return cacheFound
+      }
+      try {
+        const pipeline = [];
+
+        // --- Match survey case-insensitive ---
+        if (survey) {
+          pipeline.push({
+            $match: {
+              survey: { $regex: `^${survey}$`, $options: 'i' }
+            }
+          });
+        }
+
+        // --- Filtri su dimensions ---
+        const exprAnd = [];
+
+        if (dimensions && dimensions.length > 0) {
+          dimensions.forEach(val => {
+            exprAnd.push({
+              $in: [
+                val,
+                { $map: { input: { $objectToArray: "$dimensions" }, as: "d", in: "$$d.v" } }
+              ]
+            });
+          });
+        }
+
+        if (exclude && exclude.length > 0) {
+          exclude.forEach(val => {
+            exprAnd.push({
+              $not: {
+                $in: [
+                  val,
+                  { $map: { input: { $objectToArray: "$dimensions" }, as: "d", in: "$$d.v" } }
+                ]
+              }
+            });
+          });
+        }
+
+        if (filterBy !== undefined && filter && Array.isArray(filter) && filter.length > 0) {
+          // filterBy come indice della chiave nell'oggetto dimensions
+          exprAnd.push({
+            $in: [
+              { $arrayElemAt: [{ $map: { input: { $objectToArray: "$dimensions" }, as: "d", in: "$$d.v" } }, filterBy] },
+              filter
+            ]
+          });
+        }
+
+        if (exprAnd.length > 0) {
+          pipeline.push({ $match: { $expr: { $and: exprAnd } } });
+        }
+
+        // --- Ordinamento ---
+        if (sortBy && sortBy.length > 0) {
+          const sortStage = {};
+          sortBy.forEach((field, idx) => {
+            const order = (sortOrder[idx] || 'ASC').toUpperCase() === 'DESC' ? -1 : 1;
+            if (field === 'year') {
+              // aggiungi campo numerico per year
+              pipeline.push({
+                $addFields: { yearNumeric: { $toInt: "$dimensions.year" } }
+              });
+              sortStage['yearNumeric'] = order;
+            } else {
+              sortStage[`dimensions.${field}`] = order;
+            }
+          });
+          pipeline.push({ $sort: sortStage });
+        }
+
+        // --- Limite ---
+        if (limit) pipeline.push({ $limit: limit });
+
+        // --- Aggregazione finale ---
+        const datapoints = await Datapoint.aggregate(pipeline);
+
+        // --- Trasforma dimensions in array di valori e timestamp ISO ---
+        let queryMap = (await QueriesMap.insertMany([queryIn]))[0]._id.toString()
+        const CachedQuery = QueryCache(survey + " : " + queryMap)
+        logger.info(datapoints.length)
+        let savingDP = datapoints.map(dp => ({
+          ...dp,
+          dimensions: Object.values(dp.dimensions || []),
+          timestamp: dp.timestamp ? new Date(dp.timestamp).toISOString() : dp.timestamp,
+        }))
+        await CachedQuery.insertMany(savingDP)
+        return savingDP
+      } catch (err) {
+        console.error("Error querying datapoints2:", err);
+        throw err;
+      }
+    }
   },
 
   Mutation: {
