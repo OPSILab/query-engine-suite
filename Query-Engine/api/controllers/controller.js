@@ -1,6 +1,8 @@
 const service = require("../services/service.js")
 const logger = require('percocologger')
 const config = require('../../config')
+const fs = require("fs")
+const manageCollectionsView = fs.readFileSync("api/view/manage-collections.html", "utf-8")
 
 const queryMongo = async (req, res) => {
     logger.info(req.body, req.query)
@@ -95,6 +97,28 @@ module.exports = {
         catch (error) {
             logger.error(error)
             res.status(500).send(error.toString() == "[object Object]" ? error : error.toString())
+        }
+    },
+
+    manageCollections: async (req, res) => {
+        res.send(await service.manageCollections(manageCollectionsView));
+    },
+    deleteCollection: async (req, res) => {
+        const { collectionName } = req.body;
+
+        if (!collectionName || ['system.indexes', 'users', 'roles', 'datapoints', 'dimensions', 'entities', 'entries', 'keys', 'sources', 'values'].includes(collectionName)) {
+            return res.status(400).json({ message: 'Collection non valida' });
+        }
+
+        try {
+            await service.deleteCollection()
+            return res.json({ message: `Collection '${collectionName}' cancellata con successo.` });
+        } catch (err) {
+            if (err.codeName === 'NamespaceNotFound') {
+                return res.json({ message: `Collection '${collectionName}' non esiste.` });
+            }
+            logger.error(err);
+            return res.status(500).json({ message: 'Errore durante la cancellazione' });
         }
     }
 }

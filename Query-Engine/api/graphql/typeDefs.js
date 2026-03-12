@@ -13,27 +13,6 @@ const typeDefs = gql`
     data: Data
   }
 
-#  type DataPoint {
-#    id: ID!
-#    region: String!
-#    source: String!
-#    timestamp: String!
-#    survey: String!
-#    dimensions: [String!]!
-#    value: Float!
-#  }
-
-#  type DataPointV2 {
-#    source: String
-#    survey: String
-#    surveyName: String
-#    region: String
-#    fromUrl: String
-#    timestamp: String
-#    dimensions: [String]
-#    value: Float
-#  }
-
   type DataPoint {
     _id: String
     source: String
@@ -60,51 +39,7 @@ const typeDefs = gql`
   type Query {
     sources: [Source]
     source(id: ID!): Source
-
-#    datapoints(
-#      survey: String!
-#      sortBy: [String!]
-#      sortOrder: String!
-#      dimensions: [String!]!
-#      limit: Int
-#    ): [DataPoint!]!
-
-#    datapointsV2(
-#      source: String
-#      survey: String
-#      dimensions: [String!]
-#      region: String
-#      sortBy: [String!]
-#      sortOrder: [String!]
-#      limit: Int
-#      exclude: [String!]
-#      filterBy: Int
-#      filter: [String!]
-#    ): [DataPointV2]
-
     datapoints(
-      survey: String
-      source: String
-      region: String
-      geo: String
-      sex: String
-      age: String
-      year: String
-      unit: String
-      frequency: String
-      dimensions: [String]
-      exclude: [String]
-      filterBy: Int
-      filter: [String]
-      sortBy: [String]
-      sortOrder: [String]
-      timestamp: String
-      value: Float
-      limit: Int
-      lang: String
-    ): [DataPoint!]!
-
-    datapoints0(
       survey: String
       source: String
       region: String

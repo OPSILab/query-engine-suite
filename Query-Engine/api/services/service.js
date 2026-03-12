@@ -9,6 +9,7 @@ const config = require('../../config')
 const minioWriter = require("../../inputConnectors/minioConnector")
 const axios = require('axios')
 const client = require('../../inputConnectors/postgresConnector')
+const mongoose = require("mongoose")
 
 function bucketIs(record, bucket) {
     return (record?.s3?.bucket?.name == bucket || record?.bucketName == bucket)
@@ -26,6 +27,25 @@ function objectFilter(obj, prefix, bucket, visibility) {
 }
 
 module.exports = {
+
+    async listCollections() {
+        try {
+            const collections = await mongoose.connection.db.listCollections().toArray();
+            const collectionNames = collections.map(c => c.name);
+            return collectionNames;
+        } catch (err) {
+            logger.error(err);
+        }
+    },
+
+    async manageCollections(view) {
+        let collections = await this.listCollections()
+        return view.replace(/\/\/ here[\s\S]*?\/\/ to here/, "const dbCollections =" + JSON.stringify(collections));
+    },
+
+    async deleteCollection() {
+        await mongoose.connection.dropCollection(collectionName);
+    },
 
     async getKeys(prefix, bucketName, visibility, search) {
         if (visibility == "private")

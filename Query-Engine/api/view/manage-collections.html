@@ -1,0 +1,57 @@
+<html>
+
+<head>
+    <title>Delete Collections</title>
+</head>
+
+<body>
+    <h1>Delete Collections</h1>
+
+    <div id="buttons-container"></div>
+
+    <script>
+        // Lista di collection da ignorare
+        const ignoreCollections = ['system.indexes', 'users', 'roles', 'datapoints', 'dimensions', 'entities', 'entries', 'keys', 'sources', 'values'];
+
+        // here
+        const dbCollections = [];
+        // to here
+
+        const container = document.getElementById('buttons-container');
+
+        dbCollections.forEach(collection => {
+            if (!ignoreCollections.includes(collection)) {
+                // Crea il bottone
+                const button = document.createElement('button');
+                button.textContent = `Delete ${collection}`;
+                // Imposta l'onclick dinamicamente
+                button.onclick = () => deleteCollection(collection);
+                container.appendChild(button);
+                container.appendChild(document.createElement('br'));
+            }
+        });
+
+        // Funzione di esempio
+        function deleteCollection(name) {
+            console.log(`Deleting collection: ${name}`);
+            // qui metti la chiamata reale al backend per cancellare la collection
+        }
+    </script>
+
+    <div id="status" style="margin-top:20px;color:green;"></div>
+
+    <script>
+        async function deleteCollection(collectionName) {
+            if (!confirm('Sei sicuro di voler cancellare la collection ' + collectionName + '?')) return;
+            const res = await fetch('/delete-collection', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ collectionName })
+            });
+            const data = await res.json();
+            document.getElementById('status').innerText = data.message;
+        }
+    </script>
+</body>
+
+</html>
