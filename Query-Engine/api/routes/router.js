@@ -11,7 +11,7 @@ router.get(encodeURI("/keys"), auth, controller.getKeys)
 router.get(encodeURI("/values"), auth, controller.getValues)
 router.get(encodeURI("/entries"), auth, controller.getEntries)
 router.get(encodeURI("/minio/listObjects"), auth, controller.minioListObjects)
-router.get('/manage-collections', controller.manageCollections);
-router.delete('/delete-collection', controller.deleteCollection);
+//router.get('/manage-collections', controller.manageCollections);
+//router.delete('/delete-collection', controller.deleteCollection);
 
 module.exports = router
