@@ -53,7 +53,7 @@ module.exports = {
         return "all cache now empty"
     },
 
-    async deleteCollection() {
+    async deleteCollection(collectionName) {
         await mongoose.connection.dropCollection(collectionName);
     },
 

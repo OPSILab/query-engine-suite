@@ -111,7 +111,7 @@ module.exports = {
         }
 
         try {
-            await service.deleteCollection()
+            await service.deleteCollection(collectionName)
             return res.json({ message: `Collection '${collectionName}' cancellata con successo.` });
         } catch (err) {
             if (err.codeName === 'NamespaceNotFound') {
