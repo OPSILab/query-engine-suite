@@ -22,7 +22,7 @@ const resolvers = {
       let queryIn = { query: JSON.stringify({ _, args: { source, survey, dimensions, region, sortBy, sortOrder, limit, exclude, filterBy, filter, lang }, db }) }
       let queried = await QueriesMap.find(queryIn)
       if (Array.isArray(queried) && queried[0] || queried?.query) {
-        const CachedQuery = QueryCache(survey + " : " + (Array.isArray(queried) ? queried[0]._id : queried._id))
+        const CachedQuery = QueryCache("Cached" + (source || survey || dimensions.toString() || region || sortBy || sortOrder || limit || exclude || filterBy || filter || lang) + " : " + (Array.isArray(queried) ? queried[0]._id : queried._id))
         const cacheFound = await CachedQuery.find().lean()
         return cacheFound
       }
