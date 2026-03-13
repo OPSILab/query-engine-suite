@@ -43,7 +43,7 @@
     <script>
         async function deleteCollection(collectionName) {
             if (!confirm('Sei sicuro di voler cancellare la collection ' + collectionName + '?')) return;
-            const res = await fetch('/delete-collection', {
+            const res = await fetch('/api/delete-collection', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ collectionName })

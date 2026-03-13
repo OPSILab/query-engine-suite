@@ -43,6 +43,16 @@ module.exports = {
         return view.replace(/\/\/ here[\s\S]*?\/\/ to here/, "const dbCollections =" + JSON.stringify(collections));
     },
 
+    async emptyCache() {
+        let collections = await this.listCollections()
+        collections = collections.filter(coll => coll.substring(0, 6).toLowerCase() == "cached")
+        if (collections.includes("datapoints") || collections.includes("datapoint") || collections.includes("dimensions") || collections.includes("dimension"))
+            throw new Error("I was going to delete wrong collections!")
+        for (let coll of collections)
+            await mongoose.connection.dropCollection(coll);
+        return "all cache now empty"
+    },
+
     async deleteCollection() {
         await mongoose.connection.dropCollection(collectionName);
     },

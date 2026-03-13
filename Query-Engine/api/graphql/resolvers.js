@@ -122,7 +122,7 @@ const resolvers = {
         if (lang && lang !== "en")
           savingDP = await translateDataPointsBatch(savingDP, lang);
         let queryMap = (await QueriesMap.insertMany([queryIn]))[0]._id.toString()
-        const CachedQuery = QueryCache(survey + " : " + queryMap)
+        const CachedQuery = QueryCache("Cached" + (source || survey || dimensions.toString() || region || sortBy || sortOrder || limit || exclude || filterBy || filter || lang) + " : " + queryMap)
         await CachedQuery.insertMany(savingDP)
         return savingDP
       } catch (error) {
