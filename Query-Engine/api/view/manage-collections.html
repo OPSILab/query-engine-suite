@@ -7,7 +7,12 @@
 <body>
     <h1>Delete Collections</h1>
 
-    <div id="buttons-container"></div>
+    ```
+    <button onclick="selectAll()">Select All</button>
+    <button onclick="deselectAll()">Deselect All</button>
+    <button onclick="deleteSelected()">Delete Selected</button>
+
+    <div id="checkbox-container" style="margin-top:20px;"></div>
 
     <script>
         // Lista di collection da ignorare
@@ -17,41 +22,65 @@
         const dbCollections = [];
         // to here
 
-        const container = document.getElementById('buttons-container');
+        const container = document.getElementById('checkbox-container');
 
         dbCollections.forEach(collection => {
             if (!ignoreCollections.includes(collection)) {
-                // Crea il bottone
-                const button = document.createElement('button');
-                button.textContent = `Delete ${collection}`;
-                // Imposta l'onclick dinamicamente
-                button.onclick = () => deleteCollection(collection);
-                container.appendChild(button);
+
+                const label = document.createElement('label');
+
+                const checkbox = document.createElement('input');
+                checkbox.type = "checkbox";
+                checkbox.value = collection;
+                checkbox.className = "collection-checkbox";
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(" " + collection));
+
+                container.appendChild(label);
                 container.appendChild(document.createElement('br'));
             }
         });
 
-        // Funzione di esempio
-        function deleteCollection(name) {
-            console.log(`Deleting collection: ${name}`);
-            // qui metti la chiamata reale al backend per cancellare la collection
+        function selectAll() {
+            document.querySelectorAll('.collection-checkbox')
+                .forEach(cb => cb.checked = true);
+        }
+
+        function deselectAll() {
+            document.querySelectorAll('.collection-checkbox')
+                .forEach(cb => cb.checked = false);
+        }
+
+        async function deleteSelected() {
+
+            const selected = Array.from(
+                document.querySelectorAll('.collection-checkbox:checked')
+            ).map(cb => cb.value);
+
+            if (selected.length === 0) {
+                alert("Nessuna collection selezionata");
+                return;
+            }
+
+            if (!confirm("Sei sicuro di voler cancellare queste collections?\n\n" + selected.join('\n'))) return;
+
+            for (const collectionName of selected) {
+                const res = await fetch('/api/delete-collection', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ collectionName })
+                });
+
+                const data = await res.json();
+                document.getElementById('status').innerText = data.message;
+            }
         }
     </script>
 
     <div id="status" style="margin-top:20px;color:green;"></div>
+    ```
 
-    <script>
-        async function deleteCollection(collectionName) {
-            if (!confirm('Sei sicuro di voler cancellare la collection ' + collectionName + '?')) return;
-            const res = await fetch('/api/delete-collection', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ collectionName })
-            });
-            const data = await res.json();
-            document.getElementById('status').innerText = data.message;
-        }
-    </script>
 </body>
 
 </html>
