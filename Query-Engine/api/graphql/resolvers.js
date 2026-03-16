@@ -26,6 +26,7 @@ const resolvers = {
         args.survey = args.survey.toUpperCase()
       const { source, survey, dimensions, region, sortBy, sortOrder = 'ASC', limit, exclude, filterBy, filter, lang } = args
       let queryIn = { query: JSON.stringify({ _, args, db }) }
+      logger.info(queryIn)
       let queried = await QueriesMap.find(queryIn)
       if (Array.isArray(queried) && queried[0] || queried?.query) {
         const CachedQuery = QueryCache(buildCachePrefix(args) + (Array.isArray(queried) ? queried[0]._id : queried._id))
