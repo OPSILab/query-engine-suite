@@ -7,6 +7,11 @@ const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
 const logger = require("percocologger")
 
+function buildCachePrefix(args) {
+  const { source, survey, dimensions, region, sortBy, sortOrder, limit, exclude, filterBy, filter, lang } = args
+  return ("Cached" + (source || survey || dimensions.toString() || region || sortBy || sortOrder || limit || exclude || filterBy || filter || lang) + " : ")
+}
+
 const resolvers = {
   Query: {
     sources: async () => {
@@ -16,13 +21,14 @@ const resolvers = {
       return await Source.findById(id);
     },
 
-    datapoints: async (_, { source, survey, dimensions, region, sortBy, sortOrder = 'ASC', limit, exclude, filterBy, filter, lang }, { db }) => {
-      if (survey)
-        survey = survey.toUpperCase()
-      let queryIn = { query: JSON.stringify({ _, args: { source, survey, dimensions, region, sortBy, sortOrder, limit, exclude, filterBy, filter, lang }, db }) }
+    datapoints: async (_, args, { db }) => {
+      if (args.survey)
+        args.survey = args.survey.toUpperCase()
+      const { source, survey, dimensions, region, sortBy, sortOrder = 'ASC', limit, exclude, filterBy, filter, lang } = args
+      let queryIn = { query: JSON.stringify({ _, args, db }) }
       let queried = await QueriesMap.find(queryIn)
       if (Array.isArray(queried) && queried[0] || queried?.query) {
-        const CachedQuery = QueryCache("Cached" + (source || survey || dimensions.toString() || region || sortBy || sortOrder || limit || exclude || filterBy || filter || lang) + " : " + (Array.isArray(queried) ? queried[0]._id : queried._id))
+        const CachedQuery = QueryCache(buildCachePrefix(args) + (Array.isArray(queried) ? queried[0]._id : queried._id))
         const cacheFound = await CachedQuery.find().lean()
         return cacheFound
       }
@@ -122,8 +128,10 @@ const resolvers = {
         if (lang && lang !== "en")
           savingDP = await translateDataPointsBatch(savingDP, lang);
         let queryMap = (await QueriesMap.insertMany([queryIn]))[0]._id.toString()
-        const CachedQuery = QueryCache("Cached" + (source || survey || dimensions.toString() || region || sortBy || sortOrder || limit || exclude || filterBy || filter || lang) + " : " + queryMap)
+        let collName = buildCachePrefix(args) + queryMap
+        const CachedQuery = QueryCache(collName)
         await CachedQuery.insertMany(savingDP)
+        await QueriesMap.findByIdAndUpdate(queryMap, { coll: collName })
         return savingDP
       } catch (error) {
         console.error(error);

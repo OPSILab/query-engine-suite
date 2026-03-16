@@ -4,6 +4,7 @@ const Source = require('../models/Source')
 const Value = require('../models/Value')
 const Key = require('../models/Key')
 const Entries = require('../models/Entries')
+const QueriesMap = require('../models/QueriesMap')
 const { json2csv } = require('../../utils/common')
 const config = require('../../config')
 const minioWriter = require("../../inputConnectors/minioConnector")
@@ -43,14 +44,30 @@ module.exports = {
         return view.replace(/\/\/ here[\s\S]*?\/\/ to here/, "const dbCollections =" + JSON.stringify(collections));
     },
 
-    async emptyCache() {
+    async resetCache(queriesMapfilter, cacheFilter) {
+        let ids
+        if (cacheFilter)
+            queriesMapfilter = (queriesMapfilter || []).concat(cacheFilter)
         let collections = await this.listCollections()
-        collections = collections.filter(coll => coll.substring(0, 6).toLowerCase() == "cached")
+        collections = collections.filter(coll => coll.toLowerCase().startsWith("cached"))
+        let queriesMap = await QueriesMap.find()
+        if (queriesMapfilter) {
+            queriesMap = queriesMap.filter(qm => queriesMapfilter.every(v => qm.query.toLowerCase().includes(v.toLowerCase())))
+            ids = queriesMap.map(doc => doc._id);
+            collections = collections.filter(coll =>
+                ids.some(id => coll.includes(id))
+            )
+        }
+        else
+            ids = queriesMap.map(doc => doc._id)
         if (collections.includes("datapoints") || collections.includes("datapoint") || collections.includes("dimensions") || collections.includes("dimension"))
             throw new Error("I was going to delete wrong collections!")
+        await QueriesMap.deleteMany({
+            _id: { $in: ids }
+        })
         for (let coll of collections)
             await mongoose.connection.dropCollection(coll);
-        return "all cache now empty"
+        return "done"
     },
 
     async deleteCollection(collectionName) {

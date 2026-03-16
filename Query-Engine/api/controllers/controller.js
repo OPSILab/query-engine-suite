@@ -46,6 +46,10 @@ module.exports = {
 
     querySQL,
 
+    resetCache: async (req, res) => {
+        res.send(await service.resetCache(req.query.queriesMapFilter,req.query.cacheFilter))
+    },
+
     query: async (req, res) => {
         logger.info("Query: \n", req.query, "\n", "Body : \n", req.body)
         if (req.body.mongoQuery)
