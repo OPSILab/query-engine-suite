@@ -29,6 +29,7 @@ const resolvers = {
       logger.info(queryIn)
       let queried = await QueriesMap.find(queryIn)
       if (Array.isArray(queried) && queried[0] || queried?.query) {
+        logger.info("Cache found")
         const CachedQuery = QueryCache(buildCachePrefix(args) + (Array.isArray(queried) ? queried[0]._id : queried._id))
         const cacheFound = await CachedQuery.find().lean()
         return cacheFound

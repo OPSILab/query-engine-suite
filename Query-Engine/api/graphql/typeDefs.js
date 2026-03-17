@@ -13,6 +13,8 @@ const typeDefs = gql`
     data: Data
   }
 
+  scalar JSON
+
   type DataPoint {
     _id: String
     source: String
@@ -22,7 +24,7 @@ const typeDefs = gql`
     region: String
     dimensions: [String]
     aggregationPeriod: String
-    value: Float
+    value: JSON
     exclude: [String]
     timestamp: String
     smartKeys: [String]
