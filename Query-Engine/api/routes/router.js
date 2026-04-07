@@ -12,6 +12,7 @@ router.get(encodeURI("/values"), auth, controller.getValues)
 router.get(encodeURI("/entries"), auth, controller.getEntries)
 router.get(encodeURI("/minio/listObjects"), auth, controller.minioListObjects)
 router.post(encodeURI("/minio/resetCache"), controller.resetCache)
+router.get(encodeURI("/assets/:name"), controller.assets)
 //router.get('/manage-collections', controller.manageCollections);
 //router.delete('/delete-collection', controller.deleteCollection);
 
