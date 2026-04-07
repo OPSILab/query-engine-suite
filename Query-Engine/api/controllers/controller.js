@@ -47,7 +47,16 @@ module.exports = {
     querySQL,
 
     resetCache: async (req, res) => {
-        res.send(await service.resetCache(req.query.queriesMapFilter,req.query.cacheFilter))
+        res.send(await service.resetCache(req.query.queriesMapFilter, req.query.cacheFilter))
+    },
+
+    assets: async (req, res) => {
+        try {
+            res.send(fs.readFileSync("examples/Eurostat/" + req.params.name, "utf-8"))
+        }
+        catch (error) {
+            res.status(500).send(error || error.message)
+        }
     },
 
     query: async (req, res) => {
