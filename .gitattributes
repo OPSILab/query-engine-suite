@@ -1,1 +1,1 @@
-Query-Engine/examples/Eurostat/EF_LUS_ALLCROPS.json
+Query-Engine/examples/Eurostat/EF_LUS_ALLCROPS.json filter=lfs diff=lfs merge=lfs -text
