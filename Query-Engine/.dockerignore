@@ -2,3 +2,4 @@ node_modules/
 config.js
 docker-compose.yaml
 Esempi query.txt
+examples/eurostat/EF_LUS_ALLCROPS.json
