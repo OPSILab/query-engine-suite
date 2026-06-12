@@ -69,7 +69,8 @@ module.exports = {
     graphQLQuery: true
   },
   apiConnectorConfig: {
-    pollInterval: 1000*60*60*24/*,
+    upsertRecords: false,
+    pollInterval: 1000 * 60 * 60 * 24/*,
     apiUrls: [
       {
         name: "Example API",
