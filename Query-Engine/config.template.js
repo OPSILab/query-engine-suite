@@ -59,6 +59,7 @@ module.exports = {
   },
   sourceConnectors: {
     minioConnector: true,
+    orionConnector: true,
     apiConnector: true
   },
   queryOptions: {
@@ -66,5 +67,28 @@ module.exports = {
     advancedSearch: true,
     SQLQuery: true,
     graphQLQuery: true
+  },
+  apiConnectorConfig: {
+    pollInterval: 1000*60*60*24/*,
+    apiUrls: [
+      {
+        name: "Example API",
+        url: "https://example.com/api/data",
+        headers: {
+          "Authorization": {
+            type: "bearerToken",
+            authProfile: "basic",
+            credentials: {
+              username: "username",
+              password: "password"
+            },
+            authUrl: {
+              value: "https://example.com/api/token",
+              requestType: "POST"
+            }
+          }
+        }
+      }
+    ]*/
   }
 }

@@ -2,3 +2,4 @@ node_modules/
 logs/
 survey_list.txt
 *.sandbox.*
+Source-Connector/docker-compose.dev.yml

@@ -7,8 +7,8 @@ const datapointSchema = new mongoose.Schema({
   region: String,
   fromUrl: String,
   timestamp: String,
-  dimensions: Object,
+  
   value: Number
 }, {strict: false});
 
-module.exports = mongoose.model('Datapoint', datapointSchema);
+module.exports = mongoose.model('datapointsmock', datapointSchema);
