@@ -50,6 +50,18 @@ module.exports = {
         res.send(await service.resetCache(req.query.queriesMapFilter, req.query.cacheFilter))
     },
 
+    backupCache: async (req, res) => {
+        res.send(await service.backupCache(req.query.queriesMapFilter, req.query.cacheFilter))
+    },
+
+    restoreCache: async (req, res) => {
+        res.send(await service.restoreCache(req.query.queriesMapFilter, req.query.cacheFilter, req.query.timestamp))
+    },
+
+    resetBackup: async (req, res) => {
+        res.send(await service.resetBackup(req.query.queriesMapFilter, req.query.cacheFilter))
+    },
+
     assets: async (req, res) => {
         try {
             res.send(fs.readFileSync("examples/Eurostat/" + req.params.name, "utf-8"))

@@ -118,7 +118,10 @@ const resolvers = {
           pipeline.push({ $limit: limit });
         }
 
+        logger.info("Pipeline built")
+        logger.info(util.inspect(pipeline, { depth: null }))
         const datapoints = await Datapoint.aggregate(pipeline);
+        logger.info("Datapoints fetched: ", datapoints.length)
 
         // Convert timestamp to datetime format
         let savingDP = datapoints.map(datapoint => {
