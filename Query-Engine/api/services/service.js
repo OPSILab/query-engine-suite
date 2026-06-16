@@ -30,12 +30,12 @@ function objectFilter(obj, prefix, bucket, visibility) {
 
 }
 
-async function resetCache(queriesMapfilter, cacheFilter) {
+/*async function resetCache(queriesMapfilter, cacheFilter) {
     const { collections, queriesMap } = await filterCollections(queriesMapfilter, cacheFilter, QueriesMap)
     for (let coll of collections)
         await mongoose.connection.dropCollection(coll);
     return "done"
-}
+}*/
 
 async function listCollections() {
     try {
@@ -47,7 +47,7 @@ async function listCollections() {
     }
 }
 
-async function filterCollections(queriesMapfilter, cacheFilter, Collection, BackupCollection) {
+/*async function filterCollections(queriesMapfilter, cacheFilter, Collection, BackupCollection) {
     let ids
     if (cacheFilter)
         queriesMapfilter = (queriesMapfilter || []).concat(cacheFilter)
@@ -71,7 +71,7 @@ async function filterCollections(queriesMapfilter, cacheFilter, Collection, Back
         _id: { $in: ids }
     })
     return { collections, queriesMap }
-}
+}*/
 
 module.exports = {
 
