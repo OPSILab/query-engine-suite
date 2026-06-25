@@ -1,0 +1,38 @@
+
+---
+
+# 🎨 CSS (`assets/css/style.css`)
+
+```css
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+header {
+  background: #111827;
+  padding: 15px;
+}
+
+nav a {
+  margin-right: 15px;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+main {
+  padding: 20px;
+}
+
+h1, h2, h3 {
+  color: #f8fafc;
+}
+
+code {
+  background: #1e293b;
+  padding: 2px 5px;
+  border-radius: 4px;
+}

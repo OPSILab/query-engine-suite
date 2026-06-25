@@ -1,0 +1,10 @@
+title: Query Engine Suite
+description: Distributed query system over heterogeneous data sources
+theme: minima
+
+markdown: kramdown
+kramdown:
+  input: GFM
+
+plugins:
+  - jekyll-mermaid
