@@ -21,5 +21,5 @@ The system can be deployed using Docker.
 ## Example
 
 ```bash
-docker-compose up --build
+docker-compose up 
 ```

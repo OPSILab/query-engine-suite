@@ -1,34 +1,61 @@
-.mermaid .messageText, 
-.mermaid .loopText, 
-.mermaid .noteText,
-.mermaid text {
-  fill: #ffffff !important;
-  color: #ffffff !important;
+:root {
+  --bg: radial-gradient(circle at top, #0b1220, #05070f);
+  --text: #e5e7eb;
+
+  --header-bg: rgba(17, 24, 39, 0.7);
+  --border: rgba(255, 255, 255, 0.06);
+
+  --card-bg: rgba(17, 24, 39, 0.6);
+
+  --primary: #3b82f6;
+  --primary-hover: #8b5cf6;
+
+  --link: #93c5fd;
+  --link-hover: #dbeafe;
+
+  --code-bg: #0f172a;
+  --code-text: #7dd3fc;
+}
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --text: #0f172a;
+
+  --header-bg: rgba(255, 255, 255, 0.85);
+  --border: #e2e8f0;
+
+  --card-bg: #ffffff;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+
+  --link: #2563eb;
+  --link-hover: #1e40af;
+
+  --code-bg: #f1f5f9;
+  --code-text: #0f172a;
 }
 body {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: Inter, system-ui, sans-serif;
   margin: 0;
   padding: 0;
 
-  background: radial-gradient(circle at top, #0b1220, #05070f);
-  color: #e5e7eb;
+  background: var(--bg);
+  color: var(--text);
 }
-
 header {
   position: sticky;
   top: 0;
 
-  background: rgba(17, 24, 39, 0.7);
+  background: var(--header-bg);
   backdrop-filter: blur(12px);
 
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 
   padding: 18px 24px;
 }
-
 nav a {
   margin-right: 14px;
-  color: #93c5fd;
+  color: var(--link);
 
   text-decoration: none;
   font-weight: 500;
@@ -41,56 +68,42 @@ nav a {
 
 nav a:hover {
   background: rgba(59, 130, 246, 0.15);
-  color: #dbeafe;
+  color: var(--link-hover);
 }
-
 main {
-  padding: 32px;
-  max-width: 1100px;
-  margin: 0 auto;
+  padding: 40px 64px;
+  max-width: 900px;
+  margin: 0;  
 }
-
-h1, h2, h3 {
-  color: #f9fafb;
-  letter-spacing: -0.02em;
-}
-
-h1 {
-  font-size: 2.2rem;
-}
-
-h2 {
-  margin-top: 2rem;
-}
-
 code {
-  background: #0f172a;
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+
   padding: 3px 6px;
   border-radius: 6px;
-  color: #7dd3fc;
-}
 
+  color: var(--code-text);
+}
 .card {
-  background: rgba(17, 24, 39, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+
   border-radius: 14px;
 
   padding: 20px;
   margin: 16px 0;
 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.3);
 }
-
 button {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
   border: none;
 
   color: white;
@@ -100,9 +113,4 @@ button {
   cursor: pointer;
 
   transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-button:hover {
-  transform: translateY(-1px);
-  opacity: 0.9;
 }

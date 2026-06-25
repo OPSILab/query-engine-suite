@@ -18,6 +18,24 @@
       <a href="{{ '/source-connector.html' | relative_url }}">Source Connector</a>
       <a href="{{ '/authentication.html' | relative_url }}">Authentication</a>
       <a href="{{ '/docker.html' | relative_url }}">Docker</a>
+      <button onclick="toggleTheme()">🌓</button>
+
+      <script>
+        function toggleTheme() {
+          const root = document.documentElement;
+
+          const current = root.getAttribute("data-theme");
+          const next = current === "light" ? "dark" : "light";
+
+          root.setAttribute("data-theme", next);
+          localStorage.setItem("theme", next);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+          const saved = localStorage.getItem("theme") || "dark";
+          document.documentElement.setAttribute("data-theme", saved);
+        });
+      </script>
     </nav>
   </header>
 
@@ -27,10 +45,12 @@
 
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    
-    mermaid.initialize({ 
+
+    mermaid.initialize({
       startOnLoad: false,
-      theme: 'dark'
+      theme: document.documentElement.getAttribute("data-theme") === "light"
+        ? "default"
+        : "dark"
     });
 
     document.addEventListener("DOMContentLoaded", async function () {
