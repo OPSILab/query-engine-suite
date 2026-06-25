@@ -2,13 +2,20 @@
 
 ```mermaid
 graph TD
-  A[Source Connector] --> B[MongoDB Cache]
-  A --> C[PostgreSQL Cache]
 
-  B --> D[Query Engine]
-  C --> D[Query Engine]
+  %% Client layer
+  A[Client / API Consumer] --> D[Query Engine]
 
+  %% Orchestration layer
+  D --> B[MongoDB Cache]
+  D --> C[PostgreSQL Cache]
+
+  %% External orchestration targets
   D --> E[MinIO]
   D --> F[Orion API]
   D --> G[External APIs]
+
+  %% Optional ingestion flow (se esiste davvero push)
+  S[Source Connector] --> B
+  S --> C
 ```
