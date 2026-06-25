@@ -1,9 +1,3 @@
-
----
-
-# Query Engine (`query-engine.md`)
-
-```md
 ---
 layout: default
 title: Query Engine

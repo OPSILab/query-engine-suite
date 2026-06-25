@@ -1,25 +1,4 @@
 ---
-
-## Flow
-
-```mermaid
-sequenceDiagram
-  participant Client
-  participant QueryEngine
-  participant JWTValidator
-
-  Client->>QueryEngine: Request with JWT
-  QueryEngine->>JWTValidator: Validate token
-  JWTValidator-->>QueryEngine: OK / Reject
-  QueryEngine-->>Client: Response
-
-
----
-
-# Authentication (`authentication.md`)
-
-```md
----
 layout: default
 title: Authentication
 ---
@@ -39,4 +18,18 @@ The system supports JWT-based authentication.
 
 ## Configuration
 
-Public key must be defined in:
+Public key must be defined in `config.js`
+
+## Flow
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant QueryEngine
+  participant JWTValidator
+
+  Client->>QueryEngine: Request with JWT
+  QueryEngine->>JWTValidator: Validate token
+  JWTValidator-->>QueryEngine: OK / Reject
+  QueryEngine-->>Client: Response
+```

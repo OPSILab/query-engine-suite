@@ -1,9 +1,4 @@
----
-layout: default
-title: Architecture
----
-
-# System Architecture
+## Architecture
 
 ```mermaid
 graph TD
@@ -16,3 +11,4 @@ graph TD
   D --> E[MinIO]
   D --> F[Orion API]
   D --> G[External APIs]
+```

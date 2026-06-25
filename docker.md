@@ -1,9 +1,3 @@
-
----
-
-# Docker (`docker.md`)
-
-```md
 ---
 layout: default
 title: Docker
@@ -28,3 +22,4 @@ The system can be deployed using Docker.
 
 ```bash
 docker-compose up --build
+```

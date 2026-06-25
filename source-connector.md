@@ -45,3 +45,4 @@ graph LR
   A[External Sources] --> B[Source Connector]
   B --> C[MongoDB]
   B --> D[PostgreSQL]
+```
