@@ -4,6 +4,12 @@
 <head>
   <meta charset="UTF-8">
   <title>{{ page.title }}</title>
+  <script>
+    (function () {
+      const theme = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
 </head>
 
