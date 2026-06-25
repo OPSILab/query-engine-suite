@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>{{ page.title }}</title>
@@ -24,11 +25,32 @@
     {{ content }}
   </main>
 
-  <!-- Mermaid must be loaded AFTER content -->
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ startOnLoad: true });
+    
+    mermaid.initialize({ startOnLoad: false });
+
+    document.addEventListener("DOMContentLoaded", async function () {
+      const mermaidBlocks = document.querySelectorAll('pre.highlight code.language-mermaid, pre code.language-mermaid');
+
+      mermaidBlocks.forEach(function (codeBlock) {
+        const rawCode = codeBlock.textContent;
+
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        mermaidDiv.textContent = rawCode;
+
+        const preBlock = codeBlock.closest('pre');
+        if (preBlock) {
+          preBlock.parentNode.insertBefore(mermaidDiv, preBlock);
+          preBlock.remove();
+        }
+      });
+
+      await mermaid.run();
+    });
   </script>
 
 </body>
+
 </html>
