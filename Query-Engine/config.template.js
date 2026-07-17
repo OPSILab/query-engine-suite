@@ -23,27 +23,36 @@ module.exports = {
     password: '',
     port: 5432
   },
-  mapEndpoint: "http://localhost:8081/api/map/transform",
+  mapEndpoint: "http://localhost:5500/api/map/transform",
+  sessionEndpoint: "http://localhost:5500/api/output?",
   mapID: "",
   orion: {
+    protocol: "http",
     subscribe: true,
     deleteAllDuplicateSubscriptions: true,
     attrWithUrl: "datasetUrl",
-    orionBaseUrl: "http://localhost:1027",
-    notificationUrl: "http://host.docker.internal:3000/api/orion/subscribe",
-    fiwareService: "service",
-    fiwareServicePath: "/service"
+    orionBaseUrl: "http://localhost:1026",
+    hostname: "localhost",
+    port: 1026,
+    ngsiBrokerUrl: "https://dx-lab.it/",
+    notificationUrl: "http://localhost:3000/api/orion/subscribe",
+    fiwareService: "",
+    fiwareServicePath: "",
+    checkSubscriptionInterval: 0,
+    recreateSubscriptionAtInterval: 0,
+    useNgsiBroker: false
   },
   logLevel: "info",
   syncInterval: 86400000,
   doNotSyncAtStart: false,
+  upsertRecords: true,
   delays: 1,
   queryAllowedExtensions: ["csv", "json", "geojson"],
   parseCompatibilityMode: 0,
   port: 3000,
   updateOwner: "later",
   writeLogsOnFile: true,
-  mongo: "mongodb://localhost:27017/Minio-Mongo", // mongo url
+  mongo: "mongodb://localhost:22000/Minio-Mongo", // mongo url
   authConfig: {
     idmHost: "https://platform.beopendep.it/auth",
     clientId: "",
@@ -101,7 +110,26 @@ module.exports = {
             }
           }
         }
-      }
+      },            
+      {
+                name: "Orion pagination test",
+                pagination: {
+                    offsetParam: "offset",
+                    limitParam: "limit",
+                    limit: 2,
+                    offset: 0,
+                    condition: (response) => (response.data.length > 0)
+                },
+                url: "http://localhost:1026/ngsi-ld/v1/entities?type=DistributionDCAT-AP",
+      },
+      {
+                name: "Get batch example",
+                batch: {
+                    from: "http://url-to-get-batch.com/api/batch",
+                    param: "id"
+                },
+                url: "https://url-to-use-batch/{batch}"
+            }
     ]*/
   }
 }
