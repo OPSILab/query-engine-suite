@@ -71,6 +71,12 @@ export class QueryEngineComponent implements OnInit {
   valueVerified = [];
   keyVerified = [];
 
+  // Passed down to <autocomplete [ready]="autocompleteDataReady">. See the
+  // long comment on AutocompleteComponent.ngOnChanges() for why this exists
+  // instead of having each autocomplete instance poll this.keys/values/
+  // entries on its own.
+  autocompleteDataReady = false;
+
   constructor(
     private beopenAPI: BeopenAPIService,
     public translation: TranslateService,
@@ -92,9 +98,17 @@ export class QueryEngineComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     this.getUser();
-    this.keys = Array.from(new Set((await this.beopenAPI.getKeys()).map(e => this.stringify(e.key))));
-    this.values = Array.from(new Set((await this.beopenAPI.getValues()).map(e => this.stringify(e.value))));
-    this.entries = await this.beopenAPI.getEntries();
+    try {
+      this.keys = Array.from(new Set((await this.beopenAPI.getKeys()).map(e => this.stringify(e.key))));
+      this.values = Array.from(new Set((await this.beopenAPI.getValues()).map(e => this.stringify(e.value))));
+      this.entries = await this.beopenAPI.getEntries();
+    } finally {
+      // Set regardless of success/failure/emptiness, so the autocomplete
+      // fields below stop waiting either way instead of showing "loading..."
+      // forever if one of the calls above rejects or genuinely comes back
+      // with zero keys/values/entries.
+      this.autocompleteDataReady = true;
+    }
   }
 
   getUser() {
@@ -192,34 +206,57 @@ export class QueryEngineComponent implements OnInit {
           obj.pilot = record.bucketName;
           obj.insertedBy = record.insertedBy; //TODO now it is empty
 
-          // BucketObjectsPush assumes every record looks like a minio bucket
-          // object (a bucketName + a "bucket/folder/file.ext" path) and
-          // silently drops anything that doesn't fit that shape - in
-          // particular it drops a record whenever the file name it derives
-          // ends up equal to the bucket name it derives, which is exactly
-          // what happens for a plain MongoDB document with no path/bucket
-          // fields at all (every such record collapses to the same `name`
-          // for both). That's real, observed backend data (see the SMARTERA
-          // language-views example), not an edge case - so track whether it
-          // actually landed anywhere rather than assuming it did.
-          const countBefore = this.generalSharedBucketObjects.length + this.pilotSharedBucketObjects.length + this.userBucketObjects.length;
-          this.BucketObjectsPush(record, this.isAdmin, this.generalSharedBucketObjects, this.pilotSharedBucketObjects, this.userBucketObjects, record.pilot);
-          const countAfter = this.generalSharedBucketObjects.length + this.pilotSharedBucketObjects.length + this.userBucketObjects.length;
-          const shownAsFile = countAfter > countBefore;
+          // TODO(technical debt, acknowledged - not something to silently
+          // work around forever): BucketObjectsPush assumes every record is
+          // a minio bucket object and, lacking a real `bucketName`, tries to
+          // guess one by splitting `.name` on "/" and treating the first
+          // segment as the bucket and the last as the file. For a plain
+          // MongoDB document that isn't a bucket object at all, `.name` is
+          // just ordinary text with no such structure - and this guess
+          // doesn't fail safely on that: it can silently drop the record
+          // (SMARTERA's "Italian", "English" - name has no "/", so bucket
+          // and fileName both end up equal to the whole name and get
+          // filtered out) or, worse, silently fabricate a bogus file entry
+          // out of it (SMARTERA's "Bosnian/Croatian/Serbian" - that's a
+          // language name, not a path, but its "/"s are enough to make
+          // BucketObjectsPush invent bucket:"Bosnian" + file:"Serbian" and
+          // show it as if it were a real file with no size or date). Both
+          // are real, observed backend data, not edge cases. The real fix
+          // is decoupling the query-result shape from Minio's file model on
+          // both backend and frontend so results are represented
+          // generically regardless of source; until then, only attempt this
+          // classification when the record actually carries a real
+          // `bucketName` - the one field BucketObjectsPush can't fall back
+          // to guessing - so a record that isn't a bucket object never gets
+          // put through a heuristic built for one. It still isn't lost: the
+          // raw-record fallback below always keeps it available.
+          if (record.bucketName) {
+            this.BucketObjectsPush(record, this.isAdmin, this.generalSharedBucketObjects, this.pilotSharedBucketObjects, this.userBucketObjects, record.pilot);
+          }
 
           if (obj.element !== undefined && obj.element !== null) {
             // Advanced search / Query SQL can extract a nested element out
             // of a matched file (obj.element is the JSON/GeoJSON sub-object
-            // the query matched inside it) - worth its own card alongside
-            // the file card above, since it's more specific information.
+            // the query matched inside it) - more specific than the raw
+            // record, so show that instead of it.
             const bucketName = record.bucketName || record.s3?.bucket?.name || "?";
             this.extractedElements.push({ name: bucketName + "/" + (obj.name || record.name || "?"), element: obj.element });
-          } else if (!shownAsFile) {
-            // Not shaped like a bucket file (so nothing was shown above)
-            // and no nested element either - show the raw record itself so
-            // the result isn't silently lost. This is the common case for
-            // queries against non-minio Mongo collections.
-            this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: record });
+          } else {
+            // No nested element to be more specific than - show the raw
+            // item as-is. Simple search (isRawQuery: "yes" on the request)
+            // carries the true unprocessed source document in obj.raw,
+            // distinct from `record` (which may already be a reshaped/
+            // projected view) - prefer that when present, since it's what
+            // was actually asked to be shown here. Other modes (and any
+            // response that doesn't carry a `raw` field at all, like the
+            // SMARTERA language-views example) fall back to `record`,
+            // which for those is already the closest thing to "raw" we have.
+            // It's already sitting in memory from the response regardless
+            // of whether BucketObjectsPush above also classified it as a
+            // bucket file, so this costs nothing, and it's the only place
+            // some results (non-file Mongo documents) show up at all.
+            const rawData = obj.raw !== undefined ? obj.raw : record;
+            this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: rawData });
           }
         } catch (itemErr) {
           skipped++;

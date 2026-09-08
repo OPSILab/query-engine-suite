@@ -440,9 +440,9 @@ module.exports = {
     async simpleQuery(query) {
         let result = await Source.find(query)
         for (let obj of result) {
-            obj.fileName = obj.name.split("/")[obj.name.split("/").lenght - 2]
+            obj.fileName = obj.name?.split("/")[obj.name.split("/").length - 2]
             obj.path = obj.name
-            obj.fileType = obj.name.split(".")[obj.name.split(".").length - 1]
+            obj.fileType = obj.name?.split(".")[obj.name.split(".").length - 1]
         }
         logger.info(result)
         return result
@@ -471,7 +471,7 @@ module.exports = {
         for (let obj of await minioWriter.listObjects(bucket)) {
             try {
                 if (obj.size && obj.isLatest) {
-                    let objectGot = await minioWriter.getObject(bucket, obj.name, obj.name.split(".").pop())
+                    let objectGot = await minioWriter.getObject(bucket, obj.name, obj.name?.split(".").pop())
                     objects.push({ raw: objectGot, record: { ...obj, bucketName: bucket }, name: obj.name })
                 }
             }

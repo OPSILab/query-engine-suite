@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, OnInit, AfterViewInit, EventEmitter, Output, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, OnInit, OnChanges, AfterViewInit, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NbToastrService } from '@nebular/theme';
@@ -17,7 +17,7 @@ import { SharedService } from '../../../services/shared.service';
   templateUrl: './autocomplete.component.html',
   styleUrls: ['./autocomplete.component.scss'],
 })
-export class AutocompleteComponent implements OnInit, AfterViewInit {
+export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
 
   @Input() options;
   @Input() placeholder;
@@ -32,12 +32,15 @@ export class AutocompleteComponent implements OnInit, AfterViewInit {
   @Input() v;
   @Output() ver = new EventEmitter<any[]>();
   @Input() otherVerified;
+  // True once the parent has finished loading keys/values/entries (see
+  // QueryEngineComponent.autocompleteDataReady) - regardless of whether
+  // what it loaded turned out to be empty. See ngOnChanges() below for why
+  // this replaced polling on `options`/`entries` truthiness.
+  @Input() ready = false;
   page = 0;
   log = console;
   cachedOptions: any;
   cachedEntries;
-  interval: ReturnType<typeof setInterval>;
-  entriesInterval: ReturnType<typeof setInterval>;
 
   constructor(
     private configService: ConfigService,
@@ -50,20 +53,61 @@ export class AutocompleteComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     this.filteredOptions$ = of(this.options);
-    this.interval = setInterval(() => {
-      if (this.options && this.options[0]) {
-        clearInterval(this.interval);
-        this.cachedOptions = JSON.parse(JSON.stringify(this.options));
-        this.onChange();
+    // If `ready` is already true at mount (e.g. a row added via "+ Add
+    // filter" well after the parent's initial load finished), ngOnChanges()
+    // below still fires once with the initial value - see its comment -
+    // so there's nothing else to do here.
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    // `ready` used to be inferred by polling this.options/this.entries
+    // every 2s and treating "first element is truthy" as "data has
+    // arrived" - which can never come true when the parent's data has
+    // genuinely loaded but is empty (an empty array's [0] is always
+    // falsy), so the UI got stuck showing "loading..." forever instead of
+    // "no suggestions". It could also under-report readiness the other
+    // way: this.options and this.entries are populated by two independent
+    // parent fetches that resolve at different times, so whichever one
+    // finished first would already look "ready" while the other was still
+    // legitimately loading.
+    //
+    // `ready` is a single explicit flag the parent flips once after both
+    // fetches settle (see QueryEngineComponent.ngOnInit's finally block),
+    // so it can only mean "keys/values/entries have their final values
+    // now, whatever they are" - fixing both problems at once. Angular
+    // calls ngOnChanges with the initial value of every @Input on first
+    // render too, so a row that mounts after the parent is already ready
+    // (e.g. clicking "+ Add filter" later) resolves immediately here
+    // rather than waiting on a fresh poll cycle.
+    if (changes.ready && this.ready && this.cachedOptions === undefined) {
+      this.cachedOptions = JSON.parse(JSON.stringify(this.options || []));
+      this.cachedEntries = JSON.parse(JSON.stringify(this.entries || []));
+      // `this.input` (the #autoInput ViewChild) doesn't exist yet if
+      // `ready` was already true the moment this row was created - e.g. a
+      // row added via "+ Add filter" after the parent finished loading:
+      // Angular runs ngOnChanges before ngAfterViewInit, so on that first
+      // call there's no view yet to read/refresh. ngAfterViewInit() below
+      // does this same refresh once the view exists, so it's safe to just
+      // skip it here in that case rather than throwing on this.input being
+      // undefined.
+      if (this.input) {
+        // Deferred to a fresh macrotask rather than called inline: this
+        // runs from ngOnChanges, i.e. *during* Angular's own change
+        // detection pass over QueryEngineComponent's template. onChange()
+        // -> verified() synchronously emits `ver`, which the parent
+        // handles by mutating keyVerified[i]/valueVerified[i] - a value
+        // this same row's *other* <autocomplete> reads via
+        // [otherVerified] a few bindings later in that same pass. Doing
+        // that mutation synchronously trips Angular's dev-mode
+        // ExpressionChangedAfterItHasBeenCheckedError (NG0100), because a
+        // binding it already checked this pass changes under it. The old
+        // interval-based version never hit this because setInterval
+        // callbacks always run in their own macrotask, safely after CD
+        // has finished - setTimeout(..., 0) here restores that same
+        // boundary without going back to polling.
+        setTimeout(() => this.onChange(), 0);
       }
-    }, 2000);
-    this.entriesInterval = setInterval(() => {
-      if (this.entries && this.entries[0]) {
-        clearInterval(this.entriesInterval);
-        this.cachedEntries = JSON.parse(JSON.stringify(this.entries));
-        this.onChange();
-      }
-    }, 2000);
+    }
   }
 
   ngAfterViewInit() {
@@ -78,7 +122,18 @@ export class AutocompleteComponent implements OnInit, AfterViewInit {
     // would overwrite what the user types afterwards.
     if (this.value) {
       this.input.nativeElement.value = this.value;
-      this.onChange();
+    }
+    // Covers the case ngOnChanges() above had to skip: `ready` (and so
+    // cachedOptions/cachedEntries) was already set before this view -
+    // and this.input - existed. Refresh now that it does, so the dropdown
+    // still resolves instead of waiting on an @Input change that already
+    // happened and won't happen again.
+    if (this.value || this.cachedOptions !== undefined) {
+      // Same reasoning as the setTimeout in ngOnChanges() above -
+      // ngAfterViewInit() also runs as part of Angular's own change
+      // detection pass, so onChange()'s synchronous `ver` emission needs
+      // the same macrotask boundary to avoid NG0100.
+      setTimeout(() => this.onChange(), 0);
     }
   }
 
