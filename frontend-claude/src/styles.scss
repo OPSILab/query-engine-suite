@@ -6,7 +6,269 @@
   @include nb-theme-global();
 };
 
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+// Design tokens for the redesigned UI (home/query-engine/autocomplete/
+// sql-editor). Nebular's own components (nb-select panel, nb-datepicker
+// calendar, nb-autocomplete dropdown, toastr) keep their default Nebular
+// theme - restyling those internals wasn't worth the risk for this pass -
+// but everything we built by hand reads these variables. Same palette as
+// the design mockup shared earlier, just written as static light/dark
+// pairs instead of a tweakable accent (no properties-panel here).
+:root,
+html[data-ds-theme='light'] {
+  --ds-bg: #FAFAF8;
+  --ds-bg-elevated: #FFFFFF;
+  --ds-bg-sunken: #F1F1EE;
+  --ds-border: #E2E2DE;
+  --ds-border-strong: #CBCBC5;
+  --ds-text: #1C1C19;
+  --ds-text-muted: #6B6B63;
+  --ds-text-faint: #9C9C93;
+  --ds-accent: #0E7490;
+  --ds-accent-text: #FFFFFF;
+  --ds-accent-soft: rgba(14, 116, 144, 0.10);
+  --ds-accent-border: rgba(14, 116, 144, 0.35);
+  --ds-shadow: rgba(28, 28, 25, 0.06);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #92400E;
+  --ds-str: #166534;
+  --ds-num: #6D28D9;
+  --ds-op: var(--ds-text-muted);
+}
+
+html[data-ds-theme='dark'] {
+  --ds-bg: #18191B;
+  --ds-bg-elevated: #202124;
+  --ds-bg-sunken: #131416;
+  --ds-border: #2B2C2F;
+  --ds-border-strong: #3A3B3E;
+  --ds-text: #ECECEA;
+  --ds-text-muted: #9C9D9F;
+  --ds-text-faint: #6C6D70;
+  --ds-accent: #5EEAD4;
+  --ds-accent-text: #06282A;
+  --ds-accent-soft: rgba(94, 234, 212, 0.14);
+  --ds-accent-border: rgba(94, 234, 212, 0.4);
+  --ds-shadow: rgba(0, 0, 0, 0.35);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #FCD34D;
+  --ds-str: #86EFAC;
+  --ds-num: #C4B5FD;
+  --ds-op: var(--ds-text-muted);
+}
+
 html, body {
   height: 100%;
   margin: 0;
+}
+
+body {
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+.ds-mono {
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+
+// Shared building blocks used across the redesigned components (home,
+// query-engine, autocomplete, sql-editor). Angular scopes component SCSS to
+// its own template by default, so anything reused across component
+// boundaries has to live here rather than being duplicated per component.
+
+.ds-field-label {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  font-weight: 500;
+}
+
+.ds-field-label--small {
+  font-size: 11.5px;
+}
+
+.ds-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// `a.ds-link` (not just `.ds-link`) is deliberate: NbLayoutComponent stamps
+// `nb-theme-{name}` on <body> whenever an <nb-layout> exists anywhere in the
+// app (see the invisible overlay-host one in app.component.ts), and
+// Nebular's own global stylesheet ships `.nb-theme-default a { color:
+// #3366ff; text-decoration: underline; ... }`. That selector's specificity
+// (one class + one element) beats a bare `.ds-link` class, so real links
+// rendered blue/underlined despite this block. Matching its specificity
+// here and keeping this rule later in the cascade (nb-install() runs at
+// the top of this file) makes ours win instead.
+a.ds-link {
+  font-size: 13px;
+  color: var(--ds-text-muted);
+  text-decoration: none;
+}
+
+a.ds-link:hover {
+  color: var(--ds-accent);
+}
+
+.ds-input,
+.ds-select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.ds-input {
+  width: 100%;
+}
+
+.ds-input::placeholder {
+  color: var(--ds-text-faint);
+}
+
+.ds-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-faint);
+  cursor: pointer;
+  flex: none;
+}
+
+.ds-icon-button:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+}
+
+.ds-ghost-button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ds-ghost-button:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+}
+
+.ds-ghost-button--add {
+  align-self: flex-start;
+  border-style: dashed;
+  border-color: var(--ds-border-strong);
+}
+
+.ds-primary-button {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--ds-accent);
+  color: var(--ds-accent-text);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ds-primary-button:hover {
+  filter: brightness(0.95);
+}
+
+.ds-pills {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ds-pill {
+  padding: 6px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ds-pill--active {
+  border-color: var(--ds-accent-border);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}
+
+.ds-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+  font-weight: 600;
+}
+
+.ds-badge--outline {
+  background: transparent;
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+}
+
+.ds-popover {
+  padding: 12px 14px;
+  max-width: 320px;
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border);
+  box-shadow: 0 4px 16px var(--ds-shadow);
+  font-size: 13px;
+}
+
+// Root-level <nb-layout> used ONLY as an anchor for Nebular's CDK overlay
+// container (see app.component.ts) - it renders no header/sidebar/column/
+// footer content of its own, so it should take up no visible space and
+// contribute none of the theme's default layout background/min-height.
+// The overlay container Nebular injects into it (toasts, popovers, the
+// datepicker, ...) sets its own `position: fixed` sizing via the CDK's
+// prebuilt overlay CSS, so it renders correctly even though its host here
+// is collapsed to 0x0.
+nb-layout.ds-overlay-host {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+
+  .layout {
+    min-height: 0;
+    background: transparent;
+  }
 }

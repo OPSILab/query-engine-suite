@@ -15,6 +15,7 @@ import { SharedService } from '../../../services/shared.service';
   selector: 'autocomplete',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './autocomplete.component.html',
+  styleUrls: ['./autocomplete.component.scss'],
 })
 export class AutocompleteComponent implements OnInit, AfterViewInit {
 

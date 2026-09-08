@@ -122,6 +122,22 @@ export class QueryEngineComponent implements OnInit {
     return this.form.get('mode').value;
   }
 
+  // Small helpers for the pill/tab controls in the redesigned template -
+  // they write to the exact same properties the rest of this component
+  // (and minioQuery()) already reads, just from a (click) instead of an
+  // nb-select's [(ngModel)].
+  setMode(m: string): void {
+    this.form.get('mode').setValue(m);
+  }
+
+  setType(t: string): void {
+    this.type = t;
+  }
+
+  setItemType(item: any, t: string): void {
+    item.type = t;
+  }
+
   demo() {
     this.lines = [
       {
@@ -149,12 +165,42 @@ export class QueryEngineComponent implements OnInit {
       this.pilotSharedBucketObjects = [];
       this.userBucketObjects = [];
       this.extractedElements = [];
-      for (let obj of queryResult) {
-        obj.objectPath = obj.record.name;
-        obj.pilot = obj.record.bucketName;
-        obj.insertedBy = obj.record.insertedBy; //TODO now it is empty
-        this.BucketObjectsPush(obj.record, this.isAdmin, this.generalSharedBucketObjects, this.pilotSharedBucketObjects, this.userBucketObjects, obj.record.pilot);
-        this.extractedElements.push({ name: (obj.record.bucketName || obj.record.s3.bucket.name) + "/" + obj.name, element: obj.element });
+
+      // Simple search (a GET) always came back as a bare array, which is
+      // the only shape the loop below ever handled. Advanced search / Query
+      // SQL (both POST /api/query) can come back wrapped - e.g. as
+      // { results: [...] } - depending on the backend route. If that's the
+      // actual cause of "results arrive but nothing renders" for those two
+      // modes, this normalizes it instead of silently iterating zero items.
+      const items = Array.isArray(queryResult)
+        ? queryResult
+        : (queryResult?.results || queryResult?.data || queryResult?.items || []);
+
+      if (!Array.isArray(queryResult)) {
+        console.warn("minioQuery(): response for mode", this.mode, "was not a bare array - unwrapped to", items.length, "item(s). Raw response:", queryResult);
+      }
+
+      let skipped = 0;
+      for (let obj of items) {
+        try {
+          // Some responses may already be the record itself rather than
+          // { record, name, element } - fall back to the item itself so a
+          // shape difference between modes doesn't throw away the whole
+          // batch (see the try/catch below either way).
+          const record = obj.record || obj;
+          obj.objectPath = record.name;
+          obj.pilot = record.bucketName;
+          obj.insertedBy = record.insertedBy; //TODO now it is empty
+          this.BucketObjectsPush(record, this.isAdmin, this.generalSharedBucketObjects, this.pilotSharedBucketObjects, this.userBucketObjects, record.pilot);
+          const bucketName = record.bucketName || record.s3?.bucket?.name || "?";
+          this.extractedElements.push({ name: bucketName + "/" + (obj.name || record.name || "?"), element: obj.element });
+        } catch (itemErr) {
+          skipped++;
+          console.error("minioQuery(): could not process one result item, skipping it - item was:", obj, itemErr);
+        }
+      }
+      if (skipped > 0) {
+        this.createToastr(NbGlobalLogicalPosition.BOTTOM_END, 'warning', "Some results could not be displayed", `${skipped} of ${items.length} result(s) had an unexpected shape - see the console for details.`);
       }
       this.sendData();
     }, err => {

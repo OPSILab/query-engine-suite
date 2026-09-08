@@ -1,47 +1,47 @@
 <div class="sql-editor">
-  <textarea
-    class="sql-editor__textarea"
-    nbInput
-    fullWidth
-    rows="10"
-    [placeholder]="placeholder"
-    [ngModel]="value"
-    (ngModelChange)="onInput($event)"
-  ></textarea>
+  <div class="sql-editor__box">
+    <pre class="sql-editor__highlight ds-mono" aria-hidden="true"><span
+      *ngFor="let tok of tokenize(value)"
+      [style.color]="tok.color"
+      [style.fontWeight]="tok.weight"
+    >{{ tok.text }}</span></pre>
+    <textarea
+      class="sql-editor__textarea ds-mono"
+      spellcheck="false"
+      [placeholder]="placeholder"
+      [ngModel]="value"
+      (ngModelChange)="onInput($event)"
+    ></textarea>
+  </div>
 
-  <div class="sql-editor__examples" *ngIf="suggestions?.length">
+  <div class="sql-editor__examples" *ngIf="examples?.length">
     <label class="sql-editor__examples-label">
       {{ 'Example queries' | translate }}
       <button
         type="button"
         nbPopoverTrigger="hover"
         [nbPopover]="examplesHint"
-        ghost
-        nbButton
-        status="primary"
-        size="tiny"
+        class="ds-icon-button"
+        aria-label="Info"
       >
-        <nb-icon icon="info-outline"></nb-icon>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
       </button>
     </label>
 
-    <button
-      type="button"
-      *ngFor="let suggestion of suggestions"
-      class="sql-editor__example"
-      nbButton
-      outline
-      status="basic"
-      size="small"
-      [title]="suggestion"
-      (click)="useSuggestion(suggestion)"
-    >
-      {{ previewOf(suggestion) }}
-    </button>
+    <div class="sql-editor__example-list">
+      <button
+        type="button"
+        *ngFor="let ex of examples"
+        class="sql-editor__example"
+        [class.sql-editor__example--active]="value === ex.sql"
+        [title]="ex.sql"
+        (click)="useExample(ex.sql)"
+      >{{ ex.label }}</button>
+    </div>
   </div>
 
   <ng-template #examplesHint>
-    <div class="sql-editor__hint">
+    <div class="ds-popover">
       {{ 'Click an example to insert it into the editor' | translate }}
     </div>
   </ng-template>

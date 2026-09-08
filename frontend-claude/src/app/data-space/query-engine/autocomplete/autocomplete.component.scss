@@ -1,0 +1,12 @@
+:host {
+  display: block;
+}
+
+// The visible input already gets the global .ds-input look (see
+// styles.scss) via its class - this just switches it to monospace, since
+// keys/values read better that way, matching the rest of the query
+// engine's data-ish text. Angular scopes this rule to the input in THIS
+// component's own template, so it doesn't need ::ng-deep.
+.ds-input {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}

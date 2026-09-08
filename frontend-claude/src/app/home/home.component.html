@@ -1,49 +1,62 @@
-<nb-layout>
-  <nb-layout-column>
-    <div class="page">
-      <div class="page__header">
-        <h4>Data Space — Query engine (standalone)</h4>
-        <div class="page__header-actions">
-          <nb-select [(ngModel)]="visibility" size="small">
-            <nb-option *ngFor="let v of visibilities" [value]="v">{{ v }}</nb-option>
-          </nb-select>
-          <a routerLink="/keycloak-auth/logout">Logout</a>
+<div class="ds-page">
+  <div class="ds-topbar">
+    <div class="ds-topbar__brand">
+      <span class="ds-topbar__name">Data Space</span>
+      <span class="ds-topbar__tag ds-mono">query engine</span>
+    </div>
+    <div class="ds-topbar__actions">
+      <select class="ds-select" [(ngModel)]="visibility" aria-label="Visibility">
+        <option *ngFor="let v of visibilities" [value]="v">{{ v }}</option>
+      </select>
+      <button
+        type="button"
+        class="ds-icon-button"
+        (click)="theme.toggle()"
+        [attr.aria-label]="theme.dark ? 'Passa al tema chiaro' : 'Passa al tema scuro'"
+      >
+        <svg *ngIf="!theme.dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        <svg *ngIf="theme.dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+      </button>
+      <a class="ds-link" routerLink="/keycloak-auth/logout">{{ 'Logout' | translate }}</a>
+    </div>
+  </div>
+
+  <ngx-query-engine
+    [visibility]="visibility"
+    (extractedElementsChange)="extractedElements = $event"
+    (generalSharedBucketObjectsChange)="generalSharedBucketObjects = $event"
+    (pilotSharedBucketObjectsChange)="pilotSharedBucketObjects = $event"
+    (userBucketObjectsChange)="userBucketObjects = $event"
+  ></ngx-query-engine>
+
+  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Your objects', items: userBucketObjects }"></ng-container>
+  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Shared with your pilot', items: pilotSharedBucketObjects }"></ng-container>
+  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Public objects', items: generalSharedBucketObjects }"></ng-container>
+
+  <div class="ds-results" *ngIf="extractedElements?.length">
+    <div class="ds-results__title">
+      <span>{{ 'Matched elements' | translate }}</span>
+      <span class="ds-badge">{{ extractedElements.length }}</span>
+    </div>
+    <pre class="ds-code-block ds-mono">{{ extractedElements | json }}</pre>
+  </div>
+</div>
+
+<ng-template #bucketList let-title="title" let-items="items">
+  <div class="ds-results" *ngIf="items?.length">
+    <div class="ds-results__title">
+      <span>{{ title | translate }}</span>
+      <span class="ds-badge">{{ items.length }}</span>
+    </div>
+    <div class="ds-results__list">
+      <div class="ds-result-row" *ngFor="let r of items">
+        <svg class="ds-result-row__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg>
+        <div class="ds-result-row__main">
+          <span class="ds-result-row__path ds-mono">{{ r.path }}</span>
+          <span class="ds-result-row__meta">{{ r.bucket }} · {{ formatSize(r.size) }} · {{ r.lastModified }}</span>
         </div>
-      </div>
-
-      <ngx-query-engine
-        [visibility]="visibility"
-        (extractedElementsChange)="extractedElements = $event"
-        (generalSharedBucketObjectsChange)="generalSharedBucketObjects = $event"
-        (pilotSharedBucketObjectsChange)="pilotSharedBucketObjects = $event"
-        (userBucketObjectsChange)="userBucketObjects = $event"
-      ></ngx-query-engine>
-
-      <div class="page__results" *ngIf="extractedElements?.length">
-        <h5>{{ 'Query results' | translate }}</h5>
-        <pre>{{ extractedElements | json }}</pre>
-      </div>
-
-      <!--
-        generalShared/pilotShared/userBucketObjects were already being
-        captured from ngx-query-engine's outputs but never actually shown
-        anywhere - only extractedElements was. For Advanced search / Query
-        SQL this is very likely why results that DID come back from the API
-        (visible in the network tab) never appeared on screen: whatever
-        BucketObjectsPush classified them as, this template just dropped it.
-      -->
-      <div class="page__results" *ngIf="userBucketObjects?.length">
-        <h5>{{ 'Your objects' | translate }} ({{ userBucketObjects.length }})</h5>
-        <pre>{{ userBucketObjects | json }}</pre>
-      </div>
-      <div class="page__results" *ngIf="pilotSharedBucketObjects?.length">
-        <h5>{{ 'Shared with your pilot' | translate }} ({{ pilotSharedBucketObjects.length }})</h5>
-        <pre>{{ pilotSharedBucketObjects | json }}</pre>
-      </div>
-      <div class="page__results" *ngIf="generalSharedBucketObjects?.length">
-        <h5>{{ 'Public objects' | translate }} ({{ generalSharedBucketObjects.length }})</h5>
-        <pre>{{ generalSharedBucketObjects | json }}</pre>
+        <span class="ds-badge ds-badge--outline">{{ r.source }}</span>
       </div>
     </div>
-  </nb-layout-column>
-</nb-layout>
+  </div>
+</ng-template>

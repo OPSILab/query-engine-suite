@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { ThemeService } from '../services/theme.service';
 
 // This used to be AppComponent's own content, before AppComponent became a
 // bare <router-outlet> to make room for the /keycloak-auth routes.
@@ -19,4 +20,14 @@ export class HomeComponent {
   pilotSharedBucketObjects: any[] = [];
   userBucketObjects: any[] = [];
   extractedElements: any[] = [];
+
+  // public: read directly from the template (theme.dark, theme.toggle()).
+  constructor(public theme: ThemeService) {}
+
+  formatSize(bytes: number): string {
+    if (bytes === null || bytes === undefined || isNaN(bytes)) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 }

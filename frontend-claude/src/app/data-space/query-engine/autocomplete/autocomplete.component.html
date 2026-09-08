@@ -1,5 +1,5 @@
-<input #autoInput nbInput type="text" (focus)="onChange()" (input)="onChange()" placeholder="Enter value"
-  [nbAutocomplete]="auto" fullWidth [placeholder]="placeholder | translate" />
+<input #autoInput class="ds-input" type="text" (focus)="onChange()" (input)="onChange()"
+  [nbAutocomplete]="auto" [placeholder]="placeholder | translate" />
 
 <nb-autocomplete #auto (selectedChange)="onSelectionChange($event)">
 

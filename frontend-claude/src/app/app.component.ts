@@ -5,6 +5,7 @@ import { environment } from '../environments/environment';
 import { OidcJWTToken } from './auth/oidc';
 import { ConfigService } from '@ngx-config/core';
 import { TranslateService } from '@ngx-translate/core';
+import { ThemeService } from './services/theme.service';
 
 /**
  * Adapted from the dashboard's AppComponent.
@@ -18,7 +19,20 @@ import { TranslateService } from '@ngx-translate/core';
  */
 @Component({
   selector: 'app-root',
-  template: '<router-outlet></router-outlet>',
+  // <nb-layout> is invisible on purpose (see the .ds-overlay-host rule in
+  // styles.scss): Nebular's NbOverlayContainerAdapter._createContainer()
+  // appends the CDK overlay container (used by NbToastrService, popovers,
+  // the datepicker, ...) as a child of *whatever <nb-layout> element last
+  // called setContainer() on it - if none exists anywhere in the app, that
+  // adapter's `this.container` stays undefined and every toast/popover
+  // throws `Cannot read properties of undefined (reading 'appendChild')`.
+  // The redesigned HomeComponent template dropped the <nb-layout> wrapper
+  // it used to render (it's all custom .ds-* markup now), so it's declared
+  // once here at the root instead - present on every route, empty (no
+  // projected header/sidebar/column/footer content), and zero-sized so it
+  // never affects visible layout; only the overlay container it hosts is
+  // meant to be seen.
+  template: '<nb-layout class="ds-overlay-host" aria-hidden="true"></nb-layout><router-outlet></router-outlet>',
 })
 export class AppComponent {
 
@@ -26,7 +40,11 @@ export class AppComponent {
     authService: NbAuthService,
     oauthStrategy: NbOAuth2AuthStrategy,
     private configs: ConfigService,
-    private translate: TranslateService) {
+    private translate: TranslateService,
+    // Injected here (rather than only in HomeComponent, which also uses
+    // it for the toggle button) so the theme attribute is applied as
+    // early as possible on boot instead of only once HomeComponent mounts.
+    themeService: ThemeService) {
 
     oauthStrategy.setOptions({
       name: 'oidc',
