@@ -136,12 +136,12 @@
   <div class="row">
     <div class="col-4">
       <autocomplete [otherVerified]="valueVerified[i]" [mode]="'key'" [options]="keys" [entries]="entries"
-        [v]="item.value" [placeholder]="'Key (E.g. name)'" (output)="onKeysChange($event, i)"
+        [v]="item.value" [value]="item.key" [placeholder]="'Key (E.g. name)'" (output)="onKeysChange($event, i)"
         (ver)="keyVerifiedChange($event, i)"></autocomplete>
     </div>
     <div class="col-4" *ngIf="item.type != 'Date'">
       <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [options]="values" [entries]="entries"
-        [key]="item.key" [placeholder]="'Value (E.g. Geo data)'" (output)="onValuesChange($event, i)"
+        [key]="item.key" [value]="item.value" [placeholder]="'Value (E.g. Geo data)'" (output)="onValuesChange($event, i)"
         (ver)="valueVerifiedChange($event, i)">
       </autocomplete>
     </div>

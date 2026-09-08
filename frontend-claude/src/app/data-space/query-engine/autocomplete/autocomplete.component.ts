@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, OnInit, EventEmitter, Output, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, OnInit, AfterViewInit, EventEmitter, Output, Input } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NbToastrService } from '@nebular/theme';
@@ -16,7 +16,7 @@ import { SharedService } from '../../../services/shared.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './autocomplete.component.html',
 })
-export class AutocompleteComponent implements OnInit {
+export class AutocompleteComponent implements OnInit, AfterViewInit {
 
   @Input() options;
   @Input() placeholder;
@@ -63,6 +63,22 @@ export class AutocompleteComponent implements OnInit {
         this.onChange();
       }
     }, 2000);
+  }
+
+  ngAfterViewInit() {
+    // The visible <input #autoInput> is intentionally uncontrolled (see the
+    // template): it's read via this.input.nativeElement.value rather than
+    // [(ngModel)], because typing shouldn't fight Angular change detection
+    // while suggestions stream in. That means it was never seeded from the
+    // `value` @Input either - a parent setting item.key/item.value (e.g. the
+    // "Demo" button in QueryEngineComponent) updated the model but the
+    // field on screen stayed blank. Set it once here, on the instance this
+    // *ngFor row actually mounts with; don't rebind it continuously or it
+    // would overwrite what the user types afterwards.
+    if (this.value) {
+      this.input.nativeElement.value = this.value;
+      this.onChange();
+    }
   }
 
   isPaired(optionValue, entries) {

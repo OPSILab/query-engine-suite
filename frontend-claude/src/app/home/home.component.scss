@@ -10,6 +10,12 @@
   justify-content: space-between;
 }
 
+.page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .page__results {
   margin-top: 2rem;
 

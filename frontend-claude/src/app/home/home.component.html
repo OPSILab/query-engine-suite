@@ -3,7 +3,12 @@
     <div class="page">
       <div class="page__header">
         <h4>Data Space — Query engine (standalone)</h4>
-        <a routerLink="/keycloak-auth/logout">Logout</a>
+        <div class="page__header-actions">
+          <nb-select [(ngModel)]="visibility" size="small">
+            <nb-option *ngFor="let v of visibilities" [value]="v">{{ v }}</nb-option>
+          </nb-select>
+          <a routerLink="/keycloak-auth/logout">Logout</a>
+        </div>
       </div>
 
       <ngx-query-engine
@@ -17,6 +22,27 @@
       <div class="page__results" *ngIf="extractedElements?.length">
         <h5>{{ 'Query results' | translate }}</h5>
         <pre>{{ extractedElements | json }}</pre>
+      </div>
+
+      <!--
+        generalShared/pilotShared/userBucketObjects were already being
+        captured from ngx-query-engine's outputs but never actually shown
+        anywhere - only extractedElements was. For Advanced search / Query
+        SQL this is very likely why results that DID come back from the API
+        (visible in the network tab) never appeared on screen: whatever
+        BucketObjectsPush classified them as, this template just dropped it.
+      -->
+      <div class="page__results" *ngIf="userBucketObjects?.length">
+        <h5>{{ 'Your objects' | translate }} ({{ userBucketObjects.length }})</h5>
+        <pre>{{ userBucketObjects | json }}</pre>
+      </div>
+      <div class="page__results" *ngIf="pilotSharedBucketObjects?.length">
+        <h5>{{ 'Shared with your pilot' | translate }} ({{ pilotSharedBucketObjects.length }})</h5>
+        <pre>{{ pilotSharedBucketObjects | json }}</pre>
+      </div>
+      <div class="page__results" *ngIf="generalSharedBucketObjects?.length">
+        <h5>{{ 'Public objects' | translate }} ({{ generalSharedBucketObjects.length }})</h5>
+        <pre>{{ generalSharedBucketObjects | json }}</pre>
       </div>
     </div>
   </nb-layout-column>
