@@ -1,0 +1,38 @@
+.sql-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.sql-editor__textarea {
+  width: 100%;
+  min-height: 220px;
+  font-family: monospace;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.sql-editor__examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sql-editor__examples-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sql-editor__example {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.sql-editor__hint {
+  max-width: 320px;
+}

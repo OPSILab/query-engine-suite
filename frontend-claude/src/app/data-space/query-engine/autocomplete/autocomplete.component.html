@@ -1,0 +1,14 @@
+<input #autoInput nbInput type="text" (focus)="onChange()" (input)="onChange()" placeholder="Enter value"
+  [nbAutocomplete]="auto" fullWidth [placeholder]="placeholder | translate" />
+
+<nb-autocomplete #auto (selectedChange)="onSelectionChange($event)">
+
+  <nb-option *ngFor="let option of filteredOptions$ | async" [value]="option">
+    {{ option }}
+  </nb-option>
+
+</nb-autocomplete>
+
+
+<input hidden="true" [(ngModel)]="input" (ngModelChange)="onInputChange($event)" />
+<input hidden="true" [(ngModel)]="otherVerified" (ngModelChange)="otherVerifiedChange($event)" />

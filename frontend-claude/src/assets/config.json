@@ -1,0 +1,12 @@
+{
+  "enableAuthentication": true,
+  "dashboardBaseURL": "http://localhost:4300",
+  "beopenApiBaseUrl": "http://localhost:4300",
+  "queryEngineBaseUrl": "http://localhost:3001",
+  "keycloak": {
+    "authProfile": "oidc",
+    "baseURL": "https://dx-lab.eng.it/auth/realms/smartera/protocol/openid-connect",
+    "accountURL": "https://dx-lab.eng.it/auth/realms/smartera/account",
+    "userURL": "https://dx-lab.eng.it/auth/realms/smartera/protocol/openid-connect/userinfo"
+  }
+}

@@ -1,0 +1,12 @@
+@import '../node_modules/@nebular/theme/styles/globals';
+@import '../node_modules/@nebular/theme/styles/theming';
+@import '../node_modules/@nebular/theme/styles/themes/default';
+
+@include nb-install() {
+  @include nb-theme-global();
+};
+
+html, body {
+  height: 100%;
+  margin: 0;
+}

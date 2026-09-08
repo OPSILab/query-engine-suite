@@ -1,0 +1,53 @@
+.center-component {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+nb-select {
+  width: 100%;
+}
+
+.simple-search {
+  width: 58%;
+  margin-left: 21%;
+}
+
+.nb-select-custom {
+  width: 100%;
+}
+
+::ng-deep nb-toast.status-success {
+  background: #00d68f;
+  border-color: #00d68f;
+  color: #00d68f;
+}
+
+.search-label {
+  display: block;
+}
+
+.row {
+  width: 105%;
+}
+
+.center-header {
+  text-align: center;
+  font-style: bold;
+  margin: auto;
+}
+
+nb-accordion {
+  border: 1px solid;
+}
+
+nb-accordion-item-header {
+  font-size: 1.2rem;
+  line-height: 1.6rem;
+  padding: 1.25rem 1.2rem;
+
+  @media screen and (min-width: 768px) {
+    font-size: 1.625rem;
+    line-height: 1rem;
+  }
+}

@@ -1,0 +1,187 @@
+<nb-accordion>
+
+  <nb-accordion-item>
+    <nb-accordion-item-header>
+      <label class="center-header">
+        {{ "queryEngine" | translate }}
+      </label>
+    </nb-accordion-item-header>
+    <nb-accordion-item-body>
+
+      <label [innerHTML]="'Query Mode Select' | translate" style="margin-left: 21%">
+      </label>
+      &nbsp;
+      <button ghost nbButton status="primary" [nbPopover]="popoverTemplate" nbPopoverTrigger="hover"
+        [nbPopoverContext]="{ text : 'Query Mode Select info' | translate } ">
+        <nb-icon icon="info-outline"></nb-icon>
+      </button>
+      &nbsp;
+      <button (click)="demo()" ghost nbButton status="primary">
+        Demo
+      </button>
+      <br />
+      <br />
+      <form [formGroup]="form" style="margin-left: 21%; width: 58%">
+        <nb-select formControlName="mode" fullWidth>
+          <nb-option *ngFor="let option of modes" [value]="option">{{ option }}</nb-option>
+        </nb-select>
+      </form>
+      <br />
+      <div *ngIf="mode == 'Advanced search'">
+        <label style="margin-left: 21%">
+          {{ "typeSelect" | translate }}
+        </label>
+        &nbsp;
+        <button [nbPopover]="popoverTemplate" nbPopoverTrigger="hover"
+          [nbPopoverContext]="{ text : 'File type select info' | translate } " ghost nbButton status="primary">
+          <nb-icon icon="info-outline"> </nb-icon>
+        </button>
+        <br />
+        <div *ngFor="let l of lines; let i = index" style="margin-left: 21%">
+          <ng-container *ngTemplateOutlet="
+              keyValueLine1;
+              context: { item: l, i: i }
+            "></ng-container>
+          <br />
+          <ng-container *ngTemplateOutlet="
+              keyValueLine2;
+              context: { item: l, i: i }
+            "></ng-container>
+        </div>
+      </div>
+      <div class="simple-search">
+        <label *ngIf="mode == 'Query SQL'">
+          {{ "Type the SQL query here" | translate }}</label>
+        <label *ngIf="mode == 'Simple search'">
+          {{ "Type the search key here" | translate }}</label>
+        <button *ngIf="mode == 'Query SQL'" nbPopoverTrigger="hover" [nbPopover]="popoverTemplate"
+          [nbPopoverContext]="{ text : 'Query SQL tooltip' | translate } " ghost nbButton status="primary">
+          <nb-icon icon="info-outline"> </nb-icon>
+        </button>
+        <button *ngIf="mode == 'Simple search'" [nbPopover]="popoverTemplate" nbPopoverTrigger="hover"
+          [nbPopoverContext]="{ text : 'Simple search tooltip' | translate } " ghost nbButton status="primary">
+          <nb-icon icon="info-outline"> </nb-icon>
+        </button>
+        <input *ngIf="mode == 'Simple search'" fullWidth nbInput [(ngModel)]="value" type="text"
+          [ngModelOptions]="{ standalone: true }" [placeholder]="'Value (E.g. BikeLane)' | translate" />
+      </div>
+
+      <div *ngIf="mode == 'Query SQL'" style="width: 58%; margin-left: 21%">
+        <bx-sql-editor [(value)]="sqlQuery"></bx-sql-editor>
+      </div>
+
+      <br />
+      <br />
+      <button nbButton type="submit" status="success" size="medium" shape="rectangle" class="center-component"
+        (click)="minioQuery()" style="margin-left: 21%">
+        <nb-icon style="color: rgb(255, 255, 255)" icon="eye-outline"></nb-icon>{{ "Apply Query" | translate
+        }}
+      </button>
+    </nb-accordion-item-body>
+  </nb-accordion-item>
+
+</nb-accordion>
+
+
+
+<ng-template #keyValueLine1 let-item="item" let-i="i">
+  <div style="width: 73.4%" *ngIf="!i">
+    <nb-select [(ngModel)]="type" class="nb-select-custom" fullWidth>
+      <nb-option *ngFor="let t of types" [value]="t">{{ t }}</nb-option>
+    </nb-select>
+  </div>
+  <div *ngIf="i">
+    <br />
+  </div>
+  <label>
+    {{ "Select the type of value to filter" | translate }}
+  </label>
+  &nbsp;
+  <button type="button" nbPopoverTrigger="hover" [nbPopover]="popoverTemplate"
+    [nbPopoverContext]="{ text : 'Value type select info' | translate }" ghost nbButton status="primary">
+    <nb-icon icon="info-outline"> </nb-icon>
+  </button>
+  <br />
+  <div style="width: 73.4%" *ngIf="item">
+    <nb-select [(ngModel)]="item.type" class="nb-select-custom" fullWidth>
+      <nb-option *ngFor="let vt of valueTypes" [value]="vt">{{ vt }}</nb-option>
+    </nb-select>
+  </div>
+</ng-template>
+
+<ng-template #keyValueLine2 let-item="item" let-i="i">
+  <br />
+  <div class="row">
+    <div class="col-4">
+      <label>
+        {{"Enter a key that you want so search" | translate}}
+      </label>
+    </div>
+    <div class="col-4" *ngIf="item.type != 'Date'">
+      <label>
+        {{"Enter a value that you want so search" | translate}}
+      </label>
+    </div>
+    <div class="col-2" *ngIf="item.type == 'Date'">
+      <label>
+        {{"Select the start date for your search" | translate}}
+      </label>
+    </div>
+    <div class="col-2" *ngIf="item.type == 'Date'">
+      <label>
+        {{"Select the end date for your search" | translate}}
+      </label>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-4">
+      <autocomplete [otherVerified]="valueVerified[i]" [mode]="'key'" [options]="keys" [entries]="entries"
+        [v]="item.value" [placeholder]="'Key (E.g. name)'" (output)="onKeysChange($event, i)"
+        (ver)="keyVerifiedChange($event, i)"></autocomplete>
+    </div>
+    <div class="col-4" *ngIf="item.type != 'Date'">
+      <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [options]="values" [entries]="entries"
+        [key]="item.key" [placeholder]="'Value (E.g. Geo data)'" (output)="onValuesChange($event, i)"
+        (ver)="valueVerifiedChange($event, i)">
+      </autocomplete>
+    </div>
+
+    <div class="col-2" *ngIf="item.type == 'Date'">
+      <input fullWidth [(ngModel)]="item.from" nbInput [placeholder]="'From date' | translate"
+        [nbDatepicker]="dateTimePicker" />
+      <nb-date-timepicker withSeconds #dateTimePicker></nb-date-timepicker>
+    </div>
+    <div class="col-2" *ngIf="item.type == 'Date'">
+      <input fullWidth [(ngModel)]="item.to" nbInput type="text" [ngModelOptions]="{ standalone: true }"
+        [placeholder]="'To date' | translate" [nbDatepicker]="dateTimePicker" />
+      <nb-date-timepicker withSeconds #dateTimePicker></nb-date-timepicker>
+    </div>
+    <div class="col-4">
+      <button title="lineMinus" *ngIf="lines[1]" nbButton type="submit" status="danger" size="medium" outline
+        shape="rectangle" (click)="line(-1)">
+        <nb-icon icon="trash-2-outline"></nb-icon>
+      </button>
+      <button *ngIf="!lines[1]" nbButton type="submit" status="basic" size="medium" outline shape="rectangle">
+        <nb-icon icon="trash-2-outline"></nb-icon>
+      </button>
+    </div>
+  </div>
+  <br *ngIf="!lines[i + 1]" />
+
+  <div class="row">
+    <div class="col-4"></div>
+    <div class="col-4"></div>
+    <div class="col-4">
+      <button *ngIf="!lines[i + 1]" nbButton type="submit" status="success" size="medium" outline shape="rectangle"
+        outline="false" (click)="line(1)">
+        <nb-icon style="color: rgb(119, 247, 168)" icon="plus-circle-outline"></nb-icon>
+      </button>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #popoverTemplate let-data>
+  <div style="box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5); padding: 20px; width: 600px;">
+    {{data.text}}
+  </div>
+</ng-template>

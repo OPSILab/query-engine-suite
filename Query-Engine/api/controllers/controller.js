@@ -93,7 +93,12 @@ module.exports = {
         logger.info("entries")
         let email = req.body.prefix.split("/")[0]
         if (config.updateOwner == "later" && !process.queryEngine.updatedOwners[email]) {
-            service.updateOwner(req.headers.authorization, email)
+            try {
+                await service.updateOwner(req.headers.authorization, email)
+            }
+            catch (error) {
+                logger.error(error)
+            }
         }
         try {
             res.send(await service.getEntries(req.body.prefix, req.body.bucketName, req.headers.visibility, req.query.key, req.query.value))

@@ -1,0 +1,48 @@
+<div class="sql-editor">
+  <textarea
+    class="sql-editor__textarea"
+    nbInput
+    fullWidth
+    rows="10"
+    [placeholder]="placeholder"
+    [ngModel]="value"
+    (ngModelChange)="onInput($event)"
+  ></textarea>
+
+  <div class="sql-editor__examples" *ngIf="suggestions?.length">
+    <label class="sql-editor__examples-label">
+      {{ 'Example queries' | translate }}
+      <button
+        type="button"
+        nbPopoverTrigger="hover"
+        [nbPopover]="examplesHint"
+        ghost
+        nbButton
+        status="primary"
+        size="tiny"
+      >
+        <nb-icon icon="info-outline"></nb-icon>
+      </button>
+    </label>
+
+    <button
+      type="button"
+      *ngFor="let suggestion of suggestions"
+      class="sql-editor__example"
+      nbButton
+      outline
+      status="basic"
+      size="small"
+      [title]="suggestion"
+      (click)="useSuggestion(suggestion)"
+    >
+      {{ previewOf(suggestion) }}
+    </button>
+  </div>
+
+  <ng-template #examplesHint>
+    <div class="sql-editor__hint">
+      {{ 'Click an example to insert it into the editor' | translate }}
+    </div>
+  </ng-template>
+</div>

@@ -1,0 +1,23 @@
+<nb-layout>
+  <nb-layout-column>
+    <div class="page">
+      <div class="page__header">
+        <h4>Data Space — Query engine (standalone)</h4>
+        <a routerLink="/keycloak-auth/logout">Logout</a>
+      </div>
+
+      <ngx-query-engine
+        [visibility]="visibility"
+        (extractedElementsChange)="extractedElements = $event"
+        (generalSharedBucketObjectsChange)="generalSharedBucketObjects = $event"
+        (pilotSharedBucketObjectsChange)="pilotSharedBucketObjects = $event"
+        (userBucketObjectsChange)="userBucketObjects = $event"
+      ></ngx-query-engine>
+
+      <div class="page__results" *ngIf="extractedElements?.length">
+        <h5>{{ 'Query results' | translate }}</h5>
+        <pre>{{ extractedElements | json }}</pre>
+      </div>
+    </div>
+  </nb-layout-column>
+</nb-layout>

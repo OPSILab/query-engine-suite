@@ -4,3 +4,4 @@ survey_list.txt
 *.sandbox.*
 Source-Connector/docker-compose.dev.yml
 Source-Connector/config.app-smartera.stage.municipia.eng.it.js
+frontend-manuale/
