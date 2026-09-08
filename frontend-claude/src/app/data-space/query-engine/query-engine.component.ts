@@ -191,9 +191,36 @@ export class QueryEngineComponent implements OnInit {
           obj.objectPath = record.name;
           obj.pilot = record.bucketName;
           obj.insertedBy = record.insertedBy; //TODO now it is empty
+
+          // BucketObjectsPush assumes every record looks like a minio bucket
+          // object (a bucketName + a "bucket/folder/file.ext" path) and
+          // silently drops anything that doesn't fit that shape - in
+          // particular it drops a record whenever the file name it derives
+          // ends up equal to the bucket name it derives, which is exactly
+          // what happens for a plain MongoDB document with no path/bucket
+          // fields at all (every such record collapses to the same `name`
+          // for both). That's real, observed backend data (see the SMARTERA
+          // language-views example), not an edge case - so track whether it
+          // actually landed anywhere rather than assuming it did.
+          const countBefore = this.generalSharedBucketObjects.length + this.pilotSharedBucketObjects.length + this.userBucketObjects.length;
           this.BucketObjectsPush(record, this.isAdmin, this.generalSharedBucketObjects, this.pilotSharedBucketObjects, this.userBucketObjects, record.pilot);
-          const bucketName = record.bucketName || record.s3?.bucket?.name || "?";
-          this.extractedElements.push({ name: bucketName + "/" + (obj.name || record.name || "?"), element: obj.element });
+          const countAfter = this.generalSharedBucketObjects.length + this.pilotSharedBucketObjects.length + this.userBucketObjects.length;
+          const shownAsFile = countAfter > countBefore;
+
+          if (obj.element !== undefined && obj.element !== null) {
+            // Advanced search / Query SQL can extract a nested element out
+            // of a matched file (obj.element is the JSON/GeoJSON sub-object
+            // the query matched inside it) - worth its own card alongside
+            // the file card above, since it's more specific information.
+            const bucketName = record.bucketName || record.s3?.bucket?.name || "?";
+            this.extractedElements.push({ name: bucketName + "/" + (obj.name || record.name || "?"), element: obj.element });
+          } else if (!shownAsFile) {
+            // Not shaped like a bucket file (so nothing was shown above)
+            // and no nested element either - show the raw record itself so
+            // the result isn't silently lost. This is the common case for
+            // queries against non-minio Mongo collections.
+            this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: record });
+          }
         } catch (itemErr) {
           skipped++;
           console.error("minioQuery(): could not process one result item, skipping it - item was:", obj, itemErr);

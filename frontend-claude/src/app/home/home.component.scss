@@ -115,15 +115,41 @@
   color: var(--ds-text-faint);
 }
 
-.ds-code-block {
-  margin: 0;
-  padding: 16px;
+// Each matched element gets its own bordered card ("cornice") rather than
+// the whole array being dumped as one JSON blob - same per-item framing as
+// .ds-result-row above, just with a code-preview body since an extracted
+// element's shape is arbitrary JSON.
+.ds-element-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ds-element-card {
   border: 1px solid var(--ds-border);
   border-radius: 10px;
+  background: var(--ds-bg-elevated);
+  overflow: hidden;
+}
+
+.ds-element-card__name {
+  display: block;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  border-bottom: 1px solid var(--ds-border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-element-card__body {
+  margin: 0;
+  padding: 12px 14px;
   background: var(--ds-bg-sunken);
   font-size: 12.5px;
   line-height: 1.6;
   overflow: auto;
-  max-height: 400px;
+  max-height: 260px;
   color: var(--ds-text);
 }

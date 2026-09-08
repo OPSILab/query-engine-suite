@@ -38,7 +38,12 @@
       <span>{{ 'Matched elements' | translate }}</span>
       <span class="ds-badge">{{ extractedElements.length }}</span>
     </div>
-    <pre class="ds-code-block ds-mono">{{ extractedElements | json }}</pre>
+    <div class="ds-element-list">
+      <div class="ds-element-card" *ngFor="let el of extractedElements">
+        <span class="ds-element-card__name ds-mono">{{ el.name }}</span>
+        <pre class="ds-element-card__body ds-mono">{{ el.element | json }}</pre>
+      </div>
+    </div>
   </div>
 </div>
 
