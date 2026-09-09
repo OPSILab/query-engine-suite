@@ -3,7 +3,7 @@ version: "3.1"
 services:
 
   beopen-dashboard:
-    image: engineeringopsilab/query-engine-frontend:latest
+    image: engineeringopsilab/query-engine-suite-frontend:latest
     build:
       context: .
       args:
