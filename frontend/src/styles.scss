@@ -1,3 +1,11 @@
+// Kept even though nothing WE render is a Nebular component anymore
+// (nb-select, nb-autocomplete, nb-datepicker, toastr and nbPopover have all
+// been replaced by hand-built equivalents below) - @nebular/auth's own
+// OAuth2 redirect flow still dynamically creates a real NbLayoutComponent +
+// nb-icon spinner internally (see the NbThemeModule/NbEvaIconsModule
+// comment in app.module.ts), which expects this installed. Safe to leave in
+// place; revisit only if @nebular/auth's own internal login/spinner UI is
+// ever replaced too.
 @import '../node_modules/@nebular/theme/styles/globals';
 @import '../node_modules/@nebular/theme/styles/theming';
 @import '../node_modules/@nebular/theme/styles/themes/default';
@@ -9,12 +17,10 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 // Design tokens for the redesigned UI (home/query-engine/autocomplete/
-// sql-editor). Nebular's own components (nb-select panel, nb-datepicker
-// calendar, nb-autocomplete dropdown, toastr) keep their default Nebular
-// theme - restyling those internals wasn't worth the risk for this pass -
-// but everything we built by hand reads these variables. Same palette as
-// the design mockup shared earlier, just written as static light/dark
-// pairs instead of a tweakable accent (no properties-panel here).
+// sql-editor) - everything WE render reads these instead of Nebular's
+// theme. Same palette as the design mockup shared earlier, just written as
+// static light/dark pairs instead of a tweakable accent (no
+// properties-panel here).
 :root,
 html[data-ds-theme='light'] {
   --ds-bg: #FAFAF8;
@@ -94,15 +100,15 @@ body {
   gap: 6px;
 }
 
-// `a.ds-link` (not just `.ds-link`) is deliberate: NbLayoutComponent stamps
-// `nb-theme-{name}` on <body> whenever an <nb-layout> exists anywhere in the
-// app (see the invisible overlay-host one in app.component.ts), and
-// Nebular's own global stylesheet ships `.nb-theme-default a { color:
-// #3366ff; text-decoration: underline; ... }`. That selector's specificity
-// (one class + one element) beats a bare `.ds-link` class, so real links
-// rendered blue/underlined despite this block. Matching its specificity
-// here and keeping this rule later in the cascade (nb-install() runs at
-// the top of this file) makes ours win instead.
+// `a.ds-link` (not just `.ds-link`) used to be load-bearing: NbLayoutComponent
+// stamped `nb-theme-{name}` on <body> whenever an <nb-layout> existed
+// anywhere in the app (the invisible overlay-host one that used to live in
+// app.component.ts), and Nebular's own global stylesheet ships
+// `.nb-theme-default a { color: #3366ff; text-decoration: underline; ... }`,
+// which beat a bare `.ds-link` class on specificity. That <nb-layout> is gone
+// now (nothing in the app uses Nebular's CDK overlay anymore), so
+// `.nb-theme-default` is never stamped and this can no longer happen - the
+// extra specificity is just harmless now, not worth the churn of undoing.
 a.ds-link {
   font-size: 13px;
   color: var(--ds-text-muted);
@@ -249,26 +255,31 @@ a.ds-link:hover {
   font-size: 13px;
 }
 
-// Root-level <nb-layout> used ONLY as an anchor for Nebular's CDK overlay
-// container (see app.component.ts) - it renders no header/sidebar/column/
-// footer content of its own, so it should take up no visible space and
-// contribute none of the theme's default layout background/min-height.
-// The overlay container Nebular injects into it (toasts, popovers, the
-// datepicker, ...) sets its own `position: fixed` sizing via the CDK's
-// prebuilt overlay CSS, so it renders correctly even though its host here
-// is collapsed to 0x0.
-nb-layout.ds-overlay-host {
+// Used by TooltipDirective ([dsTooltip]) - it appends a bare .ds-popover to
+// <body> on hover with these on top: fixed-positioned (top/left are set
+// inline, per-instance, by the directive), and not a click/hover target
+// itself so it can never trap the pointer and cause a flicker loop with the
+// element that triggered it.
+.ds-popover--floating {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-  min-height: 0;
-  overflow: hidden;
-  background: transparent;
+  z-index: 100000;
+  pointer-events: none;
+}
 
-  .layout {
-    min-height: 0;
-    background: transparent;
-  }
+// @nebular/auth (kept - see app.module.ts) still creates real
+// NbLayoutComponent instances of its own at runtime, independent of the
+// <nb-layout class="ds-overlay-host"> we used to render ourselves as a CDK
+// overlay anchor (now gone - see app.component.ts). Zeroing its box
+// (width/height: 0 + overflow: hidden) wasn't enough: Nebular's own spinner
+// content inside it sets `position: fixed` on ITSELF, which escapes any
+// ancestor's overflow clipping regardless of that ancestor's size (nothing
+// in this app puts a transform/filter on an ancestor to force a new fixed-
+// positioning containing block, so there's nothing to trap it). `display:
+// none` is the one thing that actually removes an element and everything
+// inside it from rendering no matter how its descendants are positioned -
+// this doesn't affect @nebular/auth's own JS (DOM writes like appendChild/
+// setContainer don't care about CSS display), so the redirect itself still
+// works, it just never paints.
+nb-layout {
+  display: none !important;
 }

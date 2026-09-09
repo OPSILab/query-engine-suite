@@ -4,22 +4,33 @@ import { NgModule } from '@angular/core';
 import { HttpClientModule, HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
-import {
-  NbThemeModule,
-  NbLayoutModule,
-  NbAccordionModule,
-  NbButtonModule,
-  NbIconModule,
-  NbSelectModule,
-  NbOptionModule,
-  NbInputModule,
-  NbPopoverModule,
-  NbDatepickerModule,
-  NbToastrModule,
-  NbAutocompleteModule,
-} from '@nebular/theme';
-import { NbEvaIconsModule } from '@nebular/eva-icons';
 import { NbAuthModule, NbOAuth2AuthStrategy } from '@nebular/auth';
+// @nebular/auth (which stays) turns out to still need @nebular/theme at
+// runtime, independent of anything our own code renders:
+// NbOAuth2AuthStrategy injects NB_WINDOW directly, and - more surprisingly -
+// NbAuthService.authenticate() (called by AuthLoginComponent) dynamically
+// creates an NbLayoutComponent instance of its own via
+// ComponentFactoryResolver while the redirect is in flight, whose
+// constructor injects NbThemeService. Without NbThemeModule.forRoot()
+// providing both, that redirect throws `NullInjectorError: No provider for
+// NbThemeService!` the moment a real login happens - a real dependency, not
+// leftover CDK-overlay-anchor wiring, so this stays even though our own
+// <nb-layout> (see app.component.ts) and every nb-* component we used to
+// render are gone. (This also finally explains an old open question from
+// earlier in this project: the Keycloak login redirect intermittently
+// leaving NbOverlayContainerAdapter's container null after a real login -
+// that dynamically-created NbLayoutComponent registers itself as the CDK
+// overlay container and unregisters when it's torn down, stealing the
+// registration our own anchor held. Moot now: nothing we render uses that
+// overlay anymore, see AutocompleteComponent/TooltipDirective/
+// ToastContainerComponent and the native date input.)
+import { NbThemeModule } from '@nebular/theme';
+// Same story as NbThemeModule right above: NbOAuth2AuthStrategy's redirect
+// renders an <nb-icon> (as part of the same internally-created
+// NbLayoutComponent/spinner) that throws "Default pack is not registered."
+// without an icon pack registered - eva-icons is the pack the dashboard
+// this was ported from uses everywhere else.
+import { NbEvaIconsModule } from '@nebular/eva-icons';
 
 import { ConfigHttpLoader } from '@ngx-config/http-loader';
 import { ConfigModule, ConfigLoader } from '@ngx-config/core';
@@ -39,6 +50,8 @@ import { AuthCallbackComponent } from './auth/callback/auth-callback.component';
 import { AuthLogoutComponent } from './auth/logout/auth-logout.component';
 import { TokenInterceptor } from './auth/services/token.interceptor';
 import { OidcJWTToken } from './auth/oidc';
+import { ToastContainerComponent } from './shared/toast-container/toast-container.component';
+import { TooltipDirective } from './shared/tooltip/tooltip.directive';
 
 export function configFactory(http: HttpClient): ConfigLoader {
   return new ConfigHttpLoader(http, './assets/config.json');
@@ -58,6 +71,8 @@ export function translateLoaderFactory(http: HttpClient) {
     AuthLoginComponent,
     AuthCallbackComponent,
     AuthLogoutComponent,
+    ToastContainerComponent,
+    TooltipDirective,
   ],
   imports: [
     BrowserModule,
@@ -68,18 +83,7 @@ export function translateLoaderFactory(http: HttpClient) {
     AppRoutingModule,
 
     NbThemeModule.forRoot({ name: 'default' }),
-    NbLayoutModule,
     NbEvaIconsModule,
-    NbAccordionModule,
-    NbButtonModule,
-    NbIconModule,
-    NbSelectModule,
-    NbOptionModule,
-    NbInputModule,
-    NbPopoverModule,
-    NbDatepickerModule.forRoot(),
-    NbToastrModule.forRoot(),
-    NbAutocompleteModule,
 
     // Same OAuth2 strategy shape the dashboard registers in
     // @core/core.module.ts. Real endpoints/redirect URIs/client id are only

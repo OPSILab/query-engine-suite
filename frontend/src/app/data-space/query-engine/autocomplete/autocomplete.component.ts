@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component, ViewChild, OnInit, OnChanges, AfterViewInit, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, OnInit, OnChanges, AfterViewInit, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { NbToastrService } from '@nebular/theme';
 import { ConfigService } from '@ngx-config/core';
 import { TranslateService } from '@ngx-translate/core';
 import { BeopenAPIService } from '../../../services/be-open.service';
@@ -42,21 +41,59 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   cachedOptions: any;
   cachedEntries;
 
+  // Replaces [nbAutocomplete]/<nb-autocomplete>/<nb-option> (part of the same
+  // @nebular/theme CDK-overlay family as NbToastrService and nbPopover - see
+  // app.component.ts's history on NbOverlayContainerAdapter, the bug that
+  // originally prompted removing Nebular's overlay usage entirely). The
+  // dropdown below is plain `position: fixed` markup living in this
+  // component's own template (see the .html file) - no portal/overlay
+  // machinery, so it can't hit the "no <nb-layout> registered as container"
+  // crash. dropdownOpen/panelTop/panelLeft/panelWidth replace what
+  // NbAutocompleteDirective used to manage internally.
+  dropdownOpen = false;
+  panelTop = 0;
+  panelLeft = 0;
+  panelWidth = 0;
+
+  // filter() (below) can return one of these two strings in place of real
+  // suggestions - "still waiting on data" or "too many results, keep
+  // typing". Nebular's nb-option treated them as regular, clickable options
+  // too, but with our own dropdown it's easy to click one before real data
+  // arrives (a slow real backend, not just this session's mocks) and end up
+  // with that literal placeholder text permanently filling the field -
+  // isPlaceholderOption() below is what keeps them inert.
+  private static readonly LOADING_PLACEHOLDER = 'loading...';
+  private static readonly TOO_MANY_PLACEHOLDER = 'Too much suggestions. Type more characters in order to reduce them';
+
+  isPlaceholderOption(option: string): boolean {
+    return option === AutocompleteComponent.LOADING_PLACEHOLDER
+      || option === AutocompleteComponent.TOO_MANY_PLACEHOLDER;
+  }
+
   constructor(
     private configService: ConfigService,
     private beopenAPI: BeopenAPIService,
     public translation: TranslateService,
-    private toastrService: NbToastrService,
     private sharedService: SharedService,
+    private cdr: ChangeDetectorRef,
+    private el: ElementRef<HTMLElement>,
   ) {
   }
 
   ngOnInit() {
-    this.filteredOptions$ = of(this.options);
-    // If `ready` is already true at mount (e.g. a row added via "+ Add
-    // filter" well after the parent's initial load finished), ngOnChanges()
-    // below still fires once with the initial value - see its comment -
-    // so there's nothing else to do here.
+    // Seed with the "loading..." placeholder while we're still waiting on
+    // `ready` (see ngOnChanges below), so there's visible feedback during
+    // the genuine wait instead of an empty dropdown - the old
+    // polling-based version got this "for free" because it called
+    // onChange() as soon as just ONE of its two caches was ready, which
+    // organically produced a "loading..." placeholder even before the
+    // user touched the field. Once `ready` is already true at mount (e.g.
+    // a row added via "+ Add filter" well after the parent's initial load
+    // finished), show the real options right away instead - ngOnChanges()
+    // below still fires once with the initial value and refines this
+    // further (properly filtered/paired), so this is just the best
+    // starting guess before that runs.
+    this.filteredOptions$ = of(this.ready ? (this.options || []) : [AutocompleteComponent.LOADING_PLACEHOLDER]);
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -135,6 +172,67 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
       // the same macrotask boundary to avoid NG0100.
       setTimeout(() => this.onChange(), 0);
     }
+  }
+
+  onFocus(): void {
+    this.onChange();
+    this.openDropdown();
+  }
+
+  onInputEvent(): void {
+    this.onChange();
+    this.openDropdown();
+  }
+
+  private openDropdown(): void {
+    this.dropdownOpen = true;
+    this.updatePanelPosition();
+    this.cdr.markForCheck();
+  }
+
+  closeDropdown(): void {
+    if (this.dropdownOpen) {
+      this.dropdownOpen = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private updatePanelPosition(): void {
+    if (!this.input) {
+      return;
+    }
+    const rect = this.input.nativeElement.getBoundingClientRect();
+    this.panelTop = rect.bottom + 4;
+    this.panelLeft = rect.left;
+    this.panelWidth = rect.width;
+  }
+
+  // Mirrors nbAutocomplete's outside-click-closes behavior. The panel is a
+  // plain descendant of this component's own host element (position: fixed
+  // only changes where it's painted, not where it lives in the DOM), so a
+  // simple containment check is enough - no portal to reason about.
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (this.dropdownOpen && !this.el.nativeElement.contains(event.target as Node)) {
+      this.closeDropdown();
+    }
+  }
+
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  onWindowScrollOrResize(): void {
+    if (this.dropdownOpen) {
+      this.updatePanelPosition();
+    }
+  }
+
+  selectOption(option: string): void {
+    if (this.isPlaceholderOption(option)) {
+      return;
+    }
+    this.input.nativeElement.value = option;
+    this.onSelectionChange(option);
+    this.closeDropdown();
   }
 
   isPaired(optionValue, entries) {
@@ -264,7 +362,7 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
       this.entries = entitiesQueriedAgain;
 
       if (this.options.length > 500 && this.entries.length > 500)
-        return ["Too much suggestions. Type more characters in order to reduce them"];
+        return [AutocompleteComponent.TOO_MANY_PLACEHOLDER];
 
       const filterValue = keyOrValue?.toLowerCase();
       try {
@@ -279,7 +377,7 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
         console.error(error, filterValue);
       }
     }
-    return ["loading..."];
+    return [AutocompleteComponent.LOADING_PLACEHOLDER];
   }
 
   getFilteredOptions(value: string, queried?, ready?) {
@@ -290,6 +388,14 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
 
   onChange(queried?, ready?) {
     this.filteredOptions$ = this.getFilteredOptions(this.input.nativeElement.value, queried, ready);
+    // Required because this component is OnPush: onChange() is also invoked
+    // from a setTimeout() macrotask (ngOnChanges/ngAfterViewInit, see their
+    // comments) that runs outside any CD pass already checking this
+    // component, so reassigning filteredOptions$ there is otherwise invisible
+    // until an unrelated DOM event in this component happens to force a
+    // check (e.g. the user typing) - markForCheck() makes the update show up
+    // on its own instead.
+    this.cdr.markForCheck();
     this.output.emit(this.input.nativeElement.value);
     if (this.options.filter(optionValue => optionValue == this.input.nativeElement.value)[0])
       this.verified(true);

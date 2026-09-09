@@ -1,9 +1,9 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { Router } from '@angular/router';
 import { NbAuthResult, NbAuthService } from '@nebular/auth';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { NB_WINDOW } from '@nebular/theme';
 import { ConfigService } from '@ngx-config/core';
 import { environment } from '../../../environments/environment';
 
@@ -21,7 +21,11 @@ export class AuthLogoutComponent implements OnInit, OnDestroy {
   constructor(private authService: NbAuthService,
     private router: Router,
     private configs: ConfigService,
-    @Inject(NB_WINDOW) private window) {
+    // Angular's own SSR-safe window/document access, replacing Nebular's
+    // NB_WINDOW token (@nebular/theme) - this was the last thing in the app
+    // still pulling in that package outside of the invisible overlay-host
+    // <nb-layout>, which is gone too now (see app.component.ts).
+    @Inject(DOCUMENT) private document: Document) {
   }
 
   ngOnInit(): void {
@@ -29,7 +33,7 @@ export class AuthLogoutComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((authResult: NbAuthResult) => {
         if (authResult.isSuccess()) {
-          this.window.location.href =
+          this.document.defaultView.location.href =
             `${this.configs.getSettings('keycloak.baseURL')}/logout?post_logout_redirect_uri=${this.configs.getSettings('dashboardBaseURL')}&client_id=${environment.keycloak.client_id}`;
         } else {
           this.router.navigateByUrl('');

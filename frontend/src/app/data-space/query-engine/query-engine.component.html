@@ -13,9 +13,7 @@
     <div class="ds-panel__header-actions">
       <button
         type="button"
-        nbPopoverTrigger="hover"
-        [nbPopover]="popoverTemplate"
-        [nbPopoverContext]="{ text : 'Query Mode Select info' | translate }"
+        [dsTooltip]="'Query Mode Select info' | translate"
         class="ds-icon-button"
         aria-label="Info"
       >
@@ -44,9 +42,7 @@
           <label class="ds-field-label">{{ 'typeSelect' | translate }}</label>
           <button
             type="button"
-            nbPopoverTrigger="hover"
-            [nbPopover]="popoverTemplate"
-            [nbPopoverContext]="{ text : 'File type select info' | translate }"
+            [dsTooltip]="'File type select info' | translate"
             class="ds-icon-button"
             aria-label="Info"
           >
@@ -77,9 +73,7 @@
         <label class="ds-field-label">{{ 'Type the SQL query here' | translate }}</label>
         <button
           type="button"
-          nbPopoverTrigger="hover"
-          [nbPopover]="popoverTemplate"
-          [nbPopoverContext]="{ text : 'Query SQL tooltip' | translate }"
+          [dsTooltip]="'Query SQL tooltip' | translate"
           class="ds-icon-button"
           aria-label="Info"
         >
@@ -102,9 +96,7 @@
     <label class="ds-field-label ds-field-label--small">{{ "Select the type of value to filter" | translate }}</label>
     <button
       type="button"
-      nbPopoverTrigger="hover"
-      [nbPopover]="popoverTemplate"
-      [nbPopoverContext]="{ text : 'Value type select info' | translate }"
+      [dsTooltip]="'Value type select info' | translate"
       class="ds-icon-button"
       aria-label="Info"
     >
@@ -143,14 +135,12 @@
     </div>
 
     <div class="ds-kv-field" *ngIf="item.type == 'Date'">
-      <input class="ds-input" [(ngModel)]="item.from" [placeholder]="'From date' | translate"
-        [nbDatepicker]="dateTimePicker" />
-      <nb-date-timepicker withSeconds #dateTimePicker></nb-date-timepicker>
+      <input class="ds-input" type="datetime-local" step="1" [(ngModel)]="item.from"
+        [placeholder]="'From date' | translate" />
     </div>
     <div class="ds-kv-field" *ngIf="item.type == 'Date'">
-      <input class="ds-input" [(ngModel)]="item.to" type="text" [ngModelOptions]="{ standalone: true }"
-        [placeholder]="'To date' | translate" [nbDatepicker]="dateTimePicker" />
-      <nb-date-timepicker withSeconds #dateTimePicker></nb-date-timepicker>
+      <input class="ds-input" type="datetime-local" step="1" [(ngModel)]="item.to"
+        [ngModelOptions]="{ standalone: true }" [placeholder]="'To date' | translate" />
     </div>
 
     <button
@@ -171,10 +161,4 @@
     class="ds-ghost-button ds-ghost-button--add"
     (click)="line(1)"
   >+ Add filter</button>
-</ng-template>
-
-<ng-template #popoverTemplate let-data>
-  <div class="ds-popover">
-    {{ data.text }}
-  </div>
 </ng-template>

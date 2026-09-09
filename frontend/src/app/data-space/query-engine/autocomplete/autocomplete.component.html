@@ -1,14 +1,35 @@
-<input #autoInput class="ds-input" type="text" (focus)="onChange()" (input)="onChange()"
-  [nbAutocomplete]="auto" [placeholder]="placeholder | translate" />
+<!-- autocomplete="off" matters more here than on a typical field: without it,
+     the browser's OWN native autofill suggestion box (styled by the OS/browser,
+     not by our CSS) can appear too, floating above or overlapping our custom
+     .ds-autocomplete-panel below - looking like an unexplained blank box since
+     it has no CSS of ours and often no matching saved entries either. -->
+<input #autoInput class="ds-input" type="text" autocomplete="off" (focus)="onFocus()" (input)="onInputEvent()"
+  (keydown.escape)="closeDropdown()" [placeholder]="placeholder | translate" />
 
-<nb-autocomplete #auto (selectedChange)="onSelectionChange($event)">
-
-  <nb-option *ngFor="let option of filteredOptions$ | async" [value]="option">
-    {{ option }}
-  </nb-option>
-
-</nb-autocomplete>
-
+<!-- `as opts` resolves filteredOptions$ through a single async pipe subscription,
+     shared by the length check and the *ngFor below. filter() (called while
+     resolving this observable) can trigger real API requests as a side
+     effect (see queryKeyOrValues/queryEntries) - subscribing to
+     filteredOptions$ a second time here (e.g. one async pipe per *ngIf/*ngFor)
+     would double those requests, so this stays a single subscription on purpose. -->
+<ng-container *ngIf="filteredOptions$ | async as opts">
+  <div
+    *ngIf="dropdownOpen && opts.length"
+    class="ds-autocomplete-panel"
+    [style.top.px]="panelTop"
+    [style.left.px]="panelLeft"
+    [style.width.px]="panelWidth"
+  >
+    <button
+      type="button"
+      *ngFor="let option of opts"
+      class="ds-autocomplete-option"
+      [class.ds-autocomplete-option--message]="isPlaceholderOption(option)"
+      [disabled]="isPlaceholderOption(option)"
+      (click)="selectOption(option)"
+    >{{ option }}</button>
+  </div>
+</ng-container>
 
 <input hidden="true" [(ngModel)]="input" (ngModelChange)="onInputChange($event)" />
 <input hidden="true" [(ngModel)]="otherVerified" (ngModelChange)="otherVerifiedChange($event)" />

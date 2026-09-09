@@ -19,20 +19,22 @@ import { ThemeService } from './services/theme.service';
  */
 @Component({
   selector: 'app-root',
-  // <nb-layout> is invisible on purpose (see the .ds-overlay-host rule in
-  // styles.scss): Nebular's NbOverlayContainerAdapter._createContainer()
-  // appends the CDK overlay container (used by NbToastrService, popovers,
-  // the datepicker, ...) as a child of *whatever <nb-layout> element last
-  // called setContainer() on it - if none exists anywhere in the app, that
-  // adapter's `this.container` stays undefined and every toast/popover
-  // throws `Cannot read properties of undefined (reading 'appendChild')`.
-  // The redesigned HomeComponent template dropped the <nb-layout> wrapper
-  // it used to render (it's all custom .ds-* markup now), so it's declared
-  // once here at the root instead - present on every route, empty (no
-  // projected header/sidebar/column/footer content), and zero-sized so it
-  // never affects visible layout; only the overlay container it hosts is
-  // meant to be seen.
-  template: '<nb-layout class="ds-overlay-host" aria-hidden="true"></nb-layout><router-outlet></router-outlet>',
+  // This used to also render an invisible <nb-layout class="ds-overlay-host">
+  // here, purely as an anchor for Nebular's CDK overlay container (used by
+  // NbToastrService, nbPopover, nb-autocomplete and the datepicker) - without
+  // one *somewhere* in the app, that overlay adapter's container reference
+  // stayed null and every toast/popover/dropdown threw
+  // `Cannot read properties of null (reading 'appendChild')`. Toasts,
+  // tooltips, the key/value autocomplete and the date filter have all since
+  // been rebuilt as plain DOM (see ToastContainerComponent, TooltipDirective,
+  // AutocompleteComponent, and the native <input type="datetime-local"> in
+  // query-engine.component.html) - nothing WE render uses Nebular's CDK
+  // overlay anymore, so this anchor (and the bug class it existed to work
+  // around) is gone. @nebular/theme itself is still imported in
+  // app.module.ts, though - see the comment there on why NbThemeModule
+  // turned out to be a real @nebular/auth runtime dependency, not just
+  // overlay-anchor wiring.
+  template: '<router-outlet></router-outlet><ds-toast-container></ds-toast-container>',
 })
 export class AppComponent {
 

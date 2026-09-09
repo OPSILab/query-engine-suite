@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
-import { NbComponentStatus, NbGlobalLogicalPosition, NbGlobalPosition, NbToastrService } from '@nebular/theme';
+import { ToastService, ToastStatus } from '../../services/toast.service';
 
 import { BeopenAPIService } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
@@ -80,7 +80,7 @@ export class QueryEngineComponent implements OnInit {
   constructor(
     private beopenAPI: BeopenAPIService,
     public translation: TranslateService,
-    private toastrService: NbToastrService,
+    private toastService: ToastService,
     private router: Router,
     private sharedService: SharedService,
     private dataSpaceService: DataSpaceService
@@ -119,7 +119,7 @@ export class QueryEngineComponent implements OnInit {
       },
       (err) => {
         console.warn("Could not load the current user", err);
-        this.createToastr(NbGlobalLogicalPosition.BOTTOM_END, 'warning', "Not logged in", "Could not load the current user.");
+        this.createToastr('warning', "Not logged in", "Could not load the current user.");
       }
     );
 
@@ -264,12 +264,12 @@ export class QueryEngineComponent implements OnInit {
         }
       }
       if (skipped > 0) {
-        this.createToastr(NbGlobalLogicalPosition.BOTTOM_END, 'warning', "Some results could not be displayed", `${skipped} of ${items.length} result(s) had an unexpected shape - see the console for details.`);
+        this.createToastr('warning', "Some results could not be displayed", `${skipped} of ${items.length} result(s) had an unexpected shape - see the console for details.`);
       }
       this.sendData();
     }, err => {
       console.error("Query error", err);
-      this.createToastr(NbGlobalLogicalPosition.BOTTOM_END, 'danger', "Error querying objects", err.error);
+      this.createToastr('danger', "Error querying objects", err.error);
     });
   }
 
@@ -281,26 +281,17 @@ export class QueryEngineComponent implements OnInit {
   }
 
   createToastr(
-    position: NbGlobalPosition,
-    status: NbComponentStatus,
+    status: ToastStatus,
     message: string,
     description: string
   ) {
     try {
       return this.translation.get(description).subscribe((res: string) => {
-        this.toastrService.show(res, message, {
-          position,
-          status,
-          duration: 15000,
-        });
+        this.toastService.show(status, message, res, 15000);
       });
     } catch (error) {
       console.error(error);
-      this.toastrService.show(description, message, {
-        position,
-        status,
-        duration: 15000,
-      });
+      this.toastService.show(status, message, description, 15000);
     }
   }
 

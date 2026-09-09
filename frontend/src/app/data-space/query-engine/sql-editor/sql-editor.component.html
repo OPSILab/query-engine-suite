@@ -19,8 +19,7 @@
       {{ 'Example queries' | translate }}
       <button
         type="button"
-        nbPopoverTrigger="hover"
-        [nbPopover]="examplesHint"
+        [dsTooltip]="'Click an example to insert it into the editor' | translate"
         class="ds-icon-button"
         aria-label="Info"
       >
@@ -39,10 +38,4 @@
       >{{ ex.label }}</button>
     </div>
   </div>
-
-  <ng-template #examplesHint>
-    <div class="ds-popover">
-      {{ 'Click an example to insert it into the editor' | translate }}
-    </div>
-  </ng-template>
 </div>
