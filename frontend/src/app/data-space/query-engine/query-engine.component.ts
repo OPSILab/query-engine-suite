@@ -164,16 +164,17 @@ export class QueryEngineComponent implements OnInit {
     this.type = "JSON";
   }
 
-  minioQuery() {
+  minioQuery(all: Boolean) {
     let mongoQuery = {};
-    for (let l of this.lines) {
-      if (l.type == "Date")
-        mongoQuery[l.key] = JSON.stringify({
-          $gte: new Date(l.from),
-          $lte: new Date(l.to),
-        });
-      else mongoQuery[l.key] = l.value;
-    }
+    if (!all)
+      for (let l of this.lines) {
+        if (l.type == "Date")
+          mongoQuery[l.key] = JSON.stringify({
+            $gte: new Date(l.from),
+            $lte: new Date(l.to),
+          });
+        else mongoQuery[l.key] = l.value;
+      }
     this.beopenAPI.minioQuery(this.mode, this.value, mongoQuery, this.sqlQuery, this.visibility, this.type).subscribe(queryResult => {
       this.generalSharedBucketObjects = [];
       this.pilotSharedBucketObjects = [];

@@ -149,7 +149,7 @@ module.exports = {
             let deletingColl = (await listCollections()).find(c => c.toLowerCase().split(":").shift() == restoredColl.toLowerCase().split(":").shift() && c != coll)
             if (deletingColl)
                 await mongoose.connection.dropCollection(deletingColl);
-            if(await mongoose.connection.db.collection(restoredColl).countDocuments() > 0)
+            if (await mongoose.connection.db.collection(restoredColl).countDocuments() > 0)
                 await mongoose.connection.db.collection(restoredColl).drop()
             await mongoose.connection.db.collection(restoredColl).insertMany(
                 await mongoose.connection.db.collection(coll).find({}).toArray()
@@ -224,13 +224,14 @@ module.exports = {
     },
 
     async getKeys(prefix, bucketName, visibility, search) {
+        console.debug({ visibility, prefix })
         if (visibility == "private")
             visibility = prefix.split("/")[0]
         else if (visibility == "shared")
             visibility = bucketName.toUpperCase() + " SHARED Data"
         else
             visibility = "public-data"
-        console.debug(visibility)
+        console.debug({ visibility })
         let keys = await Key.find({
             key: { $regex: "^" + search, $options: "i" },
             visibility
@@ -322,6 +323,7 @@ module.exports = {
     },
 
     async exampleQueryJson(query) {
+        logger.debug("example query json: query ", query)
 
         return await Source.find({
             "json": {
@@ -484,6 +486,8 @@ module.exports = {
     },
 
     querySQL(response, query, prefix, bucket, visibility) {
+        if (bucket == "default")
+            bucket = "default_table"
         client.query(query, (err, res) => {
             if (err) {
                 logger.error("ERROR");

@@ -11,6 +11,7 @@ const queryMongo = async (req, res) => {
     logger.info("Query mongo")
     logger.debug("format ", req.query.format)
     if (req.query.format == "JSON") {
+        logger.info("Query mongo JSON")
         let objectQuerySet = JSON.parse(JSON.stringify(req.body.mongoQuery || req.query))
         objectQuerySet.format = "Object"
         let JSONQuerySet = JSON.parse(JSON.stringify(req.body.mongoQuery || req.query))
