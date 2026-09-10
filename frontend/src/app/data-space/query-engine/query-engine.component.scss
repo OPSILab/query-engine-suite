@@ -106,3 +106,24 @@
   flex: 1;
   min-width: 0;
 }
+
+.ds-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+// "Find all" ignores whatever filters are set above (it's a bypass, not the
+// filtered action), so it shouldn't look as loud as "Apply Query" - same
+// shape/size via .ds-primary-button, but outlined instead of solid, so Apply
+// Query stays the obvious default action at a glance.
+.ds-primary-button--secondary {
+  background: transparent;
+  color: var(--ds-accent);
+  border: 1px solid var(--ds-accent-border);
+}
+
+.ds-primary-button--secondary:hover {
+  background: var(--ds-accent-soft);
+  filter: none;
+}
