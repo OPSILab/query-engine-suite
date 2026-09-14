@@ -7,7 +7,7 @@ import {
 } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { NbAuthOAuth2JWTToken, NbAuthService } from '@nebular/auth';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from '../../services/config.service';
 
 // Direct copy of the dashboard's TokenInterceptor: attaches the Keycloak
 // access token as a Bearer header on outgoing API calls.

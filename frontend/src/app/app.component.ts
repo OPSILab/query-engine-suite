@@ -3,7 +3,7 @@ import { NbAuthService, NbOAuth2AuthStrategy, NbOAuth2ClientAuthMethod, NbOAuth2
 import { v4 as uuidv4 } from 'uuid';
 import { environment } from '../environments/environment';
 import { OidcJWTToken } from './auth/oidc';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from './services/config.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ThemeService } from './services/theme.service';
 

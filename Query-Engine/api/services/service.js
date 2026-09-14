@@ -20,6 +20,7 @@ function bucketIs(record, bucket) {
 }
 
 function objectFilter(obj, prefix, bucket, visibility) {
+    return true
     if (visibility == "private" && (obj.record?.name?.includes(prefix) || obj?.name?.includes(prefix)))
         return true
     if (visibility == "shared" && bucketIs(obj?.record, bucket) && obj?.name?.includes(bucket?.toUpperCase() + " SHARED Data/"))

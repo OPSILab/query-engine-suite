@@ -32,8 +32,9 @@ import { NbThemeModule } from '@nebular/theme';
 // this was ported from uses everywhere else.
 import { NbEvaIconsModule } from '@nebular/eva-icons';
 
-import { ConfigHttpLoader } from '@ngx-config/http-loader';
-import { ConfigModule, ConfigLoader } from '@ngx-config/core';
+// Was @ngx-config/core + @ngx-config/http-loader: abandoned at v9, peer deps
+// pinned to Angular 9, which blocked ng update. See services/config.service.ts.
+import { CONFIG_PROVIDERS } from './services/config.service';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 
@@ -52,10 +53,6 @@ import { TokenInterceptor } from './auth/services/token.interceptor';
 import { OidcJWTToken } from './auth/oidc';
 import { ToastContainerComponent } from './shared/toast-container/toast-container.component';
 import { TooltipDirective } from './shared/tooltip/tooltip.directive';
-
-export function configFactory(http: HttpClient): ConfigLoader {
-  return new ConfigHttpLoader(http, './assets/config.json');
-}
 
 export function translateLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -103,12 +100,6 @@ export function translateLoaderFactory(http: HttpClient) {
       ],
     }),
 
-    ConfigModule.forRoot({
-      provide: ConfigLoader,
-      useFactory: configFactory,
-      deps: [HttpClient],
-    }),
-
     TranslateModule.forRoot({
       defaultLanguage: 'en',
       loader: {
@@ -119,6 +110,9 @@ export function translateLoaderFactory(http: HttpClient) {
     }),
   ],
   providers: [
+    // APP_INITIALIZER that loads assets/config.json, replacing
+    // ConfigModule.forRoot() - see services/config.service.ts.
+    ...CONFIG_PROVIDERS,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: TokenInterceptor,

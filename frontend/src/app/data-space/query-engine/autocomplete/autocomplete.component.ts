@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, OnInit, OnChanges, AfterViewInit, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from '../../../services/config.service';
 import { TranslateService } from '@ngx-translate/core';
 import { BeopenAPIService } from '../../../services/be-open.service';
 import { SharedService } from '../../../services/shared.service';

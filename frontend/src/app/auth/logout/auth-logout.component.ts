@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { NbAuthResult, NbAuthService } from '@nebular/auth';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from '../../services/config.service';
 import { environment } from '../../../environments/environment';
 
 // Direct copy of the dashboard's AuthLogoutComponent, parameterized on
