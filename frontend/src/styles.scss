@@ -41,6 +41,7 @@ html[data-ds-theme='light'] {
   --ds-str: #166534;
   --ds-num: #6D28D9;
   --ds-op: var(--ds-text-muted);
+  --ds-danger: #B42318;
 }
 
 html[data-ds-theme='dark'] {
@@ -62,6 +63,7 @@ html[data-ds-theme='dark'] {
   --ds-str: #86EFAC;
   --ds-num: #C4B5FD;
   --ds-op: var(--ds-text-muted);
+  --ds-danger: #FDA29B;
 }
 
 html, body {
@@ -202,6 +204,12 @@ a.ds-link:hover {
 
 .ds-primary-button:hover {
   filter: brightness(0.95);
+}
+
+.ds-primary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
 }
 
 .ds-pills {

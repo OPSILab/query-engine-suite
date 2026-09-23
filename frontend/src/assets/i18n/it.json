@@ -1,7 +1,7 @@
 {
   "queryEngine": "Motore di query",
   "Query Mode Select": "Seleziona una modalità di ricerca",
-  "Query Mode Select info": "Scegli come cercare: ricerca semplice per testo libero, ricerca avanzata per chiave/valore, oppure una query SQL.",
+  "Query Mode Select info": "Scegli come cercare: ricerca semplice per testo libero, ricerca avanzata per chiave/valore, una query SQL oppure una query GraphQL.",
   "typeSelect": "Seleziona il tipo di file",
   "File type select info": "Scegli il formato dei file da cercare.",
   "Type the SQL query here": "Scrivi qui la query SQL",
@@ -22,5 +22,17 @@
   "Value (E.g. Geo data)": "Valore (es. Geo data)",
   "Example queries": "Query di esempio",
   "Click an example to insert it into the editor": "Clicca su un esempio per inserirlo nell'editor",
-  "Query results": "Risultati della query"
+  "Query results": "Risultati della query",
+  "Type the GraphQL query here": "Scrivi qui la query GraphQL",
+  "Query GraphQL tooltip": "Scrivi una query GraphQL su datapoint e sorgenti del data space. I suggerimenti vengono dallo schema del backend. Sono ammesse solo query: mutation e subscription sono bloccate.",
+  "GraphQL mutations not allowed": "Mutation e subscription non sono ammesse qui: questa modalità esegue solo query.",
+  "GraphQL unknown field": "\"{{name}}\" non è un campo di {{owner}}",
+  "GraphQL unknown argument": "\"{{name}}\" non è un argomento di {{owner}}",
+  "GraphQL more unknown names": "…e altri {{count}} nomi sconosciuti",
+  "GraphQL schema loading": "Caricamento dello schema…",
+  "GraphQL schema unavailable": "Suggerimenti non disponibili: il backend non espone lo schema (introspection disattivata o non raggiungibile). La colorazione funziona comunque.",
+  "GraphQL fields of": "Campi di {{owner}}",
+  "GraphQL arguments of": "Argomenti di {{owner}}",
+  "GraphQL empty query": "Scrivi prima una query GraphQL.",
+  "GraphQL no results": "La query è andata a buon fine ma non ha restituito dati."
 }

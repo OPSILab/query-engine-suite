@@ -5,10 +5,16 @@ services:
     build:
       context: .
       args:
-        # "/" works for the port mapping below (the app is served at the root
-        # of 127.0.0.1:4300). Change it to /query-engine-frontend/ only when
-        # this sits behind a reverse proxy on that sub-path - and then the
-        # proxy must NOT strip the prefix, or the asset URLs won't resolve.
+        # Served behind the nginx reverse proxy on /query-engine-frontend/.
+        # The nginx inside this container serves the files from its root, so
+        # the reverse proxy must STRIP that prefix before forwarding - i.e.
+        #   location /query-engine-frontend/ { proxy_pass http://127.0.0.1:4300/; }
+        # (the trailing "/" on proxy_pass is what replaces the prefix). If the
+        # prefix reaches this container, /query-engine-frontend/main.<hash>.js
+        # isn't found, try_files falls back to index.html and the app dies on
+        # a script delivered as HTML. For the same reason, opening
+        # http://127.0.0.1:4300 directly (bypassing the proxy) won't work with
+        # this value.
         BASE_HREF: /query-engine-frontend/
     restart: always
     ports:

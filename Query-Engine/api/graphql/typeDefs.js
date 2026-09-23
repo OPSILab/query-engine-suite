@@ -3,14 +3,30 @@ const { gql } = require('apollo-server-express')
 const typeDefs = gql`
   
 
+  # Source documents are schemaless (see api/models/Source.js, strict: false):
+  # nothing written by the Source-Connector is guaranteed to have any given
+  # field, so no field of Source (or of the Data it may contain) is non-null.
+  # A non-null field that turns out null in one document makes GraphQL null
+  # out that whole list element and add an error for it.
   type Data {
-    datapoints: [DataPoint!]!
+    datapoints: [DataPoint]
   }
 
   type Source {
-    id: ID!
-    name: String!
+    id: ID
+    name: String
+    # Set by the Source-Connector's apiConnector (the polled API's URL and the
+    # item's original id); absent on documents coming from MinIO.
+    source: String
+    sourceId: String
     data: Data
+    # The whole document as stored, whatever its structure - the way to reach
+    # fields this schema doesn't (and, the collection being schemaless, can't)
+    # declare, without touching the schema or restarting when new kinds of
+    # documents get inserted. \`fields\` keeps only the given top-level keys;
+    # omit it to get everything (careful: documents from MinIO carry the whole
+    # uploaded file, e.g. under \`json\` or \`csv\`).
+    doc(fields: [String]): JSON
   }
 
   scalar JSON

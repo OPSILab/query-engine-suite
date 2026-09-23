@@ -14,12 +14,32 @@ import { BeopenUser } from "../model/beopen-user";
 export class BeopenAPIService {
   private apiBaseUrl: string;
   queryEngineBaseUrl: string;
+  /**
+   * Apollo's endpoint on the Query-Engine. Mounted at the app root
+   * (applyMiddleware({ path: '/graphql' }) in Query-Engine/index.js), not
+   * under the REST basePath, hence not "/api/graphql". Overridable with an
+   * optional "graphqlUrl" in config.json, for deployments where a reverse
+   * proxy exposes it somewhere else.
+   */
+  graphqlEndpoint: string;
 
   constructor(private http: HttpClient, private configService: ConfigService) {
     this.apiBaseUrl = this.configService.getSettings("beopenApiBaseUrl");
     this.queryEngineBaseUrl =
       this.configService.getSettings().queryEngineBaseUrl ||
       this.configService.getSettings().beopenApiBaseUrl;
+    this.graphqlEndpoint =
+      this.configService.getSettings("graphqlUrl", null) ||
+      `${this.queryEngineBaseUrl}/graphql`;
+  }
+
+  /**
+   * Sends a GraphQL document as-is. No `visibility` header: the GraphQL
+   * resolvers don't read it (the Private/Shared/Public switch applies to the
+   * REST modes only).
+   */
+  public graphqlQuery(query: string): Observable<any> {
+    return this.http.post<any>(this.graphqlEndpoint, { query });
   }
 
   public getUser(): Observable<BeopenUser> {

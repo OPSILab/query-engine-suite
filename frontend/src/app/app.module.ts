@@ -45,6 +45,7 @@ import { HomeComponent } from './home/home.component';
 import { QueryEngineComponent } from './data-space/query-engine/query-engine.component';
 import { AutocompleteComponent } from './data-space/query-engine/autocomplete/autocomplete.component';
 import { SqlEditorComponent } from './data-space/query-engine/sql-editor/sql-editor.component';
+import { GraphqlEditorComponent } from './data-space/query-engine/graphql-editor/graphql-editor.component';
 
 import { AuthLoginComponent } from './auth/login/auth-login.component';
 import { AuthCallbackComponent } from './auth/callback/auth-callback.component';
@@ -65,6 +66,7 @@ export function translateLoaderFactory(http: HttpClient) {
     QueryEngineComponent,
     AutocompleteComponent,
     SqlEditorComponent,
+    GraphqlEditorComponent,
     AuthLoginComponent,
     AuthCallbackComponent,
     AuthLogoutComponent,

@@ -12,6 +12,28 @@ function buildCachePrefix(args) {
   return ("Cached" + (source || survey || dimensions.toString() || region || sortBy || sortOrder || limit || exclude || filterBy || filter || lang) + " : ")
 }
 
+// Plain-object view of a Source document, computed once per document and
+// per request (a WeakMap entry dies with the document). Source documents are
+// schemaless (strict: false), so fields are read from this rather than from
+// the Mongoose document's own properties.
+const plainCache = new WeakMap()
+function plain(doc) {
+  if (!doc || typeof doc !== "object") return doc
+  if (typeof doc.toObject !== "function") return doc
+  if (!plainCache.has(doc)) plainCache.set(doc, doc.toObject())
+  return plainCache.get(doc)
+}
+
+// Typed String fields on a schemaless document: return the value only when
+// it is actually a scalar. A document may well carry e.g. `source` as a
+// nested object (MinIO documents spread the uploaded JSON's own top-level
+// keys); serializing that as String would fail and add an error for that
+// document - better null here, with the real value still reachable via `doc`.
+function scalarOrNull(value) {
+  if (value === null || value === undefined || typeof value === "object") return null
+  return String(value)
+}
+
 const resolvers = {
   Query: {
     sources: async () => {
@@ -143,6 +165,17 @@ const resolvers = {
         throw new Error('Error fetching datapoints');
       }
     }
+  },
+
+  Source: {
+    name: (s) => scalarOrNull(plain(s)?.name),
+    source: (s) => scalarOrNull(plain(s)?.source),
+    sourceId: (s) => scalarOrNull(plain(s)?.sourceId),
+    doc: (s, { fields }) => {
+      const d = plain(s)
+      if (!d || !Array.isArray(fields) || fields.length === 0) return d
+      return Object.fromEntries(fields.filter(f => Object.prototype.hasOwnProperty.call(d, f)).map(f => [f, d[f]]))
+    },
   },
 
   Mutation: {

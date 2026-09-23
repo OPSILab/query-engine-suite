@@ -30,12 +30,9 @@ RUN npm install-scripts ls
 
 COPY . .
 
-# Defaults to "/" so that a plain `docker compose build && docker compose up`
-# produces something that actually works when served at the root of the mapped
-# port. Override it when the app is deployed behind a reverse proxy on a
-# sub-path:
-#
-#   docker compose build --build-arg BASE_HREF=/query-engine-frontend/
+# Set by docker-compose.yml (/query-engine-frontend/, the reverse proxy's
+# sub-path - see the comment there on why the proxy must strip it). The "/"
+# default only applies to a bare `docker build` without --build-arg.
 #
 # Getting this wrong fails in a confusing way rather than loudly: with a
 # sub-path base href but nginx serving from the root, the browser asks for

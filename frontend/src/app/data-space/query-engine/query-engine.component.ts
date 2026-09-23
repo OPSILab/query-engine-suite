@@ -44,11 +44,17 @@ import { DataSpaceService } from '../data-space.service';
 export class QueryEngineComponent implements OnInit {
 
   form: UntypedFormGroup;
-  modes: string[] = ["Simple search", "Advanced search", "Query SQL"];
+  modes: string[] = ["Simple search", "Advanced search", "Query SQL", "Query GraphQL"];
   lines: any[] = [{ key: "", value: "" }];
   type: string;
   value: string = "";
   sqlQuery: string = "";
+  graphqlText: string = "";
+  // Set by <bx-graphql-editor (blockedChange)> when the document contains a
+  // mutation or subscription: this mode only runs queries, so Apply/Find all
+  // are disabled while it's true (and runGraphqlQuery() re-checks anyway).
+  graphqlBlocked = false;
+  graphqlEndpoint: string;
   generalSharedBucketObjects: BucketObject[] = [];
   userBucketObjects: BucketObject[] = [];
   pilotSharedBucketObjects: BucketObject[] = [];
@@ -89,6 +95,7 @@ export class QueryEngineComponent implements OnInit {
     this.form = new UntypedFormGroup({
       mode: new UntypedFormControl(this.modes[1])
     });
+    this.graphqlEndpoint = this.beopenAPI.graphqlEndpoint;
   }
 
   stringify(value) {
@@ -166,6 +173,12 @@ export class QueryEngineComponent implements OnInit {
   }
 
   minioQuery(all: Boolean) {
+    if (this.mode === "Query GraphQL") {
+      // GraphQL doesn't go through /api/query at all, and "find all" has no
+      // meaning for it: both buttons just run the document in the editor.
+      this.runGraphqlQuery();
+      return;
+    }
     let mongoQuery = {};
     if (!all)
       for (let l of this.lines) {
@@ -273,6 +286,66 @@ export class QueryEngineComponent implements OnInit {
       console.error("Query error", err);
       this.createToastr('danger', "Error querying objects", err.error);
     });
+  }
+
+  runGraphqlQuery(): void {
+    if (this.graphqlBlocked) {
+      return;
+    }
+    if (!this.graphqlText.trim()) {
+      this.createToastr('warning', "Empty query", "GraphQL empty query");
+      return;
+    }
+    this.beopenAPI.graphqlQuery(this.graphqlText).subscribe({
+      next: res => this.showGraphqlResult(res),
+      error: err => {
+        // Apollo answers syntax/validation errors (unknown field, wrong
+        // argument type, ...) with HTTP 400 and the usual { errors: [...] }
+        // body - the same shape as a 200 with errors, so show them the same way.
+        if (Array.isArray(err?.error?.errors)) {
+          this.showGraphqlResult(err.error);
+        } else {
+          console.error("GraphQL query error", err);
+          this.createToastr('danger', "Error querying objects", err?.message || "GraphQL request failed");
+        }
+      },
+    });
+  }
+
+  /**
+   * GraphQL results don't have the { record, element } shape the REST modes
+   * return, and aren't bucket files: every top-level field of `data` becomes
+   * one or more entries in the "Matched elements" list (one per item when the
+   * field is a list), shown as-is. `data` and `errors` can both be present -
+   * GraphQL returns partial results - so both are shown.
+   */
+  private showGraphqlResult(res: any): void {
+    this.generalSharedBucketObjects = [];
+    this.pilotSharedBucketObjects = [];
+    this.userBucketObjects = [];
+    this.extractedElements = [];
+
+    const data = res?.data && typeof res.data === "object" ? res.data : {};
+    for (const [field, val] of Object.entries<any>(data)) {
+      if (Array.isArray(val)) {
+        val.forEach((item, i) => this.extractedElements.push({
+          name: `${field}[${i}]` + (item?._id ? ` · ${item._id}` : ""),
+          element: item,
+        }));
+      } else if (val !== null && val !== undefined) {
+        this.extractedElements.push({ name: field, element: val });
+      }
+    }
+
+    const errors: any[] = Array.isArray(res?.errors) ? res.errors : [];
+    if (errors.length) {
+      const shown = errors.slice(0, 3).map(e => e?.message || String(e)).join(" — ");
+      const more = errors.length > 3 ? ` (+${errors.length - 3})` : "";
+      this.createToastr('danger', "GraphQL query returned errors", shown + more);
+    } else if (!this.extractedElements.length) {
+      this.createToastr('info', "No results", "GraphQL no results");
+    }
+    this.sendData();
   }
 
   BucketObjectsPush = this.dataSpaceService.BucketObjectsPush.bind(this.dataSpaceService);
