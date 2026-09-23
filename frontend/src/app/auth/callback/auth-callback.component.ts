@@ -3,7 +3,7 @@ import { Subject } from 'rxjs';
 import { NbAuthService, NbAuthResult } from '@nebular/auth';
 import { Router } from '@angular/router';
 import { takeUntil } from 'rxjs/operators';
-import { ConfigService } from '../../services/config.service';
+import { ConfigService } from '@ngx-config/core';
 import { BeopenAPIService } from '../../services/be-open.service';
 import { OidcUserInformationService } from '../services/oidc-user-information.service';
 import { UserClaims } from '../oidc';

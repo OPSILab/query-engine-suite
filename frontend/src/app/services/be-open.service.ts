@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { ConfigService } from "./config.service";
+import { ConfigService } from "@ngx-config/core";
 import { Observable } from "rxjs";
 import { BeopenUser } from "../model/beopen-user";
 
