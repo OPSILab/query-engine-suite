@@ -7,6 +7,7 @@ import { ThemeService } from '../services/theme.service';
   selector: 'app-home',
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
+  standalone: false
 })
 export class HomeComponent {
   // Same default the dashboard passes to <ngx-query-engine [visibility]="'private'">

@@ -4,7 +4,7 @@ import { ToastService, ToastStatus } from '../../services/toast.service';
 import { BeopenAPIService } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
-import { FormGroup, FormControl } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormControl } from '@angular/forms';
 import { BeopenUser } from '../../model/beopen-user';
 import { Router } from '@angular/router';
 import { SharedService } from '../../services/shared.service';
@@ -38,11 +38,12 @@ import { DataSpaceService } from '../data-space.service';
 @Component({
   selector: 'ngx-query-engine',
   templateUrl: './query-engine.component.html',
-  styleUrls: ['./query-engine.component.scss']
+  styleUrls: ['./query-engine.component.scss'],
+  standalone: false
 })
 export class QueryEngineComponent implements OnInit {
 
-  form: FormGroup;
+  form: UntypedFormGroup;
   modes: string[] = ["Simple search", "Advanced search", "Query SQL"];
   lines: any[] = [{ key: "", value: "" }];
   type: string;
@@ -85,8 +86,8 @@ export class QueryEngineComponent implements OnInit {
     private sharedService: SharedService,
     private dataSpaceService: DataSpaceService
   ) {
-    this.form = new FormGroup({
-      mode: new FormControl(this.modes[1])
+    this.form = new UntypedFormGroup({
+      mode: new UntypedFormControl(this.modes[1])
     });
   }
 

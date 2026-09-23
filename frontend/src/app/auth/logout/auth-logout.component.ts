@@ -1,18 +1,19 @@
-import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { Component, Inject, OnInit, OnDestroy, DOCUMENT } from '@angular/core';
+
 import { Router } from '@angular/router';
 import { NbAuthResult, NbAuthService } from '@nebular/auth';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from '../../services/config.service';
 import { environment } from '../../../environments/environment';
 
 // Direct copy of the dashboard's AuthLogoutComponent, parameterized on
 // environment.keycloak.client_id instead of the hardcoded
 // "client_id=beopen-dashboard" the original had.
 @Component({
-  selector: 'ngx-oauth2-logout',
-  template: ``,
+    selector: 'ngx-oauth2-logout',
+    template: ``,
+    standalone: false
 })
 export class AuthLogoutComponent implements OnInit, OnDestroy {
 

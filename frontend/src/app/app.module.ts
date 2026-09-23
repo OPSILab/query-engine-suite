@@ -1,7 +1,7 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgModule } from '@angular/core';
-import { HttpClientModule, HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { HttpClient, HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { NbAuthModule, NbOAuth2AuthStrategy } from '@nebular/auth';
@@ -32,8 +32,9 @@ import { NbThemeModule } from '@nebular/theme';
 // this was ported from uses everywhere else.
 import { NbEvaIconsModule } from '@nebular/eva-icons';
 
-import { ConfigHttpLoader } from '@ngx-config/http-loader';
-import { ConfigModule, ConfigLoader } from '@ngx-config/core';
+// Was @ngx-config/core + @ngx-config/http-loader: abandoned at v9, peer deps
+// pinned to Angular 9, which blocked ng update. See services/config.service.ts.
+import { CONFIG_PROVIDERS } from './services/config.service';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 
@@ -52,10 +53,6 @@ import { TokenInterceptor } from './auth/services/token.interceptor';
 import { OidcJWTToken } from './auth/oidc';
 import { ToastContainerComponent } from './shared/toast-container/toast-container.component';
 import { TooltipDirective } from './shared/tooltip/tooltip.directive';
-
-export function configFactory(http: HttpClient): ConfigLoader {
-  return new ConfigHttpLoader(http, './assets/config.json');
-}
 
 export function translateLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -79,7 +76,6 @@ export function translateLoaderFactory(http: HttpClient) {
     BrowserAnimationsModule,
     FormsModule,
     ReactiveFormsModule,
-    HttpClientModule,
     AppRoutingModule,
 
     NbThemeModule.forRoot({ name: 'default' }),
@@ -103,12 +99,6 @@ export function translateLoaderFactory(http: HttpClient) {
       ],
     }),
 
-    ConfigModule.forRoot({
-      provide: ConfigLoader,
-      useFactory: configFactory,
-      deps: [HttpClient],
-    }),
-
     TranslateModule.forRoot({
       defaultLanguage: 'en',
       loader: {
@@ -119,11 +109,18 @@ export function translateLoaderFactory(http: HttpClient) {
     }),
   ],
   providers: [
+    // App initializer that loads assets/config.json, replacing what
+    // ConfigModule.forRoot() used to do - see services/config.service.ts.
+    ...CONFIG_PROVIDERS,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: TokenInterceptor,
       multi: true,
     },
+    // Was HttpClientModule in `imports`, rewritten by the Angular 18 migration:
+    // the module is deprecated, and withInterceptorsFromDi() is what keeps the
+    // HTTP_INTERCEPTORS-based TokenInterceptor above working.
+    provideHttpClient(withInterceptorsFromDi()),
   ],
   bootstrap: [AppComponent],
 })

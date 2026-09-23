@@ -2,13 +2,14 @@
 
   <div class="ds-panel__header">
     <div class="ds-tabs">
-      <button
-        type="button"
-        *ngFor="let m of modes"
-        class="ds-tab"
-        [class.ds-tab--active]="mode === m"
-        (click)="setMode(m)"
-      >{{ m | translate }}</button>
+      @for (m of modes; track m) {
+        <button
+          type="button"
+          class="ds-tab"
+          [class.ds-tab--active]="mode === m"
+          (click)="setMode(m)"
+        >{{ m | translate }}</button>
+      }
     </div>
     <div class="ds-panel__header-actions">
       <button
@@ -16,7 +17,7 @@
         [dsTooltip]="'Query Mode Select info' | translate"
         class="ds-icon-button"
         aria-label="Info"
-      >
+        >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
       </button>
       <button type="button" class="ds-ghost-button" (click)="demo()">Demo</button>
@@ -25,63 +26,71 @@
 
   <div class="ds-panel__body">
 
-    <div *ngIf="mode == 'Simple search'" class="ds-mode-panel">
-      <label class="ds-field-label">{{ 'Type the search key here' | translate }}</label>
-      <input
-        class="ds-input"
-        type="text"
-        [(ngModel)]="value"
-        [ngModelOptions]="{ standalone: true }"
-        [placeholder]="'Value (E.g. BikeLane)' | translate"
-      />
-    </div>
+    @if (mode == 'Simple search') {
+      <div class="ds-mode-panel">
+        <label class="ds-field-label">{{ 'Type the search key here' | translate }}</label>
+        <input
+          class="ds-input"
+          type="text"
+          [(ngModel)]="value"
+          [ngModelOptions]="{ standalone: true }"
+          [placeholder]="'Value (E.g. BikeLane)' | translate"
+          />
+      </div>
+    }
 
-    <div *ngIf="mode == 'Advanced search'" class="ds-mode-panel">
-      <div>
+    @if (mode == 'Advanced search') {
+      <div class="ds-mode-panel">
+        <div>
+          <div class="ds-field-row">
+            <label class="ds-field-label">{{ 'typeSelect' | translate }}</label>
+            <button
+              type="button"
+              [dsTooltip]="'File type select info' | translate"
+              class="ds-icon-button"
+              aria-label="Info"
+              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
+            </button>
+          </div>
+          <div class="ds-pills">
+            @for (t of types; track t) {
+              <button
+                type="button"
+                class="ds-pill"
+                [class.ds-pill--active]="type === t"
+                (click)="setType(t)"
+              >{{ t }}</button>
+            }
+          </div>
+        </div>
+        <div class="ds-filters">
+          @for (l of lines; track l; let i = $index) {
+            <div class="ds-filter-row">
+              <ng-container *ngTemplateOutlet="keyValueLine1; context: { item: l, i: i }"></ng-container>
+              <ng-container *ngTemplateOutlet="keyValueLine2; context: { item: l, i: i }"></ng-container>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (mode == 'Query SQL') {
+      <div class="ds-mode-panel">
         <div class="ds-field-row">
-          <label class="ds-field-label">{{ 'typeSelect' | translate }}</label>
+          <label class="ds-field-label">{{ 'Type the SQL query here' | translate }}</label>
           <button
             type="button"
-            [dsTooltip]="'File type select info' | translate"
+            [dsTooltip]="'Query SQL tooltip' | translate"
             class="ds-icon-button"
             aria-label="Info"
-          >
+            >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
           </button>
         </div>
-        <div class="ds-pills">
-          <button
-            type="button"
-            *ngFor="let t of types"
-            class="ds-pill"
-            [class.ds-pill--active]="type === t"
-            (click)="setType(t)"
-          >{{ t }}</button>
-        </div>
+        <bx-sql-editor [(value)]="sqlQuery"></bx-sql-editor>
       </div>
-
-      <div class="ds-filters">
-        <div *ngFor="let l of lines; let i = index" class="ds-filter-row">
-          <ng-container *ngTemplateOutlet="keyValueLine1; context: { item: l, i: i }"></ng-container>
-          <ng-container *ngTemplateOutlet="keyValueLine2; context: { item: l, i: i }"></ng-container>
-        </div>
-      </div>
-    </div>
-
-    <div *ngIf="mode == 'Query SQL'" class="ds-mode-panel">
-      <div class="ds-field-row">
-        <label class="ds-field-label">{{ 'Type the SQL query here' | translate }}</label>
-        <button
-          type="button"
-          [dsTooltip]="'Query SQL tooltip' | translate"
-          class="ds-icon-button"
-          aria-label="Info"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
-        </button>
-      </div>
-      <bx-sql-editor [(value)]="sqlQuery"></bx-sql-editor>
-    </div>
+    }
 
     <div class="ds-action-row">
       <button type="button" class="ds-primary-button" (click)="minioQuery(false)">
@@ -105,66 +114,83 @@
       [dsTooltip]="'Value type select info' | translate"
       class="ds-icon-button"
       aria-label="Info"
-    >
+      >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
     </button>
   </div>
-  <div class="ds-pills" *ngIf="item">
-    <button
-      type="button"
-      *ngFor="let vt of valueTypes"
-      class="ds-pill"
-      [class.ds-pill--active]="item.type === vt"
-      (click)="setItemType(item, vt)"
-    >{{ vt }}</button>
-  </div>
+  @if (item) {
+    <div class="ds-pills">
+      @for (vt of valueTypes; track vt) {
+        <button
+          type="button"
+          class="ds-pill"
+          [class.ds-pill--active]="item.type === vt"
+          (click)="setItemType(item, vt)"
+        >{{ vt }}</button>
+      }
+    </div>
+  }
 </ng-template>
 
 <ng-template #keyValueLine2 let-item="item" let-i="i">
   <div class="ds-kv-labels">
     <span>{{ "Enter a key that you want so search" | translate }}</span>
-    <span *ngIf="item.type != 'Date'">{{ "Enter a value that you want so search" | translate }}</span>
-    <span *ngIf="item.type == 'Date'">{{ "Select the start date for your search" | translate }}</span>
-    <span *ngIf="item.type == 'Date'">{{ "Select the end date for your search" | translate }}</span>
+    @if (item.type != 'Date') {
+      <span>{{ "Enter a value that you want so search" | translate }}</span>
+    }
+    @if (item.type == 'Date') {
+      <span>{{ "Select the start date for your search" | translate }}</span>
+    }
+    @if (item.type == 'Date') {
+      <span>{{ "Select the end date for your search" | translate }}</span>
+    }
   </div>
   <div class="ds-kv-row">
     <div class="ds-kv-field">
       <autocomplete [otherVerified]="valueVerified[i]" [mode]="'key'" [options]="keys" [entries]="entries"
         [ready]="autocompleteDataReady" [v]="item.value" [value]="item.key" [placeholder]="'Key (E.g. name)'"
-        (output)="onKeysChange($event, i)" (ver)="keyVerifiedChange($event, i)"></autocomplete>
+      (output)="onKeysChange($event, i)" (ver)="keyVerifiedChange($event, i)"></autocomplete>
     </div>
-    <div class="ds-kv-field" *ngIf="item.type != 'Date'">
-      <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [options]="values" [entries]="entries"
-        [ready]="autocompleteDataReady" [key]="item.key" [value]="item.value" [placeholder]="'Value (E.g. Geo data)'"
-        (output)="onValuesChange($event, i)" (ver)="valueVerifiedChange($event, i)">
-      </autocomplete>
-    </div>
+    @if (item.type != 'Date') {
+      <div class="ds-kv-field">
+        <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [options]="values" [entries]="entries"
+          [ready]="autocompleteDataReady" [key]="item.key" [value]="item.value" [placeholder]="'Value (E.g. Geo data)'"
+          (output)="onValuesChange($event, i)" (ver)="valueVerifiedChange($event, i)">
+        </autocomplete>
+      </div>
+    }
 
-    <div class="ds-kv-field" *ngIf="item.type == 'Date'">
-      <input class="ds-input" type="datetime-local" step="1" [(ngModel)]="item.from"
-        [placeholder]="'From date' | translate" />
-    </div>
-    <div class="ds-kv-field" *ngIf="item.type == 'Date'">
-      <input class="ds-input" type="datetime-local" step="1" [(ngModel)]="item.to"
-        [ngModelOptions]="{ standalone: true }" [placeholder]="'To date' | translate" />
-    </div>
+    @if (item.type == 'Date') {
+      <div class="ds-kv-field">
+        <input class="ds-input" type="datetime-local" step="1" [(ngModel)]="item.from"
+          [placeholder]="'From date' | translate" />
+      </div>
+    }
+    @if (item.type == 'Date') {
+      <div class="ds-kv-field">
+        <input class="ds-input" type="datetime-local" step="1" [(ngModel)]="item.to"
+          [ngModelOptions]="{ standalone: true }" [placeholder]="'To date' | translate" />
+      </div>
+    }
 
-    <button
-      type="button"
-      *ngIf="lines[1]"
-      class="ds-icon-button"
-      title="lineMinus"
-      aria-label="Remove filter"
-      (click)="line(-1)"
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
-    </button>
+    @if (lines[1]) {
+      <button
+        type="button"
+        class="ds-icon-button"
+        title="lineMinus"
+        aria-label="Remove filter"
+        (click)="line(-1)"
+        >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+      </button>
+    }
   </div>
 
-  <button
-    type="button"
-    *ngIf="!lines[i + 1]"
-    class="ds-ghost-button ds-ghost-button--add"
-    (click)="line(1)"
-  >+ Add filter</button>
+  @if (!lines[i + 1]) {
+    <button
+      type="button"
+      class="ds-ghost-button ds-ghost-button--add"
+      (click)="line(1)"
+    >+ Add filter</button>
+  }
 </ng-template>

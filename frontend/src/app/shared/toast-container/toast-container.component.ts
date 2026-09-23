@@ -8,6 +8,7 @@ import { ToastService } from '../../services/toast.service';
   selector: 'ds-toast-container',
   templateUrl: './toast-container.component.html',
   styleUrls: ['./toast-container.component.scss'],
+  standalone: false
 })
 export class ToastContainerComponent {
   constructor(public toastService: ToastService) {}

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, OnInit, OnChanges, AfterViewInit, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from '../../../services/config.service';
 import { TranslateService } from '@ngx-translate/core';
 import { BeopenAPIService } from '../../../services/be-open.service';
 import { SharedService } from '../../../services/shared.service';
@@ -15,6 +15,7 @@ import { SharedService } from '../../../services/shared.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './autocomplete.component.html',
   styleUrls: ['./autocomplete.component.scss'],
+  standalone: false
 })
 export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
 
@@ -25,7 +26,12 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   @Input() entries;
   @ViewChild('autoInput') input;
   @Output() output = new EventEmitter<any[]>();
-  filteredOptions$;
+  // Explicitly typed (it used to be a bare untyped field): with `*ngFor` the
+  // implicit `any` flowed through NgForOf unchecked, but `@for` - which the
+  // Angular 21 control-flow migration rewrote this template to - type-checks
+  // properly, and `any | async` makes the AsyncPipe generic resolve to
+  // `unknown`, which is neither indexable (`opts.length`) nor iterable.
+  filteredOptions$: Observable<any[]>;
   @Input() mode;
   @Input() key;
   @Input() v;

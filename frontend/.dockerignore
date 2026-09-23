@@ -1,5 +1,10 @@
 node_modules/
-config.js
-config.docker.js
-docker-compose.yaml
-Esempi query.txt
+dist/
+.angular/
+.git/
+.github/
+Dockerfile
+docker-compose.yml
+.dockerignore
+local.md
+README.md

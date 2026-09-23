@@ -2,13 +2,14 @@ import { Component, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { NbAuthResult, NbAuthService, NbAuthOAuth2JWTToken } from '@nebular/auth';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from '../../services/config.service';
 
 // Direct copy of the dashboard's AuthLoginComponent: kicks off the redirect
 // to Keycloak as soon as the route is activated.
 @Component({
-  selector: 'ngx-oauth2-login',
-  template: ``,
+    selector: 'ngx-oauth2-login',
+    template: ``,
+    standalone: false
 })
 export class AuthLoginComponent implements OnDestroy {
   token: NbAuthOAuth2JWTToken;

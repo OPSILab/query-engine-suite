@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=14 <=22"
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
   },
   "scripts": {
     "ng": "node scripts/run-ng.js",
@@ -13,35 +13,38 @@
     "test": "node scripts/run-ng.js test"
   },
   "dependencies": {
-    "@angular/animations": "^11.0.9",
-    "@angular/cdk": "^11.0.4",
-    "@angular/common": "^11.0.9",
-    "@angular/compiler": "^11.0.9",
-    "@angular/core": "^11.0.9",
-    "@angular/forms": "^11.0.9",
-    "@angular/platform-browser": "^11.0.9",
-    "@angular/platform-browser-dynamic": "^11.0.9",
-    "@angular/router": "^11.0.9",
-    "@nebular/auth": "7.0.0",
-    "@nebular/eva-icons": "7.0.0",
-    "@nebular/theme": "7.0.0",
-    "@ngx-config/core": "^9.0.0",
-    "@ngx-config/http-loader": "^9.0.0",
-    "@ngx-translate/core": "^13.0.0",
-    "@ngx-translate/http-loader": "^6.0.0",
+    "@angular/animations": "^21.2.23",
+    "@angular/cdk": "21.0.6",
+    "@angular/common": "^21.2.23",
+    "@angular/compiler": "^21.2.23",
+    "@angular/core": "^21.2.23",
+    "@angular/forms": "^21.2.23",
+    "@angular/platform-browser": "^21.2.23",
+    "@angular/router": "^21.2.23",
+    "@nebular/auth": "17.0.0",
+    "@nebular/eva-icons": "17.0.0",
+    "@nebular/theme": "17.0.0",
+    "@ngx-translate/core": "^15.0.0",
+    "@ngx-translate/http-loader": "^8.0.0",
     "bootstrap": "4.3.1",
     "eva-icons": "^1.1.3",
-    "rxjs": "6.5.5",
+    "rxjs": "7.8.2",
     "tslib": "^2.0.0",
     "uuid": "^8.3.1",
-    "zone.js": "^0.10.3"
+    "zone.js": "~0.15.1"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "~0.1100.7",
-    "@angular/cli": "^11.0.7",
-    "@angular/compiler-cli": "^11.0.9",
-    "@types/node": "^14.18.63",
+    "@angular-devkit/build-angular": "^21.2.24",
+    "@angular/cli": "^21.2.24",
+    "@angular/compiler-cli": "^21.2.23",
+    "@types/node": "^22.18.1",
     "@types/uuid": "^8.3.4",
-    "typescript": "4.0.7"
+    "typescript": "5.9.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "@parcel/watcher@2.6.0": true,
+    "lmdb@3.5.1": true,
+    "msgpackr-extract@3.0.4": true
   }
 }

@@ -43,10 +43,30 @@ const TOKEN_RE = /(\s+)|('(?:[^']|'')*')|(\d+(?:\.\d+)?)|([A-Za-z_][A-Za-z0-9_]*
   selector: 'bx-sql-editor',
   templateUrl: './sql-editor.component.html',
   styleUrls: ['./sql-editor.component.scss'],
+  standalone: false
 })
 export class SqlEditorComponent {
 
-  @Input() value = '';
+  // Tokens are computed once per value change, NOT from the template.
+  // The template used to call tokenize(value) directly, i.e. on every change
+  // detection pass - which under `*ngFor` was only wasteful, but under the
+  // `@for` the Angular 21 migration converted it to is also wrong: `@for`
+  // reconciles inline in the template, including during dev mode's second
+  // "check no changes" pass, so each pass got a brand-new array of brand-new
+  // token objects, created fresh span views mid-check, and tripped NG0100
+  // (ExpressionChangedAfterItHasBeenChecked, "Previous value for 'color':
+  // 'undefined'") on their first binding.
+  tokens: SqlToken[] = [];
+  private _value = '';
+
+  @Input()
+  set value(v: string) {
+    this._value = v ?? '';
+    this.tokens = this.tokenize(this._value);
+  }
+  get value(): string {
+    return this._value;
+  }
   @Output() valueChange = new EventEmitter<string>();
 
   @Input() placeholder = "SELECT * FROM bucketName WHERE name = 'email/Data model mapper/file.json'";

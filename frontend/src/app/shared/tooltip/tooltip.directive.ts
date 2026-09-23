@@ -14,6 +14,7 @@ import { Directive, ElementRef, HostListener, Input, OnDestroy, Renderer2 } from
  */
 @Directive({
   selector: '[dsTooltip]',
+  standalone: false
 })
 export class TooltipDirective implements OnDestroy {
   @Input('dsTooltip') text: string;

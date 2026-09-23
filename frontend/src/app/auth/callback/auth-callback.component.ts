@@ -3,7 +3,7 @@ import { Subject } from 'rxjs';
 import { NbAuthService, NbAuthResult } from '@nebular/auth';
 import { Router } from '@angular/router';
 import { takeUntil } from 'rxjs/operators';
-import { ConfigService } from '@ngx-config/core';
+import { ConfigService } from '../../services/config.service';
 import { BeopenAPIService } from '../../services/be-open.service';
 import { OidcUserInformationService } from '../services/oidc-user-information.service';
 import { UserClaims } from '../oidc';
@@ -24,8 +24,9 @@ import { SharedService } from '../../services/shared.service';
  *   is still propagated too, in case you build more on top of this later.
  */
 @Component({
-  selector: 'ngx-oauth2-callback',
-  template: ``,
+    selector: 'ngx-oauth2-callback',
+    template: ``,
+    standalone: false
 })
 export class AuthCallbackComponent implements OnDestroy {
 
