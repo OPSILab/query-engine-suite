@@ -9,16 +9,10 @@ services:
         # of 127.0.0.1:4300). Change it to /query-engine-frontend/ only when
         # this sits behind a reverse proxy on that sub-path - and then the
         # proxy must NOT strip the prefix, or the asset URLs won't resolve.
-        BASE_HREF: /
+        BASE_HREF: /query-engine-frontend/
     restart: always
     ports:
       - '127.0.0.1:4300:80'
     volumes:
-      # Runtime config, so the image doesn't have to be rebuilt to point the
-      # app at a different backend or Keycloak realm. ./config.json is a copy
-      # of src/assets/config.json kept at the repo root purely as this mount's
-      # source: it used to point at a path that didn't exist, and Docker
-      # silently creates a DIRECTORY in that case - which the app then fetches
-      # and fails to parse as JSON.
       - ./src/assets/config.json:/usr/share/nginx/html/assets/config.json:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
