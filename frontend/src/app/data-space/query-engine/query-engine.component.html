@@ -94,8 +94,16 @@
 
     @if (mode == 'Query GraphQL') {
       <div class="ds-mode-panel">
-        <div class="ds-field-row">
+        <div class="ds-field-row ds-field-row--wrap">
           <label class="ds-field-label">{{ 'Type the GraphQL query here' | translate }}</label>
+          <span class="ds-field-label-aside">{{ 'or' | translate }}</span>
+          <a
+            class="ds-external-link"
+            [href]="graphqlEndpoint"
+            target="_blank"
+            rel="noopener noreferrer"
+            [title]="'Apollo Studio link title' | translate"
+          >{{ 'Use the Apollo Studio UI' | translate }}<svg class="ds-external-link__icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
           <button
             type="button"
             [dsTooltip]="'Query GraphQL tooltip' | translate"

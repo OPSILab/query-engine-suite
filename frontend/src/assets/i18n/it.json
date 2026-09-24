@@ -34,5 +34,8 @@
   "GraphQL fields of": "Campi di {{owner}}",
   "GraphQL arguments of": "Argomenti di {{owner}}",
   "GraphQL empty query": "Scrivi prima una query GraphQL.",
-  "GraphQL no results": "La query è andata a buon fine ma non ha restituito dati."
+  "GraphQL no results": "La query è andata a buon fine ma non ha restituito dati.",
+  "or": "oppure",
+  "Use the Apollo Studio UI": "usa l'interfaccia di Apollo Studio",
+  "Apollo Studio link title": "Apre questo endpoint GraphQL nell'interfaccia di Apollo, in una nuova scheda"
 }

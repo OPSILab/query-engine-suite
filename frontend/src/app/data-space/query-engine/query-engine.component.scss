@@ -127,3 +127,57 @@
   background: var(--ds-accent-soft);
   filter: none;
 }
+
+// "…or use the Apollo Studio UI" next to the GraphQL field label: reads as
+// part of the sentence (same size as the label, connector word in the fainter
+// text colour) but is visibly a link - accent colour, a small outward arrow
+// for "opens elsewhere", and an underline that only appears on hover/focus so
+// the label row stays calm at rest.
+.ds-field-row--wrap {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+// Bootstrap 4's reboot gives every <label> a margin-bottom, which sits the
+// label a few pixels above the words that follow it on the same line.
+.ds-field-row--wrap > .ds-field-label {
+  margin-bottom: 0;
+}
+
+.ds-field-label-aside {
+  font-size: 12px;
+  color: var(--ds-text-faint);
+}
+
+a.ds-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-accent);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 120ms ease;
+  border-radius: 4px;
+}
+
+a.ds-external-link:hover,
+a.ds-external-link:focus-visible {
+  text-decoration-color: var(--ds-accent-border);
+}
+
+a.ds-external-link:focus-visible {
+  outline: 2px solid var(--ds-accent-border);
+  outline-offset: 2px;
+}
+
+.ds-external-link__icon {
+  flex: none;
+  transition: transform 120ms ease;
+}
+
+a.ds-external-link:hover .ds-external-link__icon {
+  transform: translate(1px, -1px);
+}
