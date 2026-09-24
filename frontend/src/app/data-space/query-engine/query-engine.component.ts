@@ -217,6 +217,14 @@ export class QueryEngineComponent implements OnInit {
           // shape difference between modes doesn't throw away the whole
           // batch (see the try/catch below either way).
           const record = obj.record || obj;
+          // The item's own data, i.e. everything except `record` - taken
+          // BEFORE the lines below add objectPath/pilot/insertedBy to obj.
+          // Advanced search returns the stored Source documents as they are,
+          // `{ _id, name, json | csv | <the file's own keys>, record }`, where
+          // `record` is only the MinIO/S3 metadata of the uploaded file: showing
+          // `record` for those (as this used to) showed the metadata and never
+          // the data itself.
+          const { record: _meta, ...ownData } = obj;
           obj.objectPath = record.name;
           obj.pilot = record.bucketName;
           obj.insertedBy = record.insertedBy; //TODO now it is empty
@@ -257,20 +265,18 @@ export class QueryEngineComponent implements OnInit {
             const bucketName = record.bucketName || record.s3?.bucket?.name || "?";
             this.extractedElements.push({ name: bucketName + "/" + (obj.name || record.name || "?"), element: obj.element });
           } else {
-            // No nested element to be more specific than - show the raw
-            // item as-is. Simple search (isRawQuery: "yes" on the request)
-            // carries the true unprocessed source document in obj.raw,
-            // distinct from `record` (which may already be a reshaped/
-            // projected view) - prefer that when present, since it's what
-            // was actually asked to be shown here. Other modes (and any
-            // response that doesn't carry a `raw` field at all, like the
-            // SMARTERA language-views example) fall back to `record`,
-            // which for those is already the closest thing to "raw" we have.
-            // It's already sitting in memory from the response regardless
-            // of whether BucketObjectsPush above also classified it as a
-            // bucket file, so this costs nothing, and it's the only place
+            // No nested element to be more specific than - show the item's
+            // data. Simple search (isRawQuery: "yes" on the request) carries
+            // the true unprocessed file in obj.raw: prefer that. Otherwise
+            // show ownData - the item minus its `record` metadata (see where
+            // it's taken, above). For items that have no `record` at all
+            // (e.g. the SMARTERA language views, plain Mongo documents) that
+            // is the whole item, same as before. `record` itself is only
+            // shown when the item carries nothing else. It's the only place
             // some results (non-file Mongo documents) show up at all.
-            const rawData = obj.raw !== undefined ? obj.raw : record;
+            const rawData = obj.raw !== undefined
+              ? obj.raw
+              : (Object.keys(ownData).length ? ownData : record);
             this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: rawData });
           }
         } catch (itemErr) {

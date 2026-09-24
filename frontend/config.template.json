@@ -1,0 +1,12 @@
+{
+  "enableAuthentication": true,
+  "dashboardBaseURL": "http://localhost:4300",
+  "beopenApiBaseUrl": "http://localhost:4300",
+  "queryEngineBaseUrl": "http://localhost:3001",
+  "keycloak": {
+    "authProfile": "oidc",
+    "baseURL": "http://keycloakurl/auth/realms/smartera/protocol/openid-connect",
+    "accountURL": "http://keycloakurl/auth/realms/smartera/account",
+    "userURL": "http://keycloakurl/auth/realms/smartera/protocol/openid-connect/userinfo"
+  }
+}
