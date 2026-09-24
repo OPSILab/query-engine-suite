@@ -276,7 +276,7 @@ export class QueryEngineComponent implements OnInit {
             // some results (non-file Mongo documents) show up at all.
             const rawData = obj.raw !== undefined
               ? obj.raw
-              : (Object.keys(ownData).length ? ownData : record);
+              : (Object.keys(ownData).length ? ownData.json || ownData.csv || ownData : record);
             this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: rawData });
           }
         } catch (itemErr) {

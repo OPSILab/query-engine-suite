@@ -35,9 +35,9 @@
     (userBucketObjectsChange)="userBucketObjects = $event"
   ></ngx-query-engine>
 
-  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Your objects', items: userBucketObjects }"></ng-container>
-  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Shared with your pilot', items: pilotSharedBucketObjects }"></ng-container>
-  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Public objects', items: generalSharedBucketObjects }"></ng-container>
+  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Your minio objects', items: userBucketObjects }"></ng-container>
+  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Minio objects shared with your pilot', items: pilotSharedBucketObjects }"></ng-container>
+  <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Public minio objects', items: generalSharedBucketObjects }"></ng-container>
 
   @if (extractedElements?.length) {
     <div class="ds-results">
