@@ -17,10 +17,10 @@ function deniedQuery(query, bucketName, prefix) {
         if (query) {
             analyzedQuery = query.split(" ").filter(str => str !== '').join(' ')
             let requestedBucketname = analyzedQuery.split("FROM")[1].split(" ")[1]
-            if (requestedBucketname != bucketName)
+            if (requestedBucketname != bucketName && requestedBucketname != "public-data" && requestedBucketname != "publicdata" && requestedBucketname != "sources")
                 return true
             analyzedQuery = query.split("name = '")[1]
-            if (!analyzedQuery.startsWith(prefix))
+            if (!analyzedQuery.startsWith(prefix) && requestedBucketname != "public-data" && requestedBucketname != "publicdata" && requestedBucketname != "sources")
                 return true
         }
     }

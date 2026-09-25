@@ -15,7 +15,15 @@ function connectReader() {
             return
         }
 
-        process.postgreInit = "done"
+        readerClient.query('SET statement_timeout = 100000', (err) => {
+            if (err) {
+                logger.error('Error setting statement timeout:', err)
+                process.postgreInit = "done"
+                return
+            }
+
+            process.postgreInit = "done"
+        })
     })
 }
 
@@ -61,7 +69,8 @@ function setUserPrivileges() {
         `GRANT CONNECT ON DATABASE ${postgreReaderConfig.database} TO readerUser`,
         `GRANT USAGE ON SCHEMA public TO readerUser`,
         `GRANT SELECT ON ALL TABLES IN SCHEMA public TO readerUser`,
-        `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO readerUser`
+        `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO readerUser`,
+        `REVOKE SELECT ON users FROM readerUser`
     ]
 
     let index = 0
@@ -97,7 +106,7 @@ client.connect((err) => {
     checkUserExists()
 })
 const getReaderClient = () => readerClient
-module.exports =  getReaderClient/*{
+module.exports = getReaderClient/*{
     client, 
     getReaderClient: () => readerClient
 };*/

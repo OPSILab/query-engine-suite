@@ -493,21 +493,23 @@ module.exports = {
     },
 
     async querySQL(response, query, prefix, bucket, visibility) {
-        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(bucket))
+        /*if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(bucket))
             throw new Error('Invalid table name');
-        else if (forbiddenTables.has(bucket))
-            throw new Error('Forbidden table');
+        else if (bucket == "users")
+            bucket = "users_table"
+        else if (bucket == "credentials")
+            bucket = "credentials_table"
         else if (bucket == "default")
             bucket = "default_table"
         else if (bucket == "status")
             bucket = "status_table"
         else if (bucket == "sources")
-            bucket = "sources_table"
+            bucket = "sources_table"*/
         while (process.postgreInit == "busy")
             await new Promise(resolve => setTimeout(resolve, 1000));
         if (!client)
             setClient()
-        client.query(
+        /*client.query(
             `SELECT 1
              FROM information_schema.tables
              WHERE table_schema = 'public'
@@ -524,6 +526,7 @@ module.exports = {
                     return response.status(500).json("Table does not exist")
                 }
                 else
+                    */
                     client.query(query, (err, res) => {
                         if (err) {
                             logger.error("ERROR");
@@ -538,7 +541,7 @@ module.exports = {
                             logger.info("Query sql finished")
                         }
                     });
-            }
-        );
+            /*}
+        );*/
     }
 }

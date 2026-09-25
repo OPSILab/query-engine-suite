@@ -38,7 +38,7 @@ const querySQL = async (req, res) => {
     if (!req.body.query)
         return await res.status(400).send("Missing query")
     logger.info("Query : ", req.body.query)
-    service.querySQL(res, req.body.query, req.body.prefix, req.body.bucketName, req.headers.visibility)
+    await service.querySQL(res, req.body.query, req.body.prefix, req.body.bucketName, req.headers.visibility)
 }
 
 module.exports = {
@@ -76,7 +76,7 @@ module.exports = {
         logger.info("Query: \n", req.query, "\n", "Body : \n", req.body)
         if (req.body.mongoQuery)
             return await queryMongo(req, res)
-        querySQL(req, res)
+        await querySQL(req, res)
     },
 
     getValues: async (req, res) => {
