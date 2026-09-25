@@ -15,6 +15,8 @@ const axios = require('axios')
 const client = require('../../inputConnectors/postgresConnector')
 const mongoose = require("mongoose")
 
+let forbiddenTables = new Set(['users', 'credentials'])
+
 function bucketIs(record, bucket) {
     return (record?.s3?.bucket?.name == bucket || record?.bucketName == bucket)
 }
@@ -487,8 +489,49 @@ module.exports = {
     },
 
     querySQL(response, query, prefix, bucket, visibility) {
-        if (bucket == "default")
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(bucket))
+            throw new Error('Invalid table name');
+        else if (forbiddenTables.has(bucket))
+            throw new Error('Forbidden table');
+        else if (bucket == "default")
             bucket = "default_table"
+        else if (bucket == "status")
+            bucket = "status_table"
+        else if (bucket == "sources")
+            bucket = "sources_table"
+        client.query(
+            `SELECT 1
+             FROM information_schema.tables
+             WHERE table_schema = 'public'
+               AND table_name = $1`,
+            [bucket], (err, res) => {
+                if (err) {
+                    logger.error("ERROR");
+                    logger.error(err);
+                    return response.status(500).json(err.toString())
+                }
+                else if (res.rows.length === 0) {
+                    logger.error("ERROR");
+                    logger.error("Table does not exist");
+                    return response.status(500).json("Table does not exist")
+                }
+                else
+                    client.query(query, (err, res) => {
+                        if (err) {
+                            logger.error("ERROR");
+                            logger.error(err);
+                            response.status(500).json(err.toString())
+                            logger.info("Query sql finished with errors")
+                            return;
+                        }
+                        else {
+                            response.send(res.rows.filter(obj => objectFilter(obj, prefix, bucket, visibility)).map(obj => obj.element && obj.name.split(".").pop() == "csv" ? { ...obj, element: json2csv(obj.element) } : obj))
+                            logger.info(res.rows);
+                            logger.info("Query sql finished")
+                        }
+                    });
+            }
+        );
         client.query(query, (err, res) => {
             if (err) {
                 logger.error("ERROR");
