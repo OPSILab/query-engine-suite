@@ -1,4 +1,5 @@
 process.postgreInit = "busy"
+const logger = require('percocologger')
 const { Client } = require('pg');
 const config = require('../config')
 const { postgreConfig, postgreReaderConfig } = config
@@ -15,12 +16,15 @@ function connectReader() {
             return
         }
 
+        logger.info('PostgreSQL reader connected successfully')
+
         readerClient.query('SET statement_timeout = 100000', (err) => {
             if (err) {
                 logger.error('Error setting statement timeout:', err)
                 process.postgreInit = "done"
                 return
             }
+            logger.info('Statement timeout set to 100000 ms for reader client')
 
             process.postgreInit = "done"
         })
@@ -30,7 +34,7 @@ function connectReader() {
 function checkUserExists() {
     client.query(
         `SELECT 1 FROM pg_roles WHERE rolname = $1`,
-        ['readerUser'],
+        ['readeruser'],
         (err, result) => {
             if (err) {
                 logger.error('Error checking user existence:', err)
@@ -50,7 +54,7 @@ function checkUserExists() {
 
 function createUser() {
     client.query(
-        `CREATE USER readerUser WITH PASSWORD '${postgreReaderConfig.password}'`,
+        `CREATE USER readeruser WITH PASSWORD '${postgreReaderConfig.password}'`,
         (err) => {
             if (err) {
                 logger.error('Error creating reader user:', err)
@@ -66,11 +70,11 @@ function createUser() {
 
 function setUserPrivileges() {
     const queries = [
-        `GRANT CONNECT ON DATABASE ${postgreReaderConfig.database} TO readerUser`,
-        `GRANT USAGE ON SCHEMA public TO readerUser`,
-        `GRANT SELECT ON ALL TABLES IN SCHEMA public TO readerUser`,
-        `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO readerUser`,
-        `REVOKE SELECT ON users FROM readerUser`
+        `GRANT CONNECT ON DATABASE ${postgreReaderConfig.database} TO readeruser`,
+        `GRANT USAGE ON SCHEMA public TO readeruser`,
+        `GRANT SELECT ON ALL TABLES IN SCHEMA public TO readeruser`,
+        `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO readeruser`//,
+        //`REVOKE SELECT ON users FROM readeruser`
     ]
 
     let index = 0
