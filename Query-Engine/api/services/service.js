@@ -12,8 +12,12 @@ const { json2csv } = require('../../utils/common')
 const config = require('../../config')
 const minioWriter = require("../../inputConnectors/minioConnector")
 const axios = require('axios')
-const client = require('../../inputConnectors/postgresConnector')
+const getClient = require('../../inputConnectors/postgresConnector')
 const mongoose = require("mongoose")
+let client
+function setClient() {
+    client = getClient()
+}
 
 let forbiddenTables = new Set(['users', 'credentials'])
 
@@ -488,7 +492,7 @@ module.exports = {
 
     },
 
-    querySQL(response, query, prefix, bucket, visibility) {
+    async querySQL(response, query, prefix, bucket, visibility) {
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(bucket))
             throw new Error('Invalid table name');
         else if (forbiddenTables.has(bucket))
@@ -499,12 +503,16 @@ module.exports = {
             bucket = "status_table"
         else if (bucket == "sources")
             bucket = "sources_table"
+        while (process.postgreInit == "busy")
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        if (!client)
+            setClient()
         client.query(
             `SELECT 1
              FROM information_schema.tables
              WHERE table_schema = 'public'
                AND table_name = $1`,
-            [bucket], (err, res) => {
+            [bucket], async (err, res) => {
                 if (err) {
                     logger.error("ERROR");
                     logger.error(err);
@@ -532,19 +540,5 @@ module.exports = {
                     });
             }
         );
-        client.query(query, (err, res) => {
-            if (err) {
-                logger.error("ERROR");
-                logger.error(err);
-                response.status(500).json(err.toString())
-                logger.info("Query sql finished with errors")
-                return;
-            }
-            else {
-                response.send(res.rows.filter(obj => objectFilter(obj, prefix, bucket, visibility)).map(obj => obj.element && obj.name.split(".").pop() == "csv" ? { ...obj, element: json2csv(obj.element) } : obj))
-                logger.info(res.rows);
-                logger.info("Query sql finished")
-            }
-        });
     }
 }
