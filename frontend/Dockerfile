@@ -39,7 +39,7 @@ COPY . .
 # /query-engine-frontend/main.<hash>.js, nginx's `try_files ... /index.html`
 # finds no such file and serves index.html instead, and the app dies on a
 # script that was delivered as HTML.
-ARG BASE_HREF=/
+ARG BASE_HREF=/query-engine-frontend/
 RUN npm run build:prod -- --base-href "${BASE_HREF}"
 
 # ---------------------------------------------------------------------------
