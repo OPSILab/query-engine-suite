@@ -1,0 +1,12 @@
+{
+    "logPath": "./logs/",
+    "logLevel": "trace",
+    "saveLog": true,
+    "maxLogSize": 200,
+    "truncateLogs": false,
+    "showFunctionName": true,
+    "preMessage": " ",
+    "initialFrame": " ",
+    "finalFrame": "\n",
+    "maxSingleLogSize" : 100
+}

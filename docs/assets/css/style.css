@@ -1,0 +1,129 @@
+:root {
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --header-bg: rgba(255,255,255,0.85);
+  --border: #e2e8f0;
+  --card-bg: #ffffff;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --link: #2563eb;
+  --link-hover: #1e40af;
+  --code-bg: #f1f5f9;
+  --code-text: #0f172a;
+}
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --text: #0f172a;
+
+  --header-bg: rgba(255, 255, 255, 0.85);
+  --border: #e2e8f0;
+
+  --card-bg: #ffffff;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+
+  --link: #2563eb;
+  --link-hover: #1e40af;
+
+  --code-bg: #f1f5f9;
+  --code-text: #0f172a;
+}
+[data-theme="dark"] {
+  --bg: radial-gradient(circle at top, #0b1220, #05070f);
+  --text: #e5e7eb;
+
+  --header-bg: rgba(17, 24, 39, 0.7);
+  --border: rgba(255, 255, 255, 0.06);
+
+  --card-bg: rgba(17, 24, 39, 0.6);
+
+  --primary: #3b82f6;
+  --primary-hover: #8b5cf6;
+
+  --link: #93c5fd;
+  --link-hover: #dbeafe;
+
+  --code-bg: #0f172a;
+  --code-text: #7dd3fc;
+}
+body {
+  font-family: Inter, system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
+
+  background: var(--bg);
+  color: var(--text);
+}
+header {
+  position: sticky;
+  top: 0;
+
+  background: var(--header-bg);
+  backdrop-filter: blur(12px);
+
+  border-bottom: 1px solid var(--border);
+
+  padding: 18px 24px;
+}
+nav a {
+  margin-right: 14px;
+  color: var(--link);
+
+  text-decoration: none;
+  font-weight: 500;
+
+  padding: 6px 10px;
+  border-radius: 8px;
+
+  transition: all 0.2s ease;
+}
+
+nav a:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--link-hover);
+}
+main {
+  padding: 40px 64px;
+  max-width: 900px;
+  margin: 0;  
+}
+code {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+
+  padding: 3px 6px;
+  border-radius: 6px;
+
+  color: var(--code-text);
+}
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+
+  border-radius: 14px;
+
+  padding: 20px;
+  margin: 16px 0;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+}
+button {
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  border: none;
+
+  color: white;
+  padding: 10px 14px;
+
+  border-radius: 10px;
+  cursor: pointer;
+
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}

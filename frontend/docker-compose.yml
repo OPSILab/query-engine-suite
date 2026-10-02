@@ -1,0 +1,24 @@
+services:
+
+  query-engine-suite-frontend:
+    image: engineeringopsilab/query-engine-suite-frontend:latest
+    build:
+      context: .
+      args:
+        # Served behind the nginx reverse proxy on /query-engine-frontend/.
+        # The nginx inside this container serves the files from its root, so
+        # the reverse proxy must STRIP that prefix before forwarding - i.e.
+        #   location /query-engine-frontend/ { proxy_pass http://127.0.0.1:4300/; }
+        # (the trailing "/" on proxy_pass is what replaces the prefix). If the
+        # prefix reaches this container, /query-engine-frontend/main.<hash>.js
+        # isn't found, try_files falls back to index.html and the app dies on
+        # a script delivered as HTML. For the same reason, opening
+        # http://127.0.0.1:4300 directly (bypassing the proxy) won't work with
+        # this value.
+        BASE_HREF: /query-engine-frontend/
+    restart: always
+    ports:
+      - '127.0.0.1:4300:80'
+    volumes:
+      - ./src/assets/config.json:/usr/share/nginx/html/assets/config.json:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro

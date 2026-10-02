@@ -4,17 +4,29 @@ const Source = require('../models/Source')
 const Value = require('../models/Value')
 const Key = require('../models/Key')
 const Entries = require('../models/Entries')
+const QueriesMap = require('../models/QueriesMap')
+const QueriesMapBackup = require('../models/QueriesMapBackup')
+const QueryCache = require("../models/QueryCache")
+const QueryCacheBackup = require("../models/QueryCacheBackup")
 const { json2csv } = require('../../utils/common')
 const config = require('../../config')
 const minioWriter = require("../../inputConnectors/minioConnector")
 const axios = require('axios')
-const client = require('../../inputConnectors/postgresConnector')
+const getClient = require('../../inputConnectors/postgresConnector')
+const mongoose = require("mongoose")
+let client
+function setClient() {
+    client = getClient()
+}
+
+let forbiddenTables = new Set(['users', 'credentials'])
 
 function bucketIs(record, bucket) {
     return (record?.s3?.bucket?.name == bucket || record?.bucketName == bucket)
 }
 
 function objectFilter(obj, prefix, bucket, visibility) {
+    return true
     if (visibility == "private" && (obj.record?.name?.includes(prefix) || obj?.name?.includes(prefix)))
         return true
     if (visibility == "shared" && bucketIs(obj?.record, bucket) && obj?.name?.includes(bucket?.toUpperCase() + " SHARED Data/"))
@@ -25,16 +37,208 @@ function objectFilter(obj, prefix, bucket, visibility) {
 
 }
 
+/*async function resetCache(queriesMapfilter, cacheFilter) {
+    const { collections, queriesMap } = await filterCollections(queriesMapfilter, cacheFilter, QueriesMap)
+    for (let coll of collections)
+        await mongoose.connection.dropCollection(coll);
+    return "done"
+}*/
+
+async function listCollections() {
+    try {
+        const collections = await mongoose.connection.db.listCollections().toArray();
+        const collectionNames = collections.map(c => c.name);
+        return collectionNames;
+    } catch (err) {
+        logger.error(err);
+    }
+}
+
+/*async function filterCollections(queriesMapfilter, cacheFilter, Collection, BackupCollection) {
+    let ids
+    if (cacheFilter)
+        queriesMapfilter = (queriesMapfilter || []).concat(cacheFilter)
+    let collections = await listCollections()
+    collections = collections.filter(coll => coll.toLowerCase().startsWith("cached"))
+    let queriesMap = await Collection.find()
+    if (queriesMapfilter) {
+        queriesMap = queriesMap.filter(qm => queriesMapfilter.every(v => qm.query.toLowerCase().includes(v.toLowerCase())))
+        ids = queriesMap.map(doc => doc._id);
+        collections = collections.filter(coll =>
+            ids.some(id => coll.includes(id))
+        )
+    }
+    else
+        ids = queriesMap.map(doc => doc._id)
+    if (collections.includes("datapoints") || collections.includes("datapoint") || collections.includes("dimensions") || collections.includes("dimension"))
+        throw new Error("I was going to delete wrong collections!")
+    if (BackupCollection)
+        await BackupCollection.insertMany(queriesMap);
+    await Collection.deleteMany({
+        _id: { $in: ids }
+    })
+    return { collections, queriesMap }
+}*/
+
 module.exports = {
 
+    backupCache: async (queriesMapfilter, cacheFilter) => {
+
+        let backupTimestamp = Date.now()
+
+        let ids
+        if (cacheFilter)
+            queriesMapfilter = (queriesMapfilter || []).concat(cacheFilter)
+        let collections = await listCollections()
+        collections = collections.filter(coll => coll.toLowerCase().startsWith("cached"))
+        let queriesMap = await QueriesMap.find()
+        if (queriesMapfilter) {
+            queriesMap = queriesMap.filter(qm => queriesMapfilter.every(v => qm.query.toLowerCase().includes(v.toLowerCase())))
+            ids = queriesMap.map(doc => doc._id);
+            collections = collections.filter(coll =>
+                ids.some(id => coll.includes(id))
+            )
+        }
+        else
+            ids = queriesMap.map(doc => doc._id)
+        if (collections.includes("datapoints") || collections.includes("datapoint") || collections.includes("dimensions") || collections.includes("dimension"))
+            throw new Error("Bad filter")
+        await QueriesMapBackup.insertMany(queriesMap);
+        //const { collections, queriesMap } = await filterCollections(queriesMapfilter, cacheFilter, QueriesMap, QueriesMapBackup)
+        for (let coll of collections) {
+            let backupColl = coll + "_" + backupTimestamp + "_backup"
+            await mongoose.connection.db.collection(backupColl).insertMany(
+                await mongoose.connection.db.collection(coll).find({}).toArray()
+            )
+            //await mongoose.connection.db.renameCollection(coll, backupColl)
+        }
+        return "done"
+    },
+
+    restoreCache: async (queriesMapfilter, cacheFilter, timestamp) => {
+        if (!timestamp)
+            return "Missing timestamp"
+        let ids, queries
+        if (cacheFilter)
+            queriesMapfilter = (queriesMapfilter || []).concat(cacheFilter)
+        let collections = await listCollections()
+        collections = collections.filter(coll => coll.toLowerCase().endsWith("_backup") && coll.toLowerCase().startsWith("cached") && coll.toLowerCase().split("_")[coll.toLowerCase().split("_").length - 2] == timestamp)
+        let queriesMap = (await QueriesMapBackup.find().lean()).filter(qm => collections.some(coll => coll.includes(qm._id)))// && (!queriesMapfilter || queriesMapfilter.every(v => qm.query.toLowerCase().includes(v.toLowerCase()))))
+        if (queriesMapfilter) {
+            queriesMap = queriesMap.filter(qm => queriesMapfilter.every(v => qm.query.toLowerCase().includes(v.toLowerCase())))
+            ids = queriesMap.map(doc => doc._id);
+            collections = collections.filter(coll =>
+                ids.some(id => coll.includes(id))
+            )
+            queries = queriesMap.map(doc => doc.query)
+        }
+        else {
+            ids = queriesMap.map(doc => doc._id)
+            queries = queriesMap.map(doc => doc.query)
+        }
+        if (collections.includes("datapoints") || collections.includes("datapoint") || collections.includes("dimensions") || collections.includes("dimension"))
+            throw new Error("Bad filter")
+        await QueriesMap.deleteMany({ query: { $in: queries } });
+        await QueriesMap.insertMany(queriesMap);
+        /*await QueriesMapBackup.deleteMany({
+            _id: { $in: ids }
+        })*/
+        //const { collections, queriesMap } = await filterCollections(queriesMapfilter, cacheFilter, QueriesMapBackup, QueriesMap)
+        for (let coll of collections) {
+            let restoredColl = coll.replace("_backup", "")
+            restoredColl = restoredColl.substring(0, restoredColl.lastIndexOf("_"))
+            /*let splittedRestoredColl = restoredColl.split("_") 
+            splittedRestoredColl.pop()
+            if (splittedRestoredColl.length > 1)
+                restoredColl = splittedRestoredColl.join("_")
+            else
+                restoredColl = splittedRestoredColl[0]*/
+            let deletingColl = (await listCollections()).find(c => c.toLowerCase().split(":").shift() == restoredColl.toLowerCase().split(":").shift() && c != coll)
+            if (deletingColl)
+                await mongoose.connection.dropCollection(deletingColl);
+            if (await mongoose.connection.db.collection(restoredColl).countDocuments() > 0)
+                await mongoose.connection.db.collection(restoredColl).drop()
+            await mongoose.connection.db.collection(restoredColl).insertMany(
+                await mongoose.connection.db.collection(coll).find({}).toArray()
+            )
+        }
+        return "done"
+    },
+
+    listCollections,
+
+    async manageCollections(view) {
+        let collections = await this.listCollections()
+        return view.replace(/\/\/ here[\s\S]*?\/\/ to here/, "const dbCollections =" + JSON.stringify(collections));
+    },
+
+    async resetCache(queriesMapfilter, cacheFilter) {
+        //return await resetCache(queriesMapfilter, cacheFilter)
+        let ids
+        if (cacheFilter)
+            queriesMapfilter = (queriesMapfilter || []).concat(cacheFilter)
+        let collections = await listCollections()
+        collections = collections.filter(coll => coll.toLowerCase().startsWith("cached") && !coll.toLowerCase().endsWith("_backup"))
+        let queriesMap = await QueriesMap.find()
+        if (queriesMapfilter) {
+            queriesMap = queriesMap.filter(qm => queriesMapfilter.every(v => qm.query.toLowerCase().includes(v.toLowerCase())))
+            ids = queriesMap.map(doc => doc._id);
+            collections = collections.filter(coll =>
+                ids.some(id => coll.includes(id))
+            )
+        }
+        else
+            ids = queriesMap.map(doc => doc._id)
+        if (collections.includes("datapoints") || collections.includes("datapoint") || collections.includes("dimensions") || collections.includes("dimension"))
+            throw new Error("I was going to delete wrong collections!")
+        await QueriesMap.deleteMany({
+            _id: { $in: ids }
+        })
+        for (let coll of collections)
+            await mongoose.connection.dropCollection(coll);
+        return "done"
+    },
+
+    async resetBackup(queriesMapfilter, cacheFilter) {
+        //return await resetCache(queriesMapfilter, cacheFilter)
+        let ids
+        if (cacheFilter)
+            queriesMapfilter = (queriesMapfilter || []).concat(cacheFilter)
+        let collections = await listCollections()
+        collections = collections.filter(coll => coll.toLowerCase().startsWith("cached") && coll.toLowerCase().endsWith("_backup"))
+        let queriesMap = await QueriesMapBackup.find()
+        if (queriesMapfilter) {
+            queriesMap = queriesMap.filter(qm => queriesMapfilter.every(v => qm.query.toLowerCase().includes(v.toLowerCase())))
+            ids = queriesMap.map(doc => doc._id);
+            collections = collections.filter(coll =>
+                ids.some(id => coll.includes(id))
+            )
+        }
+        else
+            ids = queriesMap.map(doc => doc._id)
+        if (collections.includes("datapoints") || collections.includes("datapoint") || collections.includes("dimensions") || collections.includes("dimension"))
+            throw new Error("I was going to delete wrong collections!")
+        await QueriesMapBackup.deleteMany({
+            _id: { $in: ids }
+        })
+        for (let coll of collections)
+            await mongoose.connection.dropCollection(coll);
+        return "done"
+    },
+
+    async deleteCollection(collectionName) {
+        await mongoose.connection.dropCollection(collectionName);
+    },
+
     async getKeys(prefix, bucketName, visibility, search) {
+        console.debug({ visibility, prefix })
         if (visibility == "private")
             visibility = prefix.split("/")[0]
         else if (visibility == "shared")
             visibility = bucketName.toUpperCase() + " SHARED Data"
         else
             visibility = "public-data"
-        console.debug(visibility)
+        console.debug({ visibility })
         let keys = await Key.find({
             key: { $regex: "^" + search, $options: "i" },
             visibility
@@ -126,6 +330,7 @@ module.exports = {
     },
 
     async exampleQueryJson(query) {
+        logger.debug("example query json: query ", query)
 
         return await Source.find({
             "json": {
@@ -244,9 +449,9 @@ module.exports = {
     async simpleQuery(query) {
         let result = await Source.find(query)
         for (let obj of result) {
-            obj.fileName = obj.name.split("/")[obj.name.split("/").lenght - 2]
+            obj.fileName = obj.name?.split("/")[obj.name.split("/").length - 2]
             obj.path = obj.name
-            obj.fileType = obj.name.split(".")[obj.name.split(".").length - 1]
+            obj.fileType = obj.name?.split(".")[obj.name.split(".").length - 1]
         }
         logger.info(result)
         return result
@@ -275,7 +480,7 @@ module.exports = {
         for (let obj of await minioWriter.listObjects(bucket)) {
             try {
                 if (obj.size && obj.isLatest) {
-                    let objectGot = await minioWriter.getObject(bucket, obj.name, obj.name.split(".").pop())
+                    let objectGot = await minioWriter.getObject(bucket, obj.name, obj.name?.split(".").pop())
                     objects.push({ raw: objectGot, record: { ...obj, bucketName: bucket }, name: obj.name })
                 }
             }
@@ -287,20 +492,56 @@ module.exports = {
 
     },
 
-    querySQL(response, query, prefix, bucket, visibility) {
-        client.query(query, (err, res) => {
-            if (err) {
-                logger.error("ERROR");
-                logger.error(err);
-                response.status(500).json(err.toString())
-                logger.info("Query sql finished with errors")
-                return;
-            }
-            else {
-                response.send(res.rows.filter(obj => objectFilter(obj, prefix, bucket, visibility)).map(obj => obj.element && obj.name.split(".").pop() == "csv" ? { ...obj, element: json2csv(obj.element) } : obj))
-                logger.info(res.rows);
-                logger.info("Query sql finished")
-            }
-        });
+    async querySQL(response, query, prefix, bucket, visibility) {
+        /*if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(bucket))
+            throw new Error('Invalid table name');
+        else if (bucket == "users")
+            bucket = "users_table"
+        else if (bucket == "credentials")
+            bucket = "credentials_table"
+        else if (bucket == "default")
+            bucket = "default_table"
+        else if (bucket == "status")
+            bucket = "status_table"
+        else if (bucket == "sources")
+            bucket = "sources_table"*/
+        while (process.postgreInit == "busy")
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        if (!client)
+            setClient()
+        /*client.query(
+            `SELECT 1
+             FROM information_schema.tables
+             WHERE table_schema = 'public'
+               AND table_name = $1`,
+            [bucket], async (err, res) => {
+                if (err) {
+                    logger.error("ERROR");
+                    logger.error(err);
+                    return response.status(500).json(err.toString())
+                }
+                else if (res.rows.length === 0) {
+                    logger.error("ERROR");
+                    logger.error("Table does not exist");
+                    return response.status(500).json("Table does not exist")
+                }
+                else
+                    */
+                    client.query(query, (err, res) => {
+                        if (err) {
+                            logger.error("ERROR");
+                            logger.error(err);
+                            response.status(500).json(err.toString())
+                            logger.info("Query sql finished with errors")
+                            return;
+                        }
+                        else {
+                            response.send(res.rows.filter(obj => objectFilter(obj, prefix, bucket, visibility)).map(obj => obj.element && obj.name.split(".").pop() == "csv" ? { ...obj, element: json2csv(obj.element) } : obj))
+                            logger.info(res.rows);
+                            logger.info("Query sql finished")
+                        }
+                    });
+            /*}
+        );*/
     }
 }

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.angular/
+.git/
+.github/
+Dockerfile
+docker-compose.yml
+.dockerignore
+local.md
+README.md

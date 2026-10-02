@@ -85,7 +85,7 @@
             const token = '';
 
             if (key && value) {
-                fetch(`http://localhost:3000/api/query?${key}=${encodeURIComponent(value)}`, {
+                fetch(`http://localhost:3001/api/query?${key}=${encodeURIComponent(value)}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

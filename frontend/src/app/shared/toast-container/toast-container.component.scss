@@ -1,0 +1,87 @@
+.ds-toast-stack {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  max-width: 380px;
+  pointer-events: none;
+}
+
+.ds-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  color: #fff;
+  pointer-events: auto;
+  animation: ds-toast-in 0.18s ease-out;
+}
+
+@keyframes ds-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ds-toast--warning {
+  background: #c2740c;
+}
+
+.ds-toast--danger {
+  background: #b42318;
+}
+
+.ds-toast--success {
+  background: #15803d;
+}
+
+.ds-toast--info {
+  background: #1d4ed8;
+}
+
+.ds-toast__icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.ds-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-toast__title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.ds-toast__message {
+  font-size: 12.5px;
+  opacity: 0.92;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.ds-toast__close {
+  flex: none;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+}
+
+.ds-toast__close:hover {
+  color: #fff;
+}

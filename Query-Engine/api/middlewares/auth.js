@@ -17,10 +17,10 @@ function deniedQuery(query, bucketName, prefix) {
         if (query) {
             analyzedQuery = query.split(" ").filter(str => str !== '').join(' ')
             let requestedBucketname = analyzedQuery.split("FROM")[1].split(" ")[1]
-            if (requestedBucketname != bucketName)
+            if (requestedBucketname != bucketName && requestedBucketname != "public-data" && requestedBucketname != "publicdata" && requestedBucketname != "sources")
                 return true
             analyzedQuery = query.split("name = '")[1]
-            if (!analyzedQuery.startsWith(prefix))
+            if (!analyzedQuery.startsWith(prefix) && requestedBucketname != "public-data" && requestedBucketname != "publicdata" && requestedBucketname != "sources")
                 return true
         }
     }
@@ -32,6 +32,8 @@ function deniedQuery(query, bucketName, prefix) {
 
 module.exports = {
     auth: async (req, res, next) => {
+
+        console.debug({ headers: req.headers })
 
         if (req.body.file)
             req.body = JSON.parse(req.body.file)
@@ -59,22 +61,52 @@ module.exports = {
                     authHeader = "Bearer " + authHeader
 
                 const jwtToken = authHeader.split(' ')[1];
-
                 let verifiedToken
-                try {
-                    verifiedToken = jwt.verify(jwtToken, //Buffer.from(
-                        authConfig.publicKey
-                        //, 'base64').toString()
-                        //-------//
-                        , { algorithms: ['RS256'] })
+                if (authConfig.publicKeys) {
+                    let authenticated = false
+                    let error
+                    for (let publicKey of authConfig.publicKeys)
+                        try {
+                            verifiedToken = jwt.verify(jwtToken, //Buffer.from(
+                                publicKey
+                                //, 'base64').toString()
+                                //-------//
+                                , { algorithms: ['RS256'] })
+                            authenticated = true
+                            break
+                        }
+                        catch (err) {
+                            if (err.message == "invalid token" || err.message == "jwt expired" || err.message == "jwt malformed")
+                                return res.sendStatus(403);
+                            else {
+                                logger.warn("Still trying to validate token... ", err.message)
+                                error = err
+                            }
+                        }
+                    if (!authenticated) {
+                        logger.error(error)
+                        if (error.message == "invalid token" || error.message == "jwt expired" || error.message == "jwt malformed")
+                            return res.sendStatus(403);
+                        else
+                            return res.sendStatus(500);
+                    }
                 }
-                catch (error) {
+                else {
+                    try {
+                        verifiedToken = jwt.verify(jwtToken, //Buffer.from(
+                            authConfig.publicKey
+                            //, 'base64').toString()
+                            //-------//
+                            , { algorithms: ['RS256'] })
+                    }
+                    catch (error) {
 
-                    logger.error(error)
-                    if (error.message == "invalid token" || error.message == "jwt expired" || error.message == "jwt malformed")
-                        return res.sendStatus(403);
-                    else
-                        return res.sendStatus(500);
+                        logger.error(error)
+                        if (error.message == "invalid token" || error.message == "jwt expired" || error.message == "jwt malformed")
+                            return res.sendStatus(403);
+                        else
+                            return res.sendStatus(500);
+                    }
                 }
 
 

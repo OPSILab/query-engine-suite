@@ -1,0 +1,293 @@
+// Kept even though nothing WE render is a Nebular component anymore
+// (nb-select, nb-autocomplete, nb-datepicker, toastr and nbPopover have all
+// been replaced by hand-built equivalents below) - @nebular/auth's own
+// OAuth2 redirect flow still dynamically creates a real NbLayoutComponent +
+// nb-icon spinner internally (see the NbThemeModule/NbEvaIconsModule
+// comment in app.module.ts), which expects this installed. Safe to leave in
+// place; revisit only if @nebular/auth's own internal login/spinner UI is
+// ever replaced too.
+@import '../node_modules/@nebular/theme/styles/globals';
+@import '../node_modules/@nebular/theme/styles/theming';
+@import '../node_modules/@nebular/theme/styles/themes/default';
+
+@include nb-install() {
+  @include nb-theme-global();
+};
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+// Design tokens for the redesigned UI (home/query-engine/autocomplete/
+// sql-editor) - everything WE render reads these instead of Nebular's
+// theme. Same palette as the design mockup shared earlier, just written as
+// static light/dark pairs instead of a tweakable accent (no
+// properties-panel here).
+:root,
+html[data-ds-theme='light'] {
+  --ds-bg: #FAFAF8;
+  --ds-bg-elevated: #FFFFFF;
+  --ds-bg-sunken: #F1F1EE;
+  --ds-border: #E2E2DE;
+  --ds-border-strong: #CBCBC5;
+  --ds-text: #1C1C19;
+  --ds-text-muted: #6B6B63;
+  --ds-text-faint: #9C9C93;
+  --ds-accent: #0E7490;
+  --ds-accent-text: #FFFFFF;
+  --ds-accent-soft: rgba(14, 116, 144, 0.10);
+  --ds-accent-border: rgba(14, 116, 144, 0.35);
+  --ds-shadow: rgba(28, 28, 25, 0.06);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #92400E;
+  --ds-str: #166534;
+  --ds-num: #6D28D9;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #B42318;
+}
+
+html[data-ds-theme='dark'] {
+  --ds-bg: #18191B;
+  --ds-bg-elevated: #202124;
+  --ds-bg-sunken: #131416;
+  --ds-border: #2B2C2F;
+  --ds-border-strong: #3A3B3E;
+  --ds-text: #ECECEA;
+  --ds-text-muted: #9C9D9F;
+  --ds-text-faint: #6C6D70;
+  --ds-accent: #5EEAD4;
+  --ds-accent-text: #06282A;
+  --ds-accent-soft: rgba(94, 234, 212, 0.14);
+  --ds-accent-border: rgba(94, 234, 212, 0.4);
+  --ds-shadow: rgba(0, 0, 0, 0.35);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #FCD34D;
+  --ds-str: #86EFAC;
+  --ds-num: #C4B5FD;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #FDA29B;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+.ds-mono {
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+
+// Shared building blocks used across the redesigned components (home,
+// query-engine, autocomplete, sql-editor). Angular scopes component SCSS to
+// its own template by default, so anything reused across component
+// boundaries has to live here rather than being duplicated per component.
+
+.ds-field-label {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  font-weight: 500;
+}
+
+.ds-field-label--small {
+  font-size: 11.5px;
+}
+
+.ds-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// `a.ds-link` (not just `.ds-link`) used to be load-bearing: NbLayoutComponent
+// stamped `nb-theme-{name}` on <body> whenever an <nb-layout> existed
+// anywhere in the app (the invisible overlay-host one that used to live in
+// app.component.ts), and Nebular's own global stylesheet ships
+// `.nb-theme-default a { color: #3366ff; text-decoration: underline; ... }`,
+// which beat a bare `.ds-link` class on specificity. That <nb-layout> is gone
+// now (nothing in the app uses Nebular's CDK overlay anymore), so
+// `.nb-theme-default` is never stamped and this can no longer happen - the
+// extra specificity is just harmless now, not worth the churn of undoing.
+a.ds-link {
+  font-size: 13px;
+  color: var(--ds-text-muted);
+  text-decoration: none;
+}
+
+a.ds-link:hover {
+  color: var(--ds-accent);
+}
+
+.ds-input,
+.ds-select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.ds-input {
+  width: 100%;
+}
+
+.ds-input::placeholder {
+  color: var(--ds-text-faint);
+}
+
+.ds-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-faint);
+  cursor: pointer;
+  flex: none;
+}
+
+.ds-icon-button:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+}
+
+.ds-ghost-button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ds-ghost-button:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+}
+
+.ds-ghost-button--add {
+  align-self: flex-start;
+  border-style: dashed;
+  border-color: var(--ds-border-strong);
+}
+
+.ds-primary-button {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--ds-accent);
+  color: var(--ds-accent-text);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ds-primary-button:hover {
+  filter: brightness(0.95);
+}
+
+.ds-primary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.ds-pills {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ds-pill {
+  padding: 6px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ds-pill--active {
+  border-color: var(--ds-accent-border);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}
+
+.ds-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+  font-weight: 600;
+}
+
+.ds-badge--outline {
+  background: transparent;
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+}
+
+.ds-popover {
+  padding: 12px 14px;
+  max-width: 320px;
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border);
+  box-shadow: 0 4px 16px var(--ds-shadow);
+  font-size: 13px;
+}
+
+// Used by TooltipDirective ([dsTooltip]) - it appends a bare .ds-popover to
+// <body> on hover with these on top: fixed-positioned (top/left are set
+// inline, per-instance, by the directive), and not a click/hover target
+// itself so it can never trap the pointer and cause a flicker loop with the
+// element that triggered it.
+.ds-popover--floating {
+  position: fixed;
+  z-index: 100000;
+  pointer-events: none;
+}
+
+// @nebular/auth (kept - see app.module.ts) still creates real
+// NbLayoutComponent instances of its own at runtime, independent of the
+// <nb-layout class="ds-overlay-host"> we used to render ourselves as a CDK
+// overlay anchor (now gone - see app.component.ts). Zeroing its box
+// (width/height: 0 + overflow: hidden) wasn't enough: Nebular's own spinner
+// content inside it sets `position: fixed` on ITSELF, which escapes any
+// ancestor's overflow clipping regardless of that ancestor's size (nothing
+// in this app puts a transform/filter on an ancestor to force a new fixed-
+// positioning containing block, so there's nothing to trap it). `display:
+// none` is the one thing that actually removes an element and everything
+// inside it from rendering no matter how its descendants are positioned -
+// this doesn't affect @nebular/auth's own JS (DOM writes like appendChild/
+// setContainer don't care about CSS display), so the redirect itself still
+// works, it just never paints.
+nb-layout {
+  display: none !important;
+}

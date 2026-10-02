@@ -1,0 +1,155 @@
+:host {
+  display: block;
+}
+
+.gql-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+// Taller than the SQL box: the real GraphQL examples run to 20+ lines.
+.gql-editor__box {
+  position: relative;
+  height: 320px;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  background: var(--ds-bg-sunken);
+  overflow: hidden;
+}
+
+// Same overlay technique as the SQL editor (see sql-editor.component.scss):
+// identical font metrics and padding, <pre> underneath, transparent-text
+// textarea on top. Two additions so the two stay aligned once the content
+// is taller than the box:
+// - the <pre> doesn't scroll by itself; GraphqlEditorComponent.syncScroll()
+//   copies the textarea's scroll position onto it;
+// - `scrollbar-gutter: stable` on both reserves the scrollbar's width in the
+//   <pre> as well, so the textarea growing a scrollbar doesn't make it wrap
+//   long lines at a different column than the <pre> underneath.
+.gql-editor__highlight,
+.gql-editor__textarea {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: none;
+  scrollbar-gutter: stable;
+}
+
+.gql-editor__highlight {
+  color: var(--ds-text);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.gql-editor__textarea {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--ds-text);
+}
+
+.gql-editor__textarea::placeholder {
+  color: var(--ds-text-faint);
+}
+
+// Names the schema says don't exist where they're written.
+.gql-editor__unknown {
+  text-decoration: underline wavy var(--ds-danger);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+
+.gql-editor__message {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ds-text-faint);
+}
+
+.gql-editor__message--error {
+  color: var(--ds-danger);
+  font-weight: 500;
+}
+
+.gql-editor__message--warning {
+  color: var(--ds-fn);
+}
+
+.gql-editor__section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  font-weight: 500;
+}
+
+.gql-editor__suggestions,
+.gql-editor__examples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gql-editor__suggestion-list,
+.gql-editor__example-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gql-editor__suggestion {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.gql-editor__suggestion:hover {
+  border-color: var(--ds-accent-border);
+  background: var(--ds-accent-soft);
+}
+
+.gql-editor__suggestion-detail {
+  color: var(--ds-text-faint);
+  font-size: 11px;
+}
+
+// Same look as the SQL editor's example chips.
+.gql-editor__example {
+  max-width: 280px;
+  padding: 7px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-muted);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gql-editor__example--active {
+  border-color: var(--ds-accent-border);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}

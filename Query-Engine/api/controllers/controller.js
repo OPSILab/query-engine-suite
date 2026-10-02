@@ -1,6 +1,8 @@
 const service = require("../services/service.js")
 const logger = require('percocologger')
 const config = require('../../config')
+const fs = require("fs")
+const manageCollectionsView = fs.readFileSync("api/view/manage-collections.html", "utf-8")
 
 const queryMongo = async (req, res) => {
     logger.info(req.body, req.query)
@@ -9,6 +11,7 @@ const queryMongo = async (req, res) => {
     logger.info("Query mongo")
     logger.debug("format ", req.query.format)
     if (req.query.format == "JSON") {
+        logger.info("Query mongo JSON")
         let objectQuerySet = JSON.parse(JSON.stringify(req.body.mongoQuery || req.query))
         objectQuerySet.format = "Object"
         let JSONQuerySet = JSON.parse(JSON.stringify(req.body.mongoQuery || req.query))
@@ -35,7 +38,7 @@ const querySQL = async (req, res) => {
     if (!req.body.query)
         return await res.status(400).send("Missing query")
     logger.info("Query : ", req.body.query)
-    service.querySQL(res, req.body.query, req.body.prefix, req.body.bucketName, req.headers.visibility)
+    await service.querySQL(res, req.body.query, req.body.prefix, req.body.bucketName, req.headers.visibility)
 }
 
 module.exports = {
@@ -44,11 +47,36 @@ module.exports = {
 
     querySQL,
 
+    resetCache: async (req, res) => {
+        res.send(await service.resetCache(req.query.queriesMapFilter, req.query.cacheFilter))
+    },
+
+    backupCache: async (req, res) => {
+        res.send(await service.backupCache(req.query.queriesMapFilter, req.query.cacheFilter))
+    },
+
+    restoreCache: async (req, res) => {
+        res.send(await service.restoreCache(req.query.queriesMapFilter, req.query.cacheFilter, req.query.timestamp))
+    },
+
+    resetBackup: async (req, res) => {
+        res.send(await service.resetBackup(req.query.queriesMapFilter, req.query.cacheFilter))
+    },
+
+    assets: async (req, res) => {
+        try {
+            res.send(fs.readFileSync("examples/Eurostat/" + req.params.name, "utf-8"))
+        }
+        catch (error) {
+            res.status(500).send(error || error.message)
+        }
+    },
+
     query: async (req, res) => {
         logger.info("Query: \n", req.query, "\n", "Body : \n", req.body)
         if (req.body.mongoQuery)
             return await queryMongo(req, res)
-        querySQL(req, res)
+        await querySQL(req, res)
     },
 
     getValues: async (req, res) => {
@@ -66,7 +94,12 @@ module.exports = {
         logger.info("entries")
         let email = req.body.prefix.split("/")[0]
         if (config.updateOwner == "later" && !process.queryEngine.updatedOwners[email]) {
-            service.updateOwner(req.headers.authorization, email)
+            try {
+                await service.updateOwner(req.headers.authorization, email)
+            }
+            catch (error) {
+                logger.error(error)
+            }
         }
         try {
             res.send(await service.getEntries(req.body.prefix, req.body.bucketName, req.headers.visibility, req.query.key, req.query.value))
@@ -95,6 +128,28 @@ module.exports = {
         catch (error) {
             logger.error(error)
             res.status(500).send(error.toString() == "[object Object]" ? error : error.toString())
+        }
+    },
+
+    manageCollections: async (req, res) => {
+        res.send(await service.manageCollections(manageCollectionsView));
+    },
+    deleteCollection: async (req, res) => {
+        const { collectionName } = req.body;
+
+        if (!collectionName || ['system.indexes', 'users', 'roles', 'datapoints', 'dimensions', 'entities', 'entries', 'keys', 'sources', 'values'].includes(collectionName)) {
+            return res.status(400).json({ message: 'Collection non valida' });
+        }
+
+        try {
+            await service.deleteCollection(collectionName)
+            return res.json({ message: `Collection '${collectionName}' cancellata con successo.` });
+        } catch (err) {
+            if (err.codeName === 'NamespaceNotFound') {
+                return res.json({ message: `Collection '${collectionName}' non esiste.` });
+            }
+            logger.error(err);
+            return res.status(500).json({ message: 'Errore durante la cancellazione' });
         }
     }
 }

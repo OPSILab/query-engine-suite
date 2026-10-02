@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>{{ page.title }}</title>
+  <script>
+    (function () {
+      const theme = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+</head>
+
+<body>
+
+  <header>
+    <h1>Query Engine Suite</h1>
+    <nav>
+      <a href="{{ '/' | relative_url }}">Home</a>
+      <a href="{{ '/architecture.html' | relative_url }}">Architecture</a>
+      <a href="{{ '/query-engine.html' | relative_url }}">Query Engine</a>
+      <a href="{{ '/source-connector.html' | relative_url }}">Source Connector</a>
+      <a href="{{ '/authentication.html' | relative_url }}">Authentication</a>
+      <a href="{{ '/docker.html' | relative_url }}">Docker</a>
+      <button onclick="toggleTheme()">🌓</button>
+
+      <script>
+        function toggleTheme() {
+          const root = document.documentElement;
+
+          const current = root.getAttribute("data-theme");
+          const next = current === "light" ? "dark" : "light";
+
+          root.setAttribute("data-theme", next);
+          localStorage.setItem("theme", next);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+          const saved = localStorage.getItem("theme") || "light";
+          document.documentElement.setAttribute("data-theme", saved);
+        });
+      </script>
+    </nav>
+  </header>
+
+  <main>
+    {{ content }}
+  </main>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: !document.documentElement.getAttribute("data-theme") || document.documentElement.getAttribute("data-theme") === "light"
+        ? "default"
+        : "dark"
+    });
+
+    document.addEventListener("DOMContentLoaded", async function () {
+      const mermaidBlocks = document.querySelectorAll('pre.highlight code.language-mermaid, pre code.language-mermaid');
+
+      mermaidBlocks.forEach(function (codeBlock) {
+        const rawCode = codeBlock.textContent;
+
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        mermaidDiv.textContent = rawCode;
+
+        const preBlock = codeBlock.closest('pre');
+        if (preBlock) {
+          preBlock.parentNode.insertBefore(mermaidDiv, preBlock);
+          preBlock.remove();
+        }
+      });
+
+      await mermaid.run();
+    });
+  </script>
+
+</body>
+
+</html>
