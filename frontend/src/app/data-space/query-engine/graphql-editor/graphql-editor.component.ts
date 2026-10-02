@@ -61,13 +61,13 @@ export class GraphqlEditorComponent implements OnInit {
   // note in the backend's buildCachePrefix() for why a datapoints query with
   // neither `source` nor `survey` (nor `dimensions`) currently fails there.
   @Input() examples: GqlExample[] = [
-    { label: 'Sorgenti disponibili', query: `query {
+    { label: 'Available sources', query: `query {
   sources {
     id
     name
   }
 }` },
-    { label: 'Acquisti online — Severozapaden', query: `query {
+    { label: 'Online purchase — Severozapaden', query: `query {
   datapoints(
     survey: "ISOC_R_BLT12_I"
     sortBy: ["year"]
@@ -87,7 +87,7 @@ export class GraphqlEditorComponent implements OnInit {
     value
   }
 }` },
-    { label: 'PIL per abitante — Lovech', query: `query {
+    { label: 'PIL per inhabitant — Lovech', query: `query {
   datapoints(
     survey: "nama_10r_3gdp"
     sortBy: "year"
@@ -100,7 +100,7 @@ export class GraphqlEditorComponent implements OnInit {
     value
   }
 }` },
-    { label: 'Variazione popolazione — Trento', query: `query {
+    { label: 'Population change — Trento', query: `query {
   datapoints(
     survey: "demo_r_gind3"
     sortBy: "year"

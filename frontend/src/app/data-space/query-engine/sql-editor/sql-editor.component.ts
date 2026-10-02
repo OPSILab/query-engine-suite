@@ -72,8 +72,8 @@ export class SqlEditorComponent {
   @Input() placeholder = "SELECT * FROM bucketName WHERE name = 'email/Data model mapper/file.json'";
 
   @Input() examples: SqlExample[] = [
-    { label: 'Tutti i record — CARTAGENA', sql: 'SELECT * FROM CARTAGENA' },
-    { label: 'Elementi annidati per id_amat', sql: `SELECT *
+    { label: 'All records - sources', sql: 'SELECT * FROM sources' },
+    /*{ label: 'nested elements for id_amat', sql: `SELECT *
 FROM cartagena,
     LATERAL (
       SELECT jsonb_array_elements(data) AS element
@@ -81,18 +81,18 @@ FROM cartagena,
       UNION ALL SELECT data AS element
       WHERE jsonb_typeof(data) = 'object'
     ) AS subquery
-WHERE subquery.element->>'id_amat' = '9001'` },
-    { label: 'Coppie chiave/valore annidate', sql: `SELECT *
-FROM example_table, jsonb_array_elements(data) AS array_element,
+WHERE subquery.element->>'id_amat' = '9001'` },*/
+    { label: 'Nested key/values couples', sql: `SELECT *
+FROM sources, jsonb_array_elements(data) AS array_element,
  jsonb_each(array_element) AS nested_object
-WHERE nested_object.value->>'a' = 'a3'` },
-    { label: 'Feature GeoJSON per fid', sql: `SELECT *
+WHERE nested_object.value->>'language' = 'IT'` },
+    /*{ label: 'Feature GeoJSON per fid', sql: `SELECT *
 FROM cartagena,
      LATERAL (
          SELECT jsonb_array_elements(data->'features') AS element
          WHERE jsonb_typeof(data->'features') = 'array'
      ) AS subquery
-WHERE subquery.element->'properties'->>'fid' = '11';` },
+WHERE subquery.element->'properties'->>'fid' = '11';` },*/
   ];
 
   onInput(text: string): void {
