@@ -1,0 +1,178 @@
+:host {
+  position: relative;
+  display: inline-block;
+}
+
+.tp-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.tp-trigger:hover,
+.tp-trigger--open {
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+
+// Bootstrap's reboot outlines every focused button, mouse clicks included:
+// keep the outline for keyboard focus only (below).
+.tp-trigger:focus,
+.tp-option:focus {
+  outline: none;
+}
+
+.tp-trigger:focus-visible,
+.tp-option:focus-visible {
+  outline: 2px solid var(--ds-accent-border);
+  outline-offset: 1px;
+}
+
+.tp-chevron {
+  transition: transform 160ms ease;
+}
+
+.tp-trigger--open .tp-chevron {
+  transform: rotate(180deg);
+}
+
+// Preview of a theme: its background, a card in its elevated colour and a
+// dot in its accent - all read from the theme's own tokens (data-ds-theme
+// on this element).
+.tp-swatch {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 22px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: 6px;
+  background: var(--ds-bg);
+  overflow: hidden;
+}
+
+.tp-swatch--small {
+  width: 26px;
+  height: 18px;
+  border-radius: 5px;
+}
+
+.tp-swatch__card {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: -3px;
+  height: 65%;
+  border: 1px solid var(--ds-border);
+  border-radius: 3px;
+  background: var(--ds-bg-elevated);
+}
+
+.tp-swatch__dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -1px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--ds-accent);
+}
+
+.tp-swatch--small .tp-swatch__dot {
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+}
+
+.tp-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  background: var(--ds-bg-elevated);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, .3), 0 2px 6px var(--ds-shadow);
+  animation: tp-menu-in 140ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.tp-menu__title {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+.tp-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+// Separator between the neutral, blue and green families.
+.tp-option:nth-of-type(4),
+.tp-option:nth-of-type(6) {
+  margin-top: 5px;
+  position: relative;
+}
+
+.tp-option:nth-of-type(4)::before,
+.tp-option:nth-of-type(6)::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 8px;
+  right: 8px;
+  border-top: 1px solid var(--ds-border);
+}
+
+.tp-option:hover {
+  background: var(--ds-bg-sunken);
+}
+
+.tp-option--active {
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+  font-weight: 500;
+}
+
+.tp-option__label {
+  flex: 1;
+}
+
+@keyframes tp-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-menu {
+    animation: none;
+  }
+
+  .tp-chevron {
+    transition: none;
+  }
+}

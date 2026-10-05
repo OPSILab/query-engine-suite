@@ -66,5 +66,13 @@
   "Json key": "1 key",
   "Json item": "1 item",
   "Full screen": "Full screen",
-  "Exit full screen": "Exit full screen"
+  "Exit full screen": "Exit full screen",
+  "Theme": "Theme",
+  "Theme light": "Light",
+  "Theme dark": "Dark",
+  "Theme graphite": "Graphite",
+  "Theme sky": "Sky",
+  "Theme navy": "Navy",
+  "Theme sage": "Sage",
+  "Theme olive": "Olive"
 }

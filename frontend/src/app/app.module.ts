@@ -56,6 +56,7 @@ import { OidcJWTToken } from './auth/oidc';
 import { ToastContainerComponent } from './shared/toast-container/toast-container.component';
 import { TooltipDirective } from './shared/tooltip/tooltip.directive';
 import { JsonTableComponent } from './shared/json-table/json-table.component';
+import { ThemePickerComponent } from './shared/theme-picker/theme-picker.component';
 
 export function translateLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -76,6 +77,7 @@ export function translateLoaderFactory(http: HttpClient) {
     ToastContainerComponent,
     TooltipDirective,
     JsonTableComponent,
+    ThemePickerComponent,
   ],
   imports: [
     BrowserModule,

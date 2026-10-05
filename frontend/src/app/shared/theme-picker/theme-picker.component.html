@@ -1,0 +1,34 @@
+<button
+  type="button"
+  class="tp-trigger"
+  [class.tp-trigger--open]="open"
+  aria-haspopup="true"
+  [attr.aria-expanded]="open"
+  [attr.aria-label]="('Theme' | translate) + ': ' + (theme.current.label | translate)"
+  [title]="'Theme' | translate"
+  (click)="toggle()"
+>
+  <span class="tp-swatch tp-swatch--small" [attr.data-ds-theme]="theme.theme" aria-hidden="true"><span class="tp-swatch__card"></span><span class="tp-swatch__dot"></span></span>
+  <svg class="tp-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+</button>
+
+@if (open) {
+  <div class="tp-menu" role="group" [attr.aria-label]="'Theme' | translate" (keydown)="onMenuKeydown($event)">
+    <span class="tp-menu__title">{{ 'Theme' | translate }}</span>
+    @for (t of themes; track t.id) {
+      <button
+        type="button"
+        class="tp-option"
+        [class.tp-option--active]="t.id === theme.theme"
+        [attr.aria-pressed]="t.id === theme.theme"
+        (click)="pick(t.id)"
+      >
+        <span class="tp-swatch" [attr.data-ds-theme]="t.id" aria-hidden="true"><span class="tp-swatch__card"></span><span class="tp-swatch__dot"></span></span>
+        <span class="tp-option__label">{{ t.label | translate }}</span>
+        @if (t.id === theme.theme) {
+          <svg class="tp-option__check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg>
+        }
+      </button>
+    }
+  </div>
+}

@@ -18,11 +18,17 @@
 
 // Design tokens for the redesigned UI (home/query-engine/autocomplete/
 // sql-editor) - everything WE render reads these instead of Nebular's
-// theme. Same palette as the design mockup shared earlier, just written as
-// static light/dark pairs instead of a tweakable accent (no
-// properties-panel here).
+// theme. One block per theme (ThemeService.THEMES lists them); every
+// contrast pair that matters - text, muted and faint text on the surfaces,
+// accent on the surfaces and on its soft tint, text on the accent, syntax
+// colours on the sunken editor background - was checked against WCAG AA.
+//
+// The selectors are [data-ds-theme] on ANY element, not just <html>: an
+// element carrying the attribute gets that theme's tokens for its own
+// subtree, which is how the theme picker draws each option's preview with
+// the real colours instead of a copy of them.
 :root,
-html[data-ds-theme='light'] {
+[data-ds-theme='light'] {
   // Native widgets drawn by the browser - scrollbars above all, but also the
   // date picker and <select> menus - follow the theme too.
   color-scheme: light;
@@ -47,7 +53,7 @@ html[data-ds-theme='light'] {
   --ds-danger: #B42318;
 }
 
-html[data-ds-theme='dark'] {
+[data-ds-theme='dark'] {
   color-scheme: dark;
   --ds-bg: #18191B;
   --ds-bg-elevated: #202124;
@@ -68,6 +74,126 @@ html[data-ds-theme='dark'] {
   --ds-num: #C4B5FD;
   --ds-op: var(--ds-text-muted);
   --ds-danger: #FDA29B;
+}
+
+// Graphite: a mid grey, between light and the near-black dark.
+[data-ds-theme='graphite'] {
+  color-scheme: dark;
+  --ds-bg: #3A3D42;
+  --ds-bg-elevated: #44474D;
+  --ds-bg-sunken: #33363A;
+  --ds-border: #53575E;
+  --ds-border-strong: #656A71;
+  --ds-text: #EDEDEB;
+  --ds-text-muted: #BCBEC1;
+  --ds-text-faint: #9A9DA2;
+  --ds-accent: #9ADCE6;
+  --ds-accent-text: #0E2A2F;
+  --ds-accent-soft: rgba(154, 220, 230, 0.12);
+  --ds-accent-border: rgba(154, 220, 230, 0.45);
+  --ds-shadow: rgba(0, 0, 0, 0.30);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #F2CB7E;
+  --ds-str: #A9E2A4;
+  --ds-num: #D0BFFF;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #FFB4AB;
+}
+
+// Sky: light, with a soft blue tint.
+[data-ds-theme='sky'] {
+  color-scheme: light;
+  --ds-bg: #F2F6FA;
+  --ds-bg-elevated: #FFFFFF;
+  --ds-bg-sunken: #E7EEF6;
+  --ds-border: #D5DFEA;
+  --ds-border-strong: #B6C6D8;
+  --ds-text: #13212F;
+  --ds-text-muted: #4D6075;
+  --ds-text-faint: #7B8EA4;
+  --ds-accent: #2B5C8A;
+  --ds-accent-text: #FFFFFF;
+  --ds-accent-soft: rgba(43, 92, 138, 0.1);
+  --ds-accent-border: rgba(43, 92, 138, 0.35);
+  --ds-shadow: rgba(19, 33, 47, 0.07);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #8A4B0F;
+  --ds-str: #1F6B3A;
+  --ds-num: #6A3FB5;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #B42318;
+}
+
+// Navy: dark blue.
+[data-ds-theme='navy'] {
+  color-scheme: dark;
+  --ds-bg: #121B26;
+  --ds-bg-elevated: #182433;
+  --ds-bg-sunken: #0E1620;
+  --ds-border: #243347;
+  --ds-border-strong: #31455D;
+  --ds-text: #E6EDF5;
+  --ds-text-muted: #9FB2C7;
+  --ds-text-faint: #71859C;
+  --ds-accent: #7DB4E6;
+  --ds-accent-text: #0A1B2B;
+  --ds-accent-soft: rgba(125, 180, 230, 0.15);
+  --ds-accent-border: rgba(125, 180, 230, 0.42);
+  --ds-shadow: rgba(0, 0, 0, 0.40);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #F2C97D;
+  --ds-str: #8FD9A8;
+  --ds-num: #C3B4FA;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #FF9F95;
+}
+
+// Sage: light, from the green palette Lime Cream / Dry Sage / Dusty Olive / Dark Khaki.
+[data-ds-theme='sage'] {
+  color-scheme: light;
+  --ds-bg: #F4F6EA;
+  --ds-bg-elevated: #FCFDF7;
+  --ds-bg-sunken: #EAEEDA;
+  --ds-border: #D8DEC4;
+  --ds-border-strong: #BAC4A0;
+  --ds-text: #2B2820;
+  --ds-text-muted: #5A5645;
+  --ds-text-faint: #878370;
+  --ds-accent: #5A644E;
+  --ds-accent-text: #FFFFFF;
+  --ds-accent-soft: rgba(175, 190, 143, 0.28);
+  --ds-accent-border: rgba(100, 111, 88, 0.4);
+  --ds-shadow: rgba(43, 40, 32, 0.07);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #8A5A1F;
+  --ds-str: #4E6B2A;
+  --ds-num: #6B4E8A;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #A8321F;
+}
+
+// Olive: dark green-olive, Lime Cream as the accent.
+[data-ds-theme='olive'] {
+  color-scheme: dark;
+  --ds-bg: #262A22;
+  --ds-bg-elevated: #30352B;
+  --ds-bg-sunken: #1F231C;
+  --ds-border: #3F4638;
+  --ds-border-strong: #525A48;
+  --ds-text: #EEF0E4;
+  --ds-text-muted: #B7BDA7;
+  --ds-text-faint: #899079;
+  --ds-accent: #DDE392;
+  --ds-accent-text: #262A22;
+  --ds-accent-soft: rgba(221, 227, 146, 0.14);
+  --ds-accent-border: rgba(221, 227, 146, 0.4);
+  --ds-shadow: rgba(0, 0, 0, 0.40);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #F0C27A;
+  --ds-str: #AFBE8F;
+  --ds-num: #D9BCE6;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #FFA799;
 }
 
 html, body {

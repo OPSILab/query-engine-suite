@@ -66,5 +66,13 @@
   "Json key": "1 chiave",
   "Json item": "1 elemento",
   "Full screen": "Schermo intero",
-  "Exit full screen": "Esci da schermo intero"
+  "Exit full screen": "Esci da schermo intero",
+  "Theme": "Tema",
+  "Theme light": "Chiaro",
+  "Theme dark": "Scuro",
+  "Theme graphite": "Grafite",
+  "Theme sky": "Cielo",
+  "Theme navy": "Blu notte",
+  "Theme sage": "Salvia",
+  "Theme olive": "Oliva"
 }

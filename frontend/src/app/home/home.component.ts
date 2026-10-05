@@ -68,7 +68,8 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
       + (this.generalSharedBucketObjects?.length || 0);
   }
 
-  // public: read directly from the template (theme.dark, theme.toggle()).
+  // public: was read by the old light/dark toggle in the template; the
+  // theme menu (app-theme-picker) now uses the service directly.
   constructor(public theme: ThemeService, private zone: NgZone, private injector: Injector) {}
 
   ngAfterViewInit(): void {
