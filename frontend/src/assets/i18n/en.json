@@ -53,5 +53,16 @@
   "Cancel": "Cancel",
   "Query cancelled": "The query was cancelled before the query engine answered.",
   "Results below": "{{count}} results below",
-  "One result below": "1 result below"
+  "One result below": "1 result below",
+  "Results view": "Results view",
+  "Table": "Table",
+  "Copy JSON": "Copy JSON",
+  "Copied": "Copied",
+  "Json keys": "{{count}} keys",
+  "Json items": "{{count}} items",
+  "Json values": "{{count}} values",
+  "Json points": "{{count}} points",
+  "Json show more": "Show {{count}} more · {{shown}} of {{total}}",
+  "Json key": "1 key",
+  "Json item": "1 item"
 }

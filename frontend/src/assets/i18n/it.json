@@ -53,5 +53,16 @@
   "Cancel": "Annulla",
   "Query cancelled": "La query è stata annullata prima della risposta del query engine.",
   "Results below": "{{count}} risultati più in basso",
-  "One result below": "1 risultato più in basso"
+  "One result below": "1 risultato più in basso",
+  "Results view": "Vista dei risultati",
+  "Table": "Tabella",
+  "Copy JSON": "Copia JSON",
+  "Copied": "Copiato",
+  "Json keys": "{{count}} chiavi",
+  "Json items": "{{count}} elementi",
+  "Json values": "{{count}} valori",
+  "Json points": "{{count}} punti",
+  "Json show more": "Mostra altri {{count}} · {{shown}} di {{total}}",
+  "Json key": "1 chiave",
+  "Json item": "1 elemento"
 }

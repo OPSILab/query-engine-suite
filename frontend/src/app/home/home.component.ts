@@ -1,6 +1,8 @@
 import { AfterViewInit, Component, ElementRef, Injector, NgZone, OnDestroy, ViewChild, afterNextRender } from '@angular/core';
 import { ThemeService } from '../services/theme.service';
 
+const RESULTS_VIEW_KEY = 'data-space-results-view';
+
 // This used to be AppComponent's own content, before AppComponent became a
 // bare <router-outlet> to make room for the /keycloak-auth routes.
 @Component({
@@ -45,6 +47,13 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   private resultsArrived = false;
   private resultsObserver?: IntersectionObserver;
 
+  // How "Matched elements" are shown: as tables (JsonTableComponent) or as
+  // the raw JSON. Remembered per browser; tables unless chosen otherwise.
+  resultsView: 'table' | 'json' = HomeComponent.readResultsView();
+  // The card whose "Copy JSON" was just clicked, for the "Copied" feedback.
+  copiedElement: any = null;
+  private copiedTimer?: ReturnType<typeof setTimeout>;
+
   get resultCount(): number {
     return (this.extractedElements?.length || 0)
       + (this.userBucketObjects?.length || 0)
@@ -75,6 +84,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.copiedTimer);
     this.resultsObserver?.disconnect();
   }
 
@@ -108,6 +118,46 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     // panel's buttons in view above the results, so it's clear what they
     // are the answer to.
     this.resultsArea.nativeElement.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  setResultsView(view: 'table' | 'json'): void {
+    this.resultsView = view;
+    try {
+      localStorage.setItem(RESULTS_VIEW_KEY, view);
+    } catch {
+      // not persisted - fine
+    }
+  }
+
+  private static readResultsView(): 'table' | 'json' {
+    try {
+      return localStorage.getItem(RESULTS_VIEW_KEY) === 'json' ? 'json' : 'table';
+    } catch {
+      return 'table';
+    }
+  }
+
+  async copyElement(el: { element: any }): Promise<void> {
+    const v = el.element;
+    const text = typeof v === 'string' ? v : JSON.stringify(v, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // navigator.clipboard only exists in secure contexts (https or
+      // localhost): over plain http fall back to the old execCommand way.
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    this.copiedElement = el;
+    clearTimeout(this.copiedTimer);
+    this.copiedTimer = setTimeout(() => this.copiedElement = null, 1600);
   }
 
   formatSize(bytes: number): string {

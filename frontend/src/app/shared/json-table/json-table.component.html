@@ -1,0 +1,91 @@
+<!-- A primitive cell, or a nested value one level deeper. -->
+<ng-template #cellTpl let-c>
+  @if (c.prim) {
+    <span [class]="c.cls">{{ c.text }}</span>
+  } @else {
+    <ds-json-table [value]="c.value" [depth]="depth + 1"></ds-json-table>
+  }
+</ng-template>
+
+<ng-template #moreTpl>
+  @if (remaining > 0) {
+    <button type="button" class="jt-more" (click)="showMore()">
+      {{ 'Json show more' | translate: { count: nextCount, shown: shown, total: total } }}
+    </button>
+  }
+</ng-template>
+
+@if (collapsed) {
+  <button type="button" class="jt-toggle" (click)="expand()">
+    <span class="jt-toggle__brace">{{ isArray ? '[…]' : '{…}' }}</span>
+    {{ (isArray ? (size === 1 ? 'Json item' : 'Json items') : (size === 1 ? 'Json key' : 'Json keys')) | translate: { count: size } }}
+  </button>
+} @else {
+  @switch (kind) {
+    @case ('primitive') {
+      <span [class]="prim!.cls">{{ prim!.text }}</span>
+    }
+    @case ('empty') {
+      <span class="jt-null">{{ emptyText }}</span>
+    }
+    @case ('numeric') {
+      <span class="jt-numeric">
+        <span class="jt-num">{{ numericText }}</span>
+        <span class="jt-meta">{{ (numericArePoints ? 'Json points' : 'Json values') | translate: { count: numericCount } }}</span>
+      </span>
+    }
+    @case ('inline') {
+      <span class="jt-inline">
+        @for (c of inlineItems; track $index) {
+          <span [class]="'jt-chip ' + c.cls">{{ c.text }}</span>
+        }
+        @if (remaining > 0) {
+          <button type="button" class="jt-more jt-more--inline" (click)="showMore()">+{{ remaining }}</button>
+        }
+      </span>
+    }
+    @case ('rows') {
+      <table class="jt-table jt-grid" [class.jt-root]="depth === 0">
+        <thead>
+          <tr>
+            <th class="jt-index" scope="col">#</th>
+            @for (col of columns; track col) {
+              <th scope="col">{{ col }}</th>
+            }
+            @if (hiddenColumns > 0) {
+              <th scope="col" class="jt-meta">+{{ hiddenColumns }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows; track $index; let i = $index) {
+            <tr>
+              <td class="jt-index">{{ i }}</td>
+              @for (c of r; track $index) {
+                <td><ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: c }"></ng-container></td>
+              }
+              @if (hiddenColumns > 0) {
+                <td></td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+      <ng-container *ngTemplateOutlet="moreTpl"></ng-container>
+    }
+    @default {
+      <!-- object, or an array mixing values and objects (index -> value) -->
+      <table class="jt-table jt-kv">
+        <tbody>
+          @for (e of entries; track e.key) {
+            <tr>
+              <th scope="row" [class.jt-index]="kind === 'list'">{{ e.key }}</th>
+              <td><ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: e.cell }"></ng-container></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      <ng-container *ngTemplateOutlet="moreTpl"></ng-container>
+    }
+  }
+}

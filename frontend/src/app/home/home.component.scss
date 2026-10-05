@@ -132,15 +132,105 @@
   overflow: hidden;
 }
 
+.ds-element-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--ds-border);
+}
+
 .ds-element-card__name {
-  display: block;
-  padding: 10px 14px;
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--ds-text-muted);
-  border-bottom: 1px solid var(--ds-border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ds-element-card__copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ds-text-faint);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.ds-element-card__copy:hover {
+  border-color: var(--ds-border);
+  color: var(--ds-text);
+}
+
+.ds-element-card__copy--done {
+  color: var(--ds-accent);
+}
+
+.ds-element-card__table {
+  padding: 10px 12px;
+  overflow: auto;
+  max-height: 420px;
+}
+
+// Stand-in until the table is built (see the @defer in the template): tall
+// enough that only the cards near the screen count as "in view".
+.ds-element-card__table--placeholder {
+  height: 160px;
+  background: var(--ds-bg-sunken);
+}
+
+// JSON / Table switch in the "Matched elements" title row
+.ds-seg {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ds-seg__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ds-seg__btn:focus,
+.ds-element-card__copy:focus {
+  outline: none;
+}
+
+.ds-seg__btn:focus-visible,
+.ds-element-card__copy:focus-visible {
+  outline: 2px solid var(--ds-accent-border);
+  outline-offset: 1px;
+}
+
+.ds-seg__btn--active {
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text);
+  box-shadow: 0 1px 2px var(--ds-shadow);
 }
 
 .ds-element-card__body {

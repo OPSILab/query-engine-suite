@@ -1,0 +1,156 @@
+:host {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ds-text);
+}
+
+.jt-table {
+  border-collapse: collapse;
+  width: auto;
+  min-width: 100%;
+}
+
+.jt-table th,
+.jt-table td {
+  padding: 4px 10px;
+  border: 1px solid var(--ds-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.jt-table td {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+// key/value: keys in the narrow first column. (1% = "as narrow as the
+// content allows": every table here is as wide as its container - see
+// min-width / width below - so a percentage can't stretch it.)
+// (Child combinators throughout: these tables nest, and a descendant
+// selector would also hit every table inside a cell.)
+.jt-kv > tbody > tr > th {
+  width: 1%;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  background: var(--ds-bg-sunken);
+}
+
+// array of objects: header row
+.jt-grid > thead > tr > th {
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ds-text-muted);
+  background: var(--ds-bg-sunken);
+}
+
+// Top-level grid: header stays visible while scrolling inside the card.
+.jt-root > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: inset 0 -1px 0 var(--ds-border);
+}
+
+.jt-grid > tbody > tr:hover > td {
+  background: var(--ds-accent-soft);
+}
+
+.jt-index {
+  width: 1%;
+  color: var(--ds-text-faint) !important;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 400 !important;
+  text-align: right !important;
+}
+
+// Nested tables fill their cell, so the columns of the table around them
+// can't squeeze them below what their text needs.
+.jt-table .jt-table {
+  width: 100%;
+}
+
+.jt-str {
+  white-space: pre-wrap;
+  // break-word, not anywhere / word-break: it only breaks a word that can't
+  // fit on a line at all, so columns aren't shrunk to one letter per line.
+  overflow-wrap: break-word;
+}
+
+.jt-num {
+  color: var(--ds-num);
+}
+
+.jt-bool {
+  color: var(--ds-kw);
+}
+
+.jt-null,
+.jt-missing,
+.jt-meta {
+  color: var(--ds-text-faint);
+  font-style: italic;
+}
+
+.jt-meta {
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.jt-numeric {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.jt-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.jt-chip {
+  padding: 0 6px;
+  border: 1px solid var(--ds-border);
+  border-radius: 6px;
+  background: var(--ds-bg-sunken);
+}
+
+.jt-more,
+.jt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border: 1px dashed var(--ds-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-accent);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.jt-toggle {
+  margin-top: 0;
+  color: var(--ds-text-muted);
+}
+
+.jt-more:hover,
+.jt-toggle:hover {
+  border-color: var(--ds-accent-border);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}
+
+.jt-more--inline {
+  margin-top: 0;
+  padding: 0 6px;
+}
+
+.jt-toggle__brace {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
