@@ -439,7 +439,8 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
           this.actionsStuckChange.emit(stuck);
         });
       }
-    });
+      // -14px: the row's `bottom` offset (see .ds-action-row in the scss).
+    }, { rootMargin: '0px 0px -14px 0px' });
     this.stuckObserver.observe(this.panelEnd.nativeElement);
   }
 
