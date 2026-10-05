@@ -64,5 +64,7 @@
   "Json points": "{{count}} points",
   "Json show more": "Show {{count}} more · {{shown}} of {{total}}",
   "Json key": "1 key",
-  "Json item": "1 item"
+  "Json item": "1 item",
+  "Full screen": "Full screen",
+  "Exit full screen": "Exit full screen"
 }

@@ -66,16 +66,29 @@
         </div>
         <div class="ds-element-list">
           @for (el of extractedElements; track el) {
-            <div class="ds-element-card">
+            <div #card class="ds-element-card" [class.ds-element-card--max]="fullscreenElement === el">
               <div class="ds-element-card__head">
                 <span class="ds-element-card__name ds-mono">{{ el.name }}</span>
-                <button type="button" class="ds-element-card__copy" [class.ds-element-card__copy--done]="copiedElement === el" (click)="copyElement(el)">
+                <button type="button" class="ds-element-card__action" [class.ds-element-card__action--done]="copiedElement === el" (click)="copyElement(el)">
                   @if (copiedElement === el) {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
                     {{ 'Copied' | translate }}
                   } @else {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
                     {{ 'Copy JSON' | translate }}
+                  }
+                </button>
+                <button
+                  type="button"
+                  class="ds-element-card__action ds-element-card__action--icon"
+                  (click)="toggleFullscreen(card, el)"
+                  [attr.aria-label]="(fullscreenElement === el ? 'Exit full screen' : 'Full screen') | translate"
+                  [title]="(fullscreenElement === el ? 'Exit full screen' : 'Full screen') | translate"
+                >
+                  @if (fullscreenElement === el) {
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+                  } @else {
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
                   }
                 </button>
               </div>

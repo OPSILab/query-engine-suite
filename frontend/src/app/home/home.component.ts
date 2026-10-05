@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, Injector, NgZone, OnDestroy, ViewChild, afterNextRender } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, Injector, NgZone, OnDestroy, ViewChild, afterNextRender } from '@angular/core';
 import { ThemeService } from '../services/theme.service';
 
 const RESULTS_VIEW_KEY = 'data-space-results-view';
@@ -53,6 +53,13 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   // The card whose "Copy JSON" was just clicked, for the "Copied" feedback.
   copiedElement: any = null;
   private copiedTimer?: ReturnType<typeof setTimeout>;
+
+  // The result shown full screen, if any. Uses the browser's Fullscreen API
+  // on the card; where that isn't available (iPhone Safari) or is refused,
+  // the card is instead laid over the whole window with CSS
+  // (.ds-element-card--max) and Esc closes it.
+  fullscreenElement: any = null;
+  private fullscreenFallback = false;
 
   get resultCount(): number {
     return (this.extractedElements?.length || 0)
@@ -158,6 +165,42 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     this.copiedElement = el;
     clearTimeout(this.copiedTimer);
     this.copiedTimer = setTimeout(() => this.copiedElement = null, 1600);
+  }
+
+  toggleFullscreen(card: HTMLElement, el: any): void {
+    if (this.fullscreenElement === el) {
+      this.exitFullscreen();
+      return;
+    }
+    this.fullscreenElement = el;
+    this.fullscreenFallback = !card.requestFullscreen;
+    card.requestFullscreen?.().catch(() => this.fullscreenFallback = true);
+  }
+
+  private exitFullscreen(): void {
+    if (document.fullscreenElement) {
+      // fullscreenchange (below) clears the state
+      document.exitFullscreen();
+    } else {
+      this.fullscreenElement = null;
+      this.fullscreenFallback = false;
+    }
+  }
+
+  // Leaving native full screen by any route: our button, Esc, F11, or the
+  // card being removed because a new query replaced the results.
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    if (!document.fullscreenElement && !this.fullscreenFallback) {
+      this.fullscreenElement = null;
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.fullscreenFallback && this.fullscreenElement) {
+      this.exitFullscreen();
+    }
   }
 
   formatSize(bytes: number): string {

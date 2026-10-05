@@ -150,7 +150,7 @@
   white-space: nowrap;
 }
 
-.ds-element-card__copy {
+.ds-element-card__action {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -166,13 +166,40 @@
   cursor: pointer;
 }
 
-.ds-element-card__copy:hover {
+.ds-element-card__action:hover {
   border-color: var(--ds-border);
   color: var(--ds-text);
 }
 
-.ds-element-card__copy--done {
+.ds-element-card__action--done {
   color: var(--ds-accent);
+}
+
+.ds-element-card__action--icon {
+  padding: 0 7px;
+}
+
+// Full screen (native :fullscreen, or the CSS fallback laid over the
+// window): the card fills the screen and its content takes all the height.
+.ds-element-card--max {
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 0;
+  background: var(--ds-bg-elevated);
+}
+
+.ds-element-card--max:not(:fullscreen) {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.ds-element-card--max .ds-element-card__table,
+.ds-element-card--max .ds-element-card__body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .ds-element-card__table {
@@ -217,12 +244,12 @@
 }
 
 .ds-seg__btn:focus,
-.ds-element-card__copy:focus {
+.ds-element-card__action:focus {
   outline: none;
 }
 
 .ds-seg__btn:focus-visible,
-.ds-element-card__copy:focus-visible {
+.ds-element-card__action:focus-visible {
   outline: 2px solid var(--ds-accent-border);
   outline-offset: 1px;
 }

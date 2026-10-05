@@ -23,6 +23,9 @@
 // properties-panel here).
 :root,
 html[data-ds-theme='light'] {
+  // Native widgets drawn by the browser - scrollbars above all, but also the
+  // date picker and <select> menus - follow the theme too.
+  color-scheme: light;
   --ds-bg: #FAFAF8;
   --ds-bg-elevated: #FFFFFF;
   --ds-bg-sunken: #F1F1EE;
@@ -45,6 +48,7 @@ html[data-ds-theme='light'] {
 }
 
 html[data-ds-theme='dark'] {
+  color-scheme: dark;
   --ds-bg: #18191B;
   --ds-bg-elevated: #202124;
   --ds-bg-sunken: #131416;
@@ -69,6 +73,13 @@ html[data-ds-theme='dark'] {
 html, body {
   height: 100%;
   margin: 0;
+}
+
+// Scrollbars everywhere (inherited): a grey thumb from the palette on a
+// transparent track, so a scrolling area in the dark theme no longer shows a
+// bright white bar.
+html {
+  scrollbar-color: var(--ds-border-strong) transparent;
 }
 
 body {
