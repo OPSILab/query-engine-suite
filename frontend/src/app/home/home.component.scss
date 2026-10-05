@@ -153,3 +153,217 @@
   max-height: 260px;
   color: var(--ds-text);
 }
+
+// ---------------------------------------------------------------------------
+// Intro card ("what is this tool") above the query engine
+// ---------------------------------------------------------------------------
+// Compact on purpose: one illustration, a two-line description and the four
+// modes as chips that switch the query engine's tab. Motion is limited to a
+// short entrance and a slow, low-contrast "data flowing" loop in the
+// illustration, all disabled under prefers-reduced-motion.
+.ds-intro {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 20px;
+  padding: 16px 48px 16px 18px;
+  border: 1px solid var(--ds-border);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--ds-accent-soft), transparent 55%),
+    var(--ds-bg-elevated);
+  animation: ds-intro-in 420ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.ds-intro__art {
+  flex: none;
+  width: 150px;
+  height: 84px;
+  overflow: visible;
+}
+
+.ds-intro__sources rect {
+  fill: var(--ds-bg-sunken);
+  stroke: var(--ds-border-strong);
+  stroke-width: 1.2;
+}
+
+.ds-intro__lines {
+  fill: none;
+  stroke: var(--ds-text-faint);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.ds-intro__wires path {
+  fill: none;
+  stroke: var(--ds-border-strong);
+  stroke-width: 1.2;
+}
+
+// Short accent dashes travelling along the wires, on top of the static ones.
+.ds-intro__flow path {
+  fill: none;
+  stroke: var(--ds-accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-dasharray: 5 13;
+  animation: ds-intro-flow 1.8s linear infinite;
+}
+
+.ds-intro__flow--out {
+  animation-duration: 1.2s !important;
+}
+
+.ds-intro__hub {
+  fill: var(--ds-bg-elevated);
+  stroke: var(--ds-accent);
+  stroke-width: 1.6;
+}
+
+.ds-intro__pulse {
+  fill: var(--ds-accent-soft);
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ds-intro-pulse 2.4s ease-out infinite;
+}
+
+.ds-intro__glass {
+  fill: none;
+  stroke: var(--ds-accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.ds-intro__results rect {
+  fill: var(--ds-accent-soft);
+  stroke: var(--ds-accent-border);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: ds-intro-result 3.6s ease-in-out infinite;
+}
+
+.ds-intro__results rect:nth-child(2) { animation-delay: .25s; }
+.ds-intro__results rect:nth-child(3) { animation-delay: .5s; }
+
+.ds-intro__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-intro__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+
+.ds-intro__text {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ds-text-muted);
+}
+
+.ds-intro__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ds-intro__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  animation: ds-intro-chip 360ms cubic-bezier(.2, .7, .2, 1) both;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.ds-intro__mode:hover {
+  border-color: var(--ds-accent-border);
+  color: var(--ds-text);
+  transform: translateY(-1px);
+}
+
+.ds-intro__mode:focus-visible {
+  outline: 2px solid var(--ds-accent-border);
+  outline-offset: 2px;
+}
+
+.ds-intro__mode--active {
+  border-color: var(--ds-accent-border);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}
+
+.ds-intro__mode-name {
+  font-weight: 500;
+}
+
+.ds-intro__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+@keyframes ds-intro-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ds-intro-chip {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ds-intro-flow {
+  to { stroke-dashoffset: -36; }
+}
+
+@keyframes ds-intro-pulse {
+  0% { opacity: .9; transform: scale(1); }
+  80%, 100% { opacity: 0; transform: scale(1.9); }
+}
+
+@keyframes ds-intro-result {
+  0%, 12% { opacity: 0; transform: scaleX(.2); }
+  28%, 82% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+// Narrow screens: drop the illustration, keep the text and the chips.
+@media (max-width: 720px) {
+  .ds-intro__art {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-intro,
+  .ds-intro__mode,
+  .ds-intro__flow path,
+  .ds-intro__pulse,
+  .ds-intro__results rect {
+    animation: none;
+  }
+
+  .ds-intro__pulse {
+    opacity: 0;
+  }
+}

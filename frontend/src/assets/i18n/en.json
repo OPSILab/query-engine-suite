@@ -37,5 +37,13 @@
   "GraphQL no results": "The query ran successfully but returned no data.",
   "or": "or",
   "Use the Apollo Studio UI": "use the Apollo Studio UI",
-  "Apollo Studio link title": "Opens this GraphQL endpoint in Apollo's own UI, in a new tab"
+  "Apollo Studio link title": "Opens this GraphQL endpoint in Apollo's own UI, in a new tab",
+  "Intro title": "One place to query the whole Data Space",
+  "Intro text": "Files uploaded to MinIO and data collected from external APIs are synchronised by the Source Connector and made queryable here. Pick how to search them:",
+  "Intro hint simple": "keyword across files",
+  "Intro hint advanced": "key/value on objects",
+  "Intro hint sql": "SQL on PostgreSQL",
+  "Intro hint graphql": "datapoints & sources",
+  "Hide intro": "Hide intro",
+  "Show intro": "About this tool"
 }

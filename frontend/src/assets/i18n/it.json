@@ -37,5 +37,13 @@
   "GraphQL no results": "La query è andata a buon fine ma non ha restituito dati.",
   "or": "oppure",
   "Use the Apollo Studio UI": "usa l'interfaccia di Apollo Studio",
-  "Apollo Studio link title": "Apre questo endpoint GraphQL nell'interfaccia di Apollo, in una nuova scheda"
+  "Apollo Studio link title": "Apre questo endpoint GraphQL nell'interfaccia di Apollo, in una nuova scheda",
+  "Intro title": "Interroga tutto il Data Space da un unico punto",
+  "Intro text": "I dati caricati su MinIO e raccolti dalle API esterne vengono sincronizzati dal Source Connector e resi interrogabili qui. Scegli come cercarli:",
+  "Intro hint simple": "parola chiave nei file",
+  "Intro hint advanced": "chiave/valore negli oggetti",
+  "Intro hint sql": "SQL su PostgreSQL",
+  "Intro hint graphql": "datapoint e sorgenti",
+  "Hide intro": "Nascondi introduzione",
+  "Show intro": "Informazioni sullo strumento"
 }
