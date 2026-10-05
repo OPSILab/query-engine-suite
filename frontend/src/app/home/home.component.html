@@ -32,6 +32,7 @@
   <ngx-query-engine
     [visibility]="visibility"
     (loadingChange)="onSearchingChange($event)"
+    (actionsStuckChange)="actionsStuck = $event"
     (extractedElementsChange)="extractedElements = $event; onResults()"
     (generalSharedBucketObjectsChange)="generalSharedBucketObjects = $event"
     (pilotSharedBucketObjectsChange)="pilotSharedBucketObjects = $event"
@@ -66,7 +67,7 @@
   <!-- Shown while there are results under the visible part of the page
        (HomeComponent.resultsBelow); clicking it scrolls down to them. -->
   @if (resultsBelow && resultCount && !searching) {
-    <button type="button" class="ds-results-pill" (click)="scrollToResults()">
+    <button type="button" class="ds-results-pill" [class.ds-results-pill--raised]="actionsStuck" (click)="scrollToResults()">
       <svg class="ds-results-pill__arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
       {{ (resultCount === 1 ? 'One result below' : 'Results below') | translate: { count: resultCount } }}
     </button>

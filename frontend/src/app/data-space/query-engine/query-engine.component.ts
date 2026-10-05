@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { Observable, Subscription, defer, finalize } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
@@ -42,7 +42,7 @@ import { DataSpaceService } from '../data-space.service';
   styleUrls: ['./query-engine.component.scss'],
   standalone: false
 })
-export class QueryEngineComponent implements OnInit, OnDestroy {
+export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
 
   form: UntypedFormGroup;
   modes: string[] = ["Simple search", "Advanced search", "Query SQL", "Query GraphQL"];
@@ -86,6 +86,19 @@ export class QueryEngineComponent implements OnInit, OnDestroy {
   private pendingQuery?: Subscription;
   private loadingTimer?: ReturnType<typeof setInterval>;
 
+  // The action row (Apply Query / Find all / loading status) is
+  // position: sticky at the bottom of the window, so with a long form (the
+  // intro open, several Advanced search filters) the buttons stay reachable
+  // instead of ending up below the fold. `actionsStuck` is true while it is
+  // actually floating over the form - i.e. the end of the panel is below the
+  // visible area, watched through a 1px sentinel at the panel's very bottom -
+  // and only then the row gets its top border and shadow. Emitted so that
+  // HomeComponent can lift its "N results below" pill above the row.
+  @ViewChild('panelEnd', { static: true }) panelEnd!: ElementRef<HTMLElement>;
+  @Output() actionsStuckChange = new EventEmitter<boolean>();
+  actionsStuck = false;
+  private stuckObserver?: IntersectionObserver;
+
   keys = [];
   values = [];
   entries: any[];
@@ -99,6 +112,7 @@ export class QueryEngineComponent implements OnInit, OnDestroy {
   autocompleteDataReady = false;
 
   constructor(
+    private zone: NgZone,
     private beopenAPI: BeopenAPIService,
     public translation: TranslateService,
     private toastService: ToastService,
@@ -410,9 +424,29 @@ export class QueryEngineComponent implements OnInit, OnDestroy {
     }
   }
 
+  ngAfterViewInit(): void {
+    if (typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    // One element observed, but a batch can hold several entries for it
+    // (e.g. the layout settling during load): only the last one is current.
+    this.stuckObserver = new IntersectionObserver(entries => {
+      const entry = entries[entries.length - 1];
+      const stuck = !entry.isIntersecting && entry.boundingClientRect.top > (entry.rootBounds?.bottom ?? window.innerHeight);
+      if (stuck !== this.actionsStuck) {
+        this.zone.run(() => {
+          this.actionsStuck = stuck;
+          this.actionsStuckChange.emit(stuck);
+        });
+      }
+    });
+    this.stuckObserver.observe(this.panelEnd.nativeElement);
+  }
+
   ngOnDestroy(): void {
     this.pendingQuery?.unsubscribe();
     clearInterval(this.loadingTimer);
+    this.stuckObserver?.disconnect();
   }
 
   BucketObjectsPush = this.dataSpaceService.BucketObjectsPush.bind(this.dataSpaceService);

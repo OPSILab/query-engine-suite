@@ -36,6 +36,9 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   //   an IntersectionObserver on the results area).
   @ViewChild('resultsArea', { static: true }) resultsArea!: ElementRef<HTMLElement>;
   resultsBelow = false;
+  // The query engine's action row is floating at the bottom of the window
+  // (see QueryEngineComponent.actionsStuck): the pill moves up above it.
+  actionsStuck = false;
   // Set when the query engine hands over results (they're emitted before
   // loadingChange(false)), so a cancelled or failed query - which emits
   // nothing - doesn't scroll to the previous query's results.
@@ -59,7 +62,10 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     // "Below" = the top of the results area is under the visible part of the
     // window, minus the bottom 96px where the pill itself sits: a results
     // header peeking out from under the pill doesn't count as seen.
-    this.resultsObserver = new IntersectionObserver(([entry]) => {
+    // One element observed, but a batch can hold several entries for it
+    // (e.g. the layout settling during load): only the last one is current.
+    this.resultsObserver = new IntersectionObserver(entries => {
+      const entry = entries[entries.length - 1];
       const below = !entry.isIntersecting && entry.boundingClientRect.top > (entry.rootBounds?.bottom ?? window.innerHeight);
       if (below !== this.resultsBelow) {
         this.zone.run(() => this.resultsBelow = below);

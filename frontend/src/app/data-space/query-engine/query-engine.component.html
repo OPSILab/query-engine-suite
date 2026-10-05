@@ -127,7 +127,7 @@
       </div>
     }
 
-    <div class="ds-action-row">
+    <div class="ds-action-row" [class.ds-action-row--stuck]="actionsStuck">
       <button
         type="button"
         class="ds-primary-button"
@@ -169,6 +169,9 @@
     </div>
 
   </div>
+  <!-- See actionsStuck in the component: tells whether the end of the panel
+       is below the visible area, i.e. whether the action row is floating. -->
+  <div #panelEnd class="ds-panel__end" aria-hidden="true"></div>
 </div>
 
 <ng-template #keyValueLine1 let-item="item" let-i="i">
