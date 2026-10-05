@@ -39,7 +39,7 @@
   "Use the Apollo Studio UI": "use the Apollo Studio UI",
   "Apollo Studio link title": "Opens this GraphQL endpoint in Apollo's own UI, in a new tab",
   "Intro title": "One place to query the whole Data Space",
-  "Intro text": "The Data Space gathers files uploaded to MinIO (CSV, JSON, GeoJSON) and data collected from external APIs. The Source Connector keeps them synchronised and the Query Engine indexes them, so everything can be searched from this page, whatever the original source. Pick the mode that fits your question with the tabs below:",
+  "Intro text": "Data Space gathers files uploaded to MinIO and data collected from external APIs. Source Connector keeps them synchronised and Query Engine indexes them, so everything can be searched from this page, whatever the original source. Pick the mode that fits your question with the tabs below:",
   "Intro tagline": "Search files uploaded to MinIO and data collected from external APIs, in four different ways.",
   "Intro mode simple": "Type a word or a value and get every file that contains it. The quickest way to find out what's there.",
   "Intro mode advanced": "Filter objects by key/value pairs, as text or as a date range, on CSV, JSON or GeoJSON files. Keys and values are suggested as you type.",
