@@ -3,6 +3,7 @@
 }
 
 .ds-panel {
+  position: relative;
   border: 1px solid var(--ds-border);
   border-radius: 12px;
   background: var(--ds-bg-elevated);
@@ -109,8 +110,105 @@
 
 .ds-action-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+// ---------------------------------------------------------------------------
+// Query in flight
+// ---------------------------------------------------------------------------
+// Three cues, from the most to the least noticeable: an indeterminate bar on
+// the panel's top edge, a spinner in place of the clicked button's icon, and
+// a status text next to the buttons that turns into an elapsed-time counter
+// after a few seconds, with a Cancel button (QueryEngineComponent.cancelQuery).
+.ds-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 3px;
+  overflow: hidden;
+  background: var(--ds-accent-soft);
+}
+
+.ds-progress__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  border-radius: 3px;
+  background: var(--ds-accent);
+  animation: ds-progress-slide 1.15s cubic-bezier(.45, 0, .25, 1) infinite;
+}
+
+@keyframes ds-progress-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
+// Both buttons are disabled while a query runs; the one that was clicked
+// keeps full opacity (it's the one "working"), the other fades as usual.
+.ds-primary-button--loading:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
+.ds-spinner {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ds-spin .7s linear infinite;
+}
+
+@keyframes ds-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ds-loading-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.ds-loading-status__text {
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  font-variant-numeric: tabular-nums;
+  animation: ds-status-in 200ms ease both;
+}
+
+@keyframes ds-status-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+// Reduced motion: the bar stops sliding and just breathes; the spinner keeps
+// turning (it's the essential "still working" signal) but slower.
+@media (prefers-reduced-motion: reduce) {
+  .ds-progress__bar {
+    width: 100%;
+    animation: ds-progress-breathe 2s ease-in-out infinite;
+  }
+
+  .ds-spinner {
+    animation-duration: 1.6s;
+  }
+
+  .ds-loading-status__text {
+    animation: none;
+  }
+}
+
+@keyframes ds-progress-breathe {
+  0%, 100% { opacity: .35; }
+  50% { opacity: 1; }
 }
 
 // "Find all" ignores whatever filters are set above (it's a bypass, not the

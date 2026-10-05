@@ -1,4 +1,10 @@
-<div class="ds-panel">
+<div class="ds-panel" [class.ds-panel--busy]="loading" [attr.aria-busy]="!!loading">
+
+  <!-- Indeterminate bar along the panel's top edge while a query is in
+       flight; the buttons below say which one and for how long. -->
+  @if (loading) {
+    <div class="ds-progress" aria-hidden="true"><span class="ds-progress__bar"></span></div>
+  }
 
   <div class="ds-panel__header">
     <div class="ds-tabs">
@@ -122,14 +128,44 @@
     }
 
     <div class="ds-action-row">
-      <button type="button" class="ds-primary-button" [disabled]="mode == 'Query GraphQL' && graphqlBlocked" (click)="minioQuery(false)">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <button
+        type="button"
+        class="ds-primary-button"
+        [class.ds-primary-button--loading]="loading === 'query'"
+        [disabled]="!!loading || (mode == 'Query GraphQL' && graphqlBlocked)"
+        (click)="minioQuery(false)"
+      >
+        @if (loading === 'query') {
+          <span class="ds-spinner" aria-hidden="true"></span>
+        } @else {
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        }
         {{ "Apply Query" | translate }}
       </button>
-      <button type="button" class="ds-primary-button ds-primary-button--secondary" [disabled]="mode == 'Query GraphQL' && graphqlBlocked" (click)="minioQuery(true)">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+      <button
+        type="button"
+        class="ds-primary-button ds-primary-button--secondary"
+        [class.ds-primary-button--loading]="loading === 'all'"
+        [disabled]="!!loading || (mode == 'Query GraphQL' && graphqlBlocked)"
+        (click)="minioQuery(true)"
+      >
+        @if (loading === 'all') {
+          <span class="ds-spinner" aria-hidden="true"></span>
+        } @else {
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+        }
         {{ "Find all" | translate }}
       </button>
+
+      <!-- role="status": screen readers announce it when a query starts.
+           After 3 s it switches to the elapsed time, so a slow backend reads
+           as "still working", not as a frozen page. -->
+      <span class="ds-loading-status" role="status">
+        @if (loading) {
+          <span class="ds-loading-status__text">{{ (loadingSeconds < 3 ? 'Searching' : 'Still searching') | translate: { seconds: loadingSeconds } }}</span>
+          <button type="button" class="ds-ghost-button" (click)="cancelQuery()">{{ 'Cancel' | translate }}</button>
+        }
+      </span>
     </div>
 
   </div>

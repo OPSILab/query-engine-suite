@@ -1,0 +1,83 @@
+<!-- "What is this tool" card, as an accordion: the header is always there,
+     the description below it opens/closes (open on first visit, then the
+     last choice is remembered per browser - see IntroComponent.open). -->
+<section class="ds-intro" [class.ds-intro--open]="open">
+  <button
+    type="button"
+    class="ds-intro__header"
+    [attr.aria-expanded]="open"
+    aria-controls="ds-intro-panel"
+    (click)="toggle()"
+  >
+    <svg class="ds-intro__badge" viewBox="0 0 32 32" aria-hidden="true">
+      <circle class="ds-intro__pulse" cx="16" cy="16" r="10" />
+      <circle class="ds-intro__hub" cx="16" cy="16" r="10" />
+      <path class="ds-intro__glass" d="M14.5 14.5m-3.5 0a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0M17 17l3 3" />
+    </svg>
+    <span class="ds-intro__heading">
+      <span class="ds-intro__title">{{ 'Intro title' | translate }}</span>
+      <span class="ds-intro__tagline">{{ 'Intro tagline' | translate }}</span>
+    </span>
+    <span class="ds-intro__toggle">
+      <span class="ds-intro__toggle-label">{{ (open ? 'Hide details' : 'Show details') | translate }}</span>
+      <svg class="ds-intro__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+    </span>
+  </button>
+
+  <!-- grid-template-rows 0fr <-> 1fr is what animates the height (see the
+       scss); `inert` keeps the collapsed content out of the tab order and
+       away from screen readers while it's closed. -->
+  <div id="ds-intro-panel" class="ds-intro__panel" [attr.inert]="open ? null : ''">
+    <div class="ds-intro__panel-inner">
+      <div class="ds-intro__content">
+        <!-- Sources (MinIO files, external APIs, ...) flowing through the
+             query engine into results. Decorative only, hence aria-hidden;
+             the motion is CSS and stops under prefers-reduced-motion. -->
+        <svg class="ds-intro__art" viewBox="0 0 160 90" aria-hidden="true">
+          <g class="ds-intro__sources">
+            <rect x="6" y="11" width="22" height="15" rx="4" />
+            <rect x="6" y="37.5" width="22" height="15" rx="4" />
+            <rect x="6" y="64" width="22" height="15" rx="4" />
+            <path d="M11 16.5h12M11 20.5h8M11 43h12M11 47h8M11 69.5h12M11 73.5h8" class="ds-intro__lines" />
+          </g>
+          <g class="ds-intro__wires">
+            <path d="M28 18.5 C52 18.5 52 45 67 45" />
+            <path d="M28 45 L67 45" />
+            <path d="M28 71.5 C52 71.5 52 45 67 45" />
+            <path d="M93 45 L118 45" />
+          </g>
+          <g class="ds-intro__flow">
+            <path d="M28 18.5 C52 18.5 52 45 67 45" />
+            <path d="M28 45 L67 45" style="animation-delay: -0.6s" />
+            <path d="M28 71.5 C52 71.5 52 45 67 45" style="animation-delay: -1.2s" />
+            <path d="M93 45 L118 45" class="ds-intro__flow--out" />
+          </g>
+          <circle class="ds-intro__pulse" cx="80" cy="45" r="13" />
+          <circle class="ds-intro__hub" cx="80" cy="45" r="13" />
+          <path class="ds-intro__glass" d="M77.5 42.5m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0M80.8 45.8l4 4" />
+          <g class="ds-intro__results">
+            <rect x="122" y="31" width="32" height="6" rx="3" />
+            <rect x="122" y="42" width="24" height="6" rx="3" />
+            <rect x="122" y="53" width="28" height="6" rx="3" />
+          </g>
+        </svg>
+
+        <div class="ds-intro__body">
+          <p class="ds-intro__text">{{ 'Intro text' | translate }}</p>
+          <!-- A description of each mode, not a second set of buttons: the
+               tabs right below are the one place to switch mode. -->
+          <ul class="ds-intro__modes">
+            @for (m of modes; track m.mode; let i = $index) {
+              <li class="ds-intro__mode" [style.animation-delay.ms]="80 + i * 60">
+                <svg class="ds-intro__mode-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path [attr.d]="m.icon" /></svg>
+                <span class="ds-intro__mode-name">{{ m.mode | translate }}</span>
+                <span class="ds-intro__mode-text">{{ m.text | translate }}</span>
+              </li>
+            }
+          </ul>
+          <p class="ds-intro__note">{{ 'Intro visibility' | translate }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

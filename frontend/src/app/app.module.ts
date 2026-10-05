@@ -42,6 +42,7 @@ import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
 
 import { HomeComponent } from './home/home.component';
+import { IntroComponent } from './home/intro/intro.component';
 import { QueryEngineComponent } from './data-space/query-engine/query-engine.component';
 import { AutocompleteComponent } from './data-space/query-engine/autocomplete/autocomplete.component';
 import { SqlEditorComponent } from './data-space/query-engine/sql-editor/sql-editor.component';
@@ -63,6 +64,7 @@ export function translateLoaderFactory(http: HttpClient) {
   declarations: [
     AppComponent,
     HomeComponent,
+    IntroComponent,
     QueryEngineComponent,
     AutocompleteComponent,
     SqlEditorComponent,

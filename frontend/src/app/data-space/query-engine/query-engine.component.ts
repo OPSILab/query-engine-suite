@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Observable, Subscription, defer, finalize } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
 import { BeopenAPIService } from '../../services/be-open.service';
@@ -41,7 +42,7 @@ import { DataSpaceService } from '../data-space.service';
   styleUrls: ['./query-engine.component.scss'],
   standalone: false
 })
-export class QueryEngineComponent implements OnInit {
+export class QueryEngineComponent implements OnInit, OnDestroy {
 
   form: UntypedFormGroup;
   modes: string[] = ["Simple search", "Advanced search", "Query SQL", "Query GraphQL"];
@@ -71,6 +72,19 @@ export class QueryEngineComponent implements OnInit {
   @Output() generalSharedBucketObjectsChange = new EventEmitter<any[]>();
   @Output() pilotSharedBucketObjectsChange = new EventEmitter<any[]>();
   @Output() userBucketObjectsChange = new EventEmitter<any[]>();
+  // true while a query is in flight, false once it has answered, failed or
+  // been cancelled - HomeComponent fades the previous results meanwhile.
+  @Output() loadingChange = new EventEmitter<boolean>();
+
+  // Which button started the query in flight (it shows the spinner), or null
+  // when nothing is running. Both buttons are disabled while it's set, so a
+  // slow answer can't be "fixed" by clicking again and stacking requests.
+  loading: 'query' | 'all' | null = null;
+  // Seconds since the query started, shown next to the buttons once the
+  // answer is taking a while ("Waiting for the query engine... 4 s").
+  loadingSeconds = 0;
+  private pendingQuery?: Subscription;
+  private loadingTimer?: ReturnType<typeof setInterval>;
 
   keys = [];
   values = [];
@@ -173,10 +187,13 @@ export class QueryEngineComponent implements OnInit {
   }
 
   minioQuery(all: Boolean) {
+    if (this.loading) {
+      return;
+    }
     if (this.mode === "Query GraphQL") {
       // GraphQL doesn't go through /api/query at all, and "find all" has no
       // meaning for it: both buttons just run the document in the editor.
-      this.runGraphqlQuery();
+      this.runGraphqlQuery(all ? 'all' : 'query');
       return;
     }
     let mongoQuery = {};
@@ -189,7 +206,7 @@ export class QueryEngineComponent implements OnInit {
           });
         else mongoQuery[l.key] = l.value;
       }
-    this.beopenAPI.minioQuery(this.mode, this.value, mongoQuery, this.sqlQuery, this.visibility, this.type).subscribe(queryResult => {
+    this.pendingQuery = this.track(all ? 'all' : 'query', this.beopenAPI.minioQuery(this.mode, this.value, mongoQuery, this.sqlQuery, this.visibility, this.type)).subscribe(queryResult => {
       this.generalSharedBucketObjects = [];
       this.pilotSharedBucketObjects = [];
       this.userBucketObjects = [];
@@ -294,15 +311,15 @@ export class QueryEngineComponent implements OnInit {
     });
   }
 
-  runGraphqlQuery(): void {
-    if (this.graphqlBlocked) {
+  runGraphqlQuery(kind: 'query' | 'all' = 'query'): void {
+    if (this.graphqlBlocked || this.loading) {
       return;
     }
     if (!this.graphqlText.trim()) {
       this.createToastr('warning', "Empty query", "GraphQL empty query");
       return;
     }
-    this.beopenAPI.graphqlQuery(this.graphqlText).subscribe({
+    this.pendingQuery = this.track(kind, this.beopenAPI.graphqlQuery(this.graphqlText)).subscribe({
       next: res => this.showGraphqlResult(res),
       error: err => {
         // Apollo answers syntax/validation errors (unknown field, wrong
@@ -352,6 +369,50 @@ export class QueryEngineComponent implements OnInit {
       this.createToastr('info', "No results", "GraphQL no results");
     }
     this.sendData();
+  }
+
+  /**
+   * Wraps a query request so the loading state follows it: set when it's
+   * subscribed, cleared by finalize() whatever happens next - answer, error,
+   * or cancelQuery() unsubscribing (which also aborts the HTTP request).
+   * Callers keep the subscription in pendingQuery so cancelQuery() can reach it.
+   */
+  private track<T>(kind: 'query' | 'all', request: Observable<T>): Observable<T> {
+    return defer(() => {
+      this.startLoading(kind);
+      return request;
+    }).pipe(finalize(() => this.stopLoading()));
+  }
+
+  cancelQuery(): void {
+    if (!this.pendingQuery) {
+      return;
+    }
+    this.pendingQuery.unsubscribe();
+    this.createToastr('info', "Query cancelled", "Query cancelled");
+  }
+
+  private startLoading(kind: 'query' | 'all'): void {
+    this.loading = kind;
+    this.loadingSeconds = 0;
+    clearInterval(this.loadingTimer);
+    this.loadingTimer = setInterval(() => this.loadingSeconds++, 1000);
+    this.loadingChange.emit(true);
+  }
+
+  private stopLoading(): void {
+    clearInterval(this.loadingTimer);
+    this.loadingTimer = undefined;
+    this.pendingQuery = undefined;
+    if (this.loading) {
+      this.loading = null;
+      this.loadingChange.emit(false);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.pendingQuery?.unsubscribe();
+    clearInterval(this.loadingTimer);
   }
 
   BucketObjectsPush = this.dataSpaceService.BucketObjectsPush.bind(this.dataSpaceService);

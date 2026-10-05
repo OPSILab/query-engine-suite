@@ -1,0 +1,346 @@
+:host {
+  display: block;
+}
+
+// ---------------------------------------------------------------------------
+// Intro card ("what is this tool") above the query engine
+// ---------------------------------------------------------------------------
+// An accordion: the header (badge, title, one-line tagline, toggle) is always
+// visible; the panel holds the illustration, a short description, what each
+// of the four modes is for and a note on the visibility selector. Motion: the
+// panel's height and the chevron animate, the badge pulses, the illustration
+// loops a slow, low-contrast "data flowing" animation, the mode cards fade in
+// one after the other. All of it is disabled under prefers-reduced-motion.
+.ds-intro {
+  margin-bottom: 20px;
+  border: 1px solid var(--ds-border);
+  border-radius: 14px;
+  background:
+    radial-gradient(90% 160% at 0% 0%, var(--ds-accent-soft), transparent 60%),
+    var(--ds-bg-elevated);
+  overflow: hidden;
+  animation: ds-intro-in 420ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.ds-intro__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+// Bootstrap's reboot puts an outline on button:focus, mouse clicks included,
+// which here would frame the whole card after every toggle: keep it for
+// keyboard focus only.
+.ds-intro__header:focus {
+  outline: none;
+}
+
+.ds-intro__header:focus-visible {
+  outline: 2px solid var(--ds-accent-border);
+  outline-offset: -2px;
+  border-radius: 14px;
+}
+
+.ds-intro__badge {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  overflow: visible;
+}
+
+.ds-intro__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ds-intro__title {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+
+.ds-intro__tagline {
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Open, the paragraph below says the same thing at more length: the tagline
+// only stays as the summary of the collapsed card.
+.ds-intro--open .ds-intro__tagline {
+  display: none;
+}
+
+.ds-intro__toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.ds-intro__header:hover .ds-intro__toggle {
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+}
+
+.ds-intro__chevron {
+  transition: transform 260ms cubic-bezier(.2, .7, .2, 1);
+}
+
+.ds-intro--open .ds-intro__chevron {
+  transform: rotate(180deg);
+}
+
+// Height animation without measuring anything: a one-row grid going from 0fr
+// to 1fr, with the only child clipping its overflow.
+.ds-intro__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(.2, .7, .2, 1);
+}
+
+.ds-intro--open .ds-intro__panel {
+  grid-template-rows: 1fr;
+}
+
+.ds-intro__panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ds-intro__content {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  margin: 0 16px;
+  padding: 14px 0 16px;
+  border-top: 1px solid var(--ds-border);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.ds-intro--open .ds-intro__content {
+  opacity: 1;
+  transform: none;
+  transition-delay: 80ms;
+}
+
+.ds-intro__art {
+  flex: none;
+  width: 150px;
+  height: 84px;
+  align-self: center;
+  overflow: visible;
+}
+
+.ds-intro__sources rect {
+  fill: var(--ds-bg-sunken);
+  stroke: var(--ds-border-strong);
+  stroke-width: 1.2;
+}
+
+.ds-intro__lines {
+  fill: none;
+  stroke: var(--ds-text-faint);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.ds-intro__wires path {
+  fill: none;
+  stroke: var(--ds-border-strong);
+  stroke-width: 1.2;
+}
+
+// Short accent dashes travelling along the wires, on top of the static ones.
+.ds-intro__flow path {
+  fill: none;
+  stroke: var(--ds-accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-dasharray: 5 13;
+  animation: ds-intro-flow 1.8s linear infinite;
+}
+
+.ds-intro__flow--out {
+  animation-duration: 1.2s !important;
+}
+
+.ds-intro__hub {
+  fill: var(--ds-bg-elevated);
+  stroke: var(--ds-accent);
+  stroke-width: 1.6;
+}
+
+.ds-intro__pulse {
+  fill: var(--ds-accent-soft);
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ds-intro-pulse 2.4s ease-out infinite;
+}
+
+.ds-intro__glass {
+  fill: none;
+  stroke: var(--ds-accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.ds-intro__results rect {
+  fill: var(--ds-accent-soft);
+  stroke: var(--ds-accent-border);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: ds-intro-result 3.6s ease-in-out infinite;
+}
+
+.ds-intro__results rect:nth-child(2) { animation-delay: .25s; }
+.ds-intro__results rect:nth-child(3) { animation-delay: .5s; }
+
+.ds-intro__body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ds-intro__text,
+.ds-intro__note {
+  margin: 0;
+  max-width: 82ch;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ds-text-muted);
+}
+
+.ds-intro__note {
+  font-size: 12px;
+  color: var(--ds-text-faint);
+}
+
+// 2x2 on desktop, one column on narrow screens.
+.ds-intro__modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-intro__mode {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  align-content: start;
+  column-gap: 8px;
+  row-gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  background: var(--ds-bg-elevated);
+}
+
+.ds-intro--open .ds-intro__mode {
+  animation: ds-intro-card 360ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.ds-intro__mode-icon {
+  color: var(--ds-accent);
+}
+
+.ds-intro__mode-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.ds-intro__mode-text {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ds-text-muted);
+}
+
+@keyframes ds-intro-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ds-intro-card {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ds-intro-flow {
+  to { stroke-dashoffset: -36; }
+}
+
+@keyframes ds-intro-pulse {
+  0% { opacity: .9; transform: scale(1); }
+  80%, 100% { opacity: 0; transform: scale(1.9); }
+}
+
+@keyframes ds-intro-result {
+  0%, 12% { opacity: 0; transform: scaleX(.2); }
+  28%, 82% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+// Narrow screens: no illustration, one mode per row, toggle without label.
+@media (max-width: 720px) {
+  .ds-intro__art,
+  .ds-intro__toggle-label {
+    display: none;
+  }
+
+  .ds-intro__modes {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-intro,
+  .ds-intro--open .ds-intro__mode,
+  .ds-intro__flow path,
+  .ds-intro__pulse,
+  .ds-intro__results rect {
+    animation: none;
+  }
+
+  .ds-intro__panel,
+  .ds-intro__content,
+  .ds-intro__chevron {
+    transition: none;
+  }
+
+  .ds-intro__pulse {
+    opacity: 0;
+  }
+}
