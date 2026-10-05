@@ -51,5 +51,7 @@
   "Searching": "Searching…",
   "Still searching": "Waiting for the query engine… {{seconds}} s",
   "Cancel": "Cancel",
-  "Query cancelled": "The query was cancelled before the query engine answered."
+  "Query cancelled": "The query was cancelled before the query engine answered.",
+  "Results below": "{{count}} results below",
+  "One result below": "1 result below"
 }

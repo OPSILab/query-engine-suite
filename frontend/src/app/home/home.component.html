@@ -31,8 +31,8 @@
 
   <ngx-query-engine
     [visibility]="visibility"
-    (loadingChange)="searching = $event"
-    (extractedElementsChange)="extractedElements = $event"
+    (loadingChange)="onSearchingChange($event)"
+    (extractedElementsChange)="extractedElements = $event; onResults()"
     (generalSharedBucketObjectsChange)="generalSharedBucketObjects = $event"
     (pilotSharedBucketObjectsChange)="pilotSharedBucketObjects = $event"
     (userBucketObjectsChange)="userBucketObjects = $event"
@@ -40,7 +40,7 @@
 
   <!-- While a new query runs, the previous results stay on screen but fade
        out, so they don't read as the answer to the query just sent. -->
-  <div class="ds-results-area" [class.ds-results-area--stale]="searching" [attr.aria-busy]="searching">
+  <div #resultsArea class="ds-results-area" [class.ds-results-area--stale]="searching" [attr.aria-busy]="searching">
     <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Your minio objects', items: userBucketObjects }"></ng-container>
     <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Minio objects shared with your pilot', items: pilotSharedBucketObjects }"></ng-container>
     <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Public minio objects', items: generalSharedBucketObjects }"></ng-container>
@@ -62,6 +62,15 @@
       </div>
     }
   </div>
+
+  <!-- Shown while there are results under the visible part of the page
+       (HomeComponent.resultsBelow); clicking it scrolls down to them. -->
+  @if (resultsBelow && resultCount && !searching) {
+    <button type="button" class="ds-results-pill" (click)="scrollToResults()">
+      <svg class="ds-results-pill__arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+      {{ (resultCount === 1 ? 'One result below' : 'Results below') | translate: { count: resultCount } }}
+    </button>
+  }
 </div>
 
 <ng-template #bucketList let-title="title" let-items="items">

@@ -158,7 +158,58 @@
 // Results area: faded while a new query is running
 // ---------------------------------------------------------------------------
 .ds-results-area {
+  // Room left above the results when the page scrolls to them
+  // (HomeComponent.scrollToResults): enough to keep the query panel's
+  // buttons in view.
+  scroll-margin-top: 84px;
   transition: opacity 200ms ease, filter 200ms ease;
+}
+
+// Floating "N results below" pill, bottom centre.
+.ds-results-pill {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 18px 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--ds-accent);
+  color: var(--ds-accent-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px var(--ds-shadow), 0 1px 3px var(--ds-shadow);
+  cursor: pointer;
+  transform: translateX(-50%);
+  animation: ds-pill-in 260ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.ds-results-pill:hover {
+  filter: brightness(1.06);
+}
+
+.ds-results-pill:focus-visible {
+  outline: 2px solid var(--ds-accent-border);
+  outline-offset: 3px;
+}
+
+.ds-results-pill__arrow {
+  animation: ds-pill-nudge 1.6s ease-in-out infinite;
+}
+
+@keyframes ds-pill-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes ds-pill-nudge {
+  0%, 60%, 100% { transform: none; }
+  30% { transform: translateY(3px); }
 }
 
 .ds-results-area--stale {
@@ -170,5 +221,10 @@
 @media (prefers-reduced-motion: reduce) {
   .ds-results-area {
     transition: none;
+  }
+
+  .ds-results-pill,
+  .ds-results-pill__arrow {
+    animation: none;
   }
 }

@@ -51,5 +51,7 @@
   "Searching": "Ricerca in corso…",
   "Still searching": "In attesa del query engine… {{seconds}} s",
   "Cancel": "Annulla",
-  "Query cancelled": "La query è stata annullata prima della risposta del query engine."
+  "Query cancelled": "La query è stata annullata prima della risposta del query engine.",
+  "Results below": "{{count}} risultati più in basso",
+  "One result below": "1 risultato più in basso"
 }
