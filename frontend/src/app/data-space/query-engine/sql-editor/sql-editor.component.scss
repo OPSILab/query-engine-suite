@@ -29,7 +29,7 @@
   inset: 0;
   margin: 0;
   padding: 16px;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   color: var(--ds-text-muted);
   font-weight: 500;
 }
@@ -85,7 +85,7 @@
   background: var(--ds-bg-elevated);
   color: var(--ds-text-muted);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   text-align: left;
   cursor: pointer;
   overflow: hidden;

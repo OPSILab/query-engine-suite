@@ -15,10 +15,11 @@
 // autoResize() sets the height (wrapping long values - urls included - anywhere).
 .ds-autocomplete-input {
   display: block;
-  height: 40px;
-  min-height: 40px;
+  // One line + padding + borders: 40px at font scale 1.
+  height: calc(18px * var(--ds-font-scale) + 22px);
+  min-height: calc(18px * var(--ds-font-scale) + 22px);
   padding: 10px 12px;
-  line-height: 18px;
+  line-height: calc(18px * var(--ds-font-scale));
   resize: none;
   overflow-y: hidden;
   overflow-wrap: anywhere;
@@ -52,7 +53,7 @@
   background: transparent;
   color: var(--ds-text);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
   text-align: left;
   // Long values wrap instead of being cut, so the whole value is visible before choosing it.
   white-space: normal;

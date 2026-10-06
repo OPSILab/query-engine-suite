@@ -34,7 +34,7 @@
   inset: 0;
   margin: 0;
   padding: 16px;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -72,7 +72,7 @@
 
 .gql-editor__message {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   color: var(--ds-text-faint);
 }
 
@@ -89,7 +89,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   color: var(--ds-text-muted);
   font-weight: 500;
 }
@@ -117,7 +117,7 @@
   border-radius: 8px;
   background: var(--ds-bg-elevated);
   color: var(--ds-text);
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   cursor: pointer;
 }
 
@@ -128,7 +128,7 @@
 
 .gql-editor__suggestion-detail {
   color: var(--ds-text-faint);
-  font-size: 11px;
+  font-size: calc(11px * var(--ds-font-scale));
 }
 
 // Same look as the SQL editor's example chips.
@@ -140,7 +140,7 @@
   background: var(--ds-bg-elevated);
   color: var(--ds-text-muted);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   text-align: left;
   cursor: pointer;
   overflow: hidden;

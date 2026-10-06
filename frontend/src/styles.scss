@@ -27,18 +27,48 @@
 // element carrying the attribute gets that theme's tokens for its own
 // subtree, which is how the theme picker draws each option's preview with
 // the real colours instead of a copy of them.
+// Global text size multiplier: every font-size in the app is calc(<base px> * var(--ds-font-scale)).
+// 1 = the original sizes. Set at runtime from "fontScale" in assets/config.json (see ThemeService).
+:root {
+  --ds-font-scale: 1;
+}
+
 // Page background image (gradients) - none by default. Reset on every themed
 // element, otherwise a picker preview of a flat theme would inherit the
 // gradient of the page theme (custom properties are inherited).
 [data-ds-theme] {
   --ds-bg-image: none;
   --ds-bg-size: auto;
+  // Surfaces that a theme can style apart (Smartera: green header, mint query panel); by default
+  // they look exactly like the rest of the theme.
+  --ds-topbar-bg: var(--ds-bg-elevated);
+  --ds-topbar-text: var(--ds-text);
+  --ds-topbar-muted: var(--ds-text-muted);
+  --ds-topbar-border: var(--ds-border);
+  --ds-topbar-border-strong: var(--ds-border-strong);
+  --ds-topbar-link-hover: var(--ds-accent);
+  --ds-topbar-control-bg: var(--ds-bg-elevated);
+  --ds-panel-bg: var(--ds-bg-elevated);
+  --ds-panel-edge: var(--ds-border);
+  --ds-panel-edge-width: 1px;
 }
 
 :root,
 [data-ds-theme='light'] {
   --ds-bg-image: none;
   --ds-bg-size: auto;
+  // Surfaces that a theme can style apart (Smartera: green header, mint query panel); by default
+  // they look exactly like the rest of the theme.
+  --ds-topbar-bg: var(--ds-bg-elevated);
+  --ds-topbar-text: var(--ds-text);
+  --ds-topbar-muted: var(--ds-text-muted);
+  --ds-topbar-border: var(--ds-border);
+  --ds-topbar-border-strong: var(--ds-border-strong);
+  --ds-topbar-link-hover: var(--ds-accent);
+  --ds-topbar-control-bg: var(--ds-bg-elevated);
+  --ds-panel-bg: var(--ds-bg-elevated);
+  --ds-panel-edge: var(--ds-border);
+  --ds-panel-edge-width: 1px;
   // Native widgets drawn by the browser - scrollbars above all, but also the
   // date picker and <select> menus - follow the theme too.
   color-scheme: light;
@@ -351,6 +381,41 @@
   --ds-danger: #FDA4AF;
 }
 
+// Smartera: the SMART ERA platform look - dark green header, white first card, mint
+// (gradient) query panel with a green edge, grey-green page background.
+[data-ds-theme='smartera'] {
+  color-scheme: light;
+  --ds-bg: #EEF0EA;
+  --ds-bg-elevated: #FFFFFF;
+  --ds-bg-sunken: #E5EAE4;
+  --ds-border: #D5DDD6;
+  --ds-border-strong: #B8C6BD;
+  --ds-text: #16312A;
+  --ds-text-muted: #4D5F56;
+  --ds-text-faint: #7B8B83;
+  --ds-accent: #1F6A55;
+  --ds-accent-text: #FFFFFF;
+  --ds-accent-soft: rgba(31, 106, 85, 0.10);
+  --ds-accent-border: rgba(31, 106, 85, 0.35);
+  --ds-shadow: rgba(22, 49, 42, 0.08);
+  --ds-kw: var(--ds-accent);
+  --ds-fn: #9A4A12;
+  --ds-str: #2D6A1F;
+  --ds-num: #6B2FB3;
+  --ds-op: var(--ds-text-muted);
+  --ds-danger: #B42318;
+  --ds-topbar-bg: #165040; // same green as the background of assets/smart-era-logo.png
+  --ds-topbar-text: #FFFFFF;
+  --ds-topbar-muted: #C9DDD4;
+  --ds-topbar-border: #0F3B32;
+  --ds-topbar-border-strong: #4F7D70;
+  --ds-topbar-link-hover: #FFFFFF;
+  --ds-topbar-control-bg: #0F3B32;
+  --ds-panel-bg: linear-gradient(100deg, #E3EEE7 0%, #F1F1EA 100%);
+  --ds-panel-edge: #1F5C4C;
+  --ds-panel-edge-width: 4px;
+}
+
 html, body {
   height: 100%;
   margin: 0;
@@ -393,13 +458,13 @@ body {
 // boundaries has to live here rather than being duplicated per component.
 
 .ds-field-label {
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   color: var(--ds-text-muted);
   font-weight: 500;
 }
 
 .ds-field-label--small {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--ds-font-scale));
 }
 
 .ds-field-row {
@@ -418,7 +483,7 @@ body {
 // `.nb-theme-default` is never stamped and this can no longer happen - the
 // extra specificity is just harmless now, not worth the churn of undoing.
 a.ds-link {
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
   color: var(--ds-text-muted);
   text-decoration: none;
 }
@@ -436,7 +501,7 @@ a.ds-link:hover {
   background: var(--ds-bg-elevated);
   color: var(--ds-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
 }
 
 .ds-input {
@@ -468,14 +533,14 @@ a.ds-link:hover {
 }
 
 .ds-ghost-button {
-  height: 32px;
+  min-height: 32px; // min-: grows with --ds-font-scale instead of clipping the text
   padding: 0 12px;
   border: 1px solid var(--ds-border);
   border-radius: 8px;
   background: transparent;
   color: var(--ds-text-muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   font-weight: 500;
   cursor: pointer;
 }
@@ -496,7 +561,7 @@ a.ds-link:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 40px;
+  min-height: 40px; // min-: grows with --ds-font-scale instead of clipping the text
   padding: 0 20px;
   border: none;
   border-radius: 10px;
@@ -504,7 +569,7 @@ a.ds-link:hover {
   color: var(--ds-accent-text);
   font-family: inherit;
   font-weight: 600;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
   cursor: pointer;
 }
 
@@ -531,7 +596,7 @@ a.ds-link:hover {
   background: transparent;
   color: var(--ds-text-muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--ds-font-scale));
   font-weight: 500;
   cursor: pointer;
 }
@@ -543,7 +608,7 @@ a.ds-link:hover {
 }
 
 .ds-badge {
-  font-size: 11px;
+  font-size: calc(11px * var(--ds-font-scale));
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--ds-accent-soft);
@@ -566,7 +631,7 @@ a.ds-link:hover {
   color: var(--ds-text);
   border: 1px solid var(--ds-border);
   box-shadow: 0 4px 16px var(--ds-shadow);
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
 }
 
 // Used by TooltipDirective ([dsTooltip]) - it appends a bare .ds-popover to

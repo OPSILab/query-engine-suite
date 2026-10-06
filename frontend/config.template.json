@@ -1,5 +1,6 @@
 {
   "defaultTheme": "system",
+  "fontScale": 1.5,
   "enableAuthentication": true,
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",

@@ -5,7 +5,7 @@ import { ConfigService } from './config.service';
 const STORAGE_KEY = 'data-space-theme';
 
 export type ThemeId = 'light' | 'dark' | 'graphite' | 'sky' | 'navy' | 'sage' | 'olive'
-  | 'dusk' | 'halo' | 'forest' | 'sunset' | 'cosmos';
+  | 'dusk' | 'halo' | 'forest' | 'sunset' | 'cosmos' | 'smartera';
 
 export interface ThemeOption {
   id: ThemeId;
@@ -33,6 +33,8 @@ export const THEMES: ThemeOption[] = [
   { id: 'forest', label: 'Theme forest', dark: true },
   { id: 'sunset', label: 'Theme sunset', dark: true },
   { id: 'cosmos', label: 'Theme cosmos', dark: true },
+  // Project theme (SMART ERA platform colours; also styles the topbar and the query panel)
+  { id: 'smartera', label: 'Theme smartera', dark: false },
 ];
 
 /**
@@ -53,6 +55,21 @@ export class ThemeService {
 
   constructor() {
     this.apply(this.themeSubject.value);
+    this.applyFontScale();
+  }
+
+  /** "fontScale" in assets/config.json (e.g. 1.5) -> --ds-font-scale on <html>; absent/invalid = 1. */
+  private applyFontScale(): void {
+    if (typeof document === 'undefined') return;
+    let scale: any;
+    try {
+      scale = this.configs.getSettings('fontScale', 1);
+    } catch {
+      scale = 1;
+    }
+    scale = Number(scale);
+    if (!(scale > 0)) scale = 1;
+    document.documentElement.style.setProperty('--ds-font-scale', String(scale));
   }
 
   get theme(): ThemeId {

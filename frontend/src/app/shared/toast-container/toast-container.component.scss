@@ -61,12 +61,12 @@
 
 .ds-toast__title {
   font-weight: 700;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
   margin-bottom: 2px;
 }
 
 .ds-toast__message {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ds-font-scale));
   opacity: 0.92;
   line-height: 1.4;
   word-break: break-word;

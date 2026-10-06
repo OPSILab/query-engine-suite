@@ -7,19 +7,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
+  min-height: 32px; // min-: grows with --ds-font-scale instead of clipping the text
   padding: 0 8px 0 6px;
-  border: 1px solid var(--ds-border);
+  border: 1px solid var(--ds-topbar-border);
   border-radius: 8px;
   background: transparent;
-  color: var(--ds-text-muted);
+  color: var(--ds-topbar-muted);
   cursor: pointer;
 }
 
+// The trigger sits in the topbar: --ds-topbar-* (same as the theme's own colours unless the
+// theme styles the topbar apart, e.g. Smartera's green header).
 .tp-trigger:hover,
 .tp-trigger--open {
-  border-color: var(--ds-border-strong);
-  color: var(--ds-text);
+  border-color: var(--ds-topbar-border-strong);
+  color: var(--ds-topbar-text);
 }
 
 // Bootstrap's reboot outlines every focused button, mouse clicks included:
@@ -37,7 +39,7 @@
 
 .tp-trigger__label {
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
 }
 
 .tp-chevron {
@@ -116,7 +118,7 @@
 
 .tp-menu__title {
   padding: 4px 8px 6px;
-  font-size: 11px;
+  font-size: calc(11px * var(--ds-font-scale));
   font-weight: 600;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -133,22 +135,24 @@
   background: transparent;
   color: var(--ds-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--ds-font-scale));
   text-align: left;
   cursor: pointer;
 }
 
-// Separator between the neutral, blue, green and gradient families.
+// Separator between the neutral, blue, green, gradient and project (Smartera) families.
 .tp-option:nth-of-type(4),
 .tp-option:nth-of-type(6),
-.tp-option:nth-of-type(8) {
+.tp-option:nth-of-type(8),
+.tp-option:nth-of-type(13) {
   margin-top: 5px;
   position: relative;
 }
 
 .tp-option:nth-of-type(4)::before,
 .tp-option:nth-of-type(6)::before,
-.tp-option:nth-of-type(8)::before {
+.tp-option:nth-of-type(8)::before,
+.tp-option:nth-of-type(13)::before {
   content: '';
   position: absolute;
   top: -3px;

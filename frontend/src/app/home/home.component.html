@@ -1,8 +1,14 @@
 <div class="ds-page">
   <div class="ds-topbar">
     <div class="ds-topbar__brand">
-      <span class="ds-topbar__name">Data Space</span>
-      <span class="ds-topbar__tag ds-mono">query engine</span>
+      @if (theme.theme === 'smartera') {
+        <img class="ds-topbar__logo" src="assets/smart-era-logo.png" alt="SMART ERA" />
+        <span class="ds-topbar__divider" aria-hidden="true"></span>
+      }
+      <div class="ds-topbar__title">
+        <span class="ds-topbar__name">Data Space</span>
+        <span class="ds-topbar__tag ds-mono">query engine</span>
+      </div>
     </div>
     <div class="ds-topbar__actions">
       <select class="ds-select" [(ngModel)]="visibility" aria-label="Visibility">
