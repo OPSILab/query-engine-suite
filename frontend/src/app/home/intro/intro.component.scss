@@ -230,10 +230,10 @@
   gap: 12px;
 }
 
+// Full width of the card body, same as the four mode cards (no reading-width limit).
 .ds-intro__text,
 .ds-intro__note {
   margin: 0;
-  max-width: 82ch;
   font-size: calc(13px * var(--ds-font-scale));
   line-height: 1.6;
   color: var(--ds-text-muted);

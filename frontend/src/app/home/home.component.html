@@ -2,9 +2,11 @@
   <div class="ds-topbar">
     <div class="ds-topbar__brand">
       @if (theme.theme === 'smartera') {
-        <img class="ds-topbar__logo" src="assets/smart-era-logo.png" alt="SMART ERA" />
-        <span class="ds-topbar__divider" aria-hidden="true"></span>
+      <img class="ds-topbar__logo" src="assets/smart-era-logo.png" alt="SMART ERA" />
+      <span class="ds-topbar__divider" aria-hidden="true"></span>
       }
+      <img class="ds-topbar__logo" src="assets/icon_query_engine.png" alt="Query Engine Suite" />
+      <span class="ds-topbar__divider" aria-hidden="true"></span>
       <div class="ds-topbar__title">
         <span class="ds-topbar__name">Data Space</span>
         <span class="ds-topbar__tag ds-mono">query engine</span>
@@ -13,7 +15,7 @@
     <div class="ds-topbar__actions">
       <select class="ds-select" [(ngModel)]="visibility" aria-label="Visibility">
         @for (v of visibilities; track v) {
-          <option [value]="v">{{ v }}</option>
+        <option [value]="v">{{ v }}</option>
         }
       </select>
       <app-theme-picker></app-theme-picker>
@@ -23,119 +25,147 @@
 
   <app-intro></app-intro>
 
-  <ngx-query-engine
-    [visibility]="visibility"
-    (loadingChange)="onSearchingChange($event)"
-    (actionsStuckChange)="actionsStuck = $event"
-    (extractedElementsChange)="extractedElements = $event; onResults()"
+  <ngx-query-engine [visibility]="visibility" (loadingChange)="onSearchingChange($event)"
+    (actionsStuckChange)="actionsStuck = $event" (extractedElementsChange)="extractedElements = $event; onResults()"
     (generalSharedBucketObjectsChange)="generalSharedBucketObjects = $event"
     (pilotSharedBucketObjectsChange)="pilotSharedBucketObjects = $event"
-    (userBucketObjectsChange)="userBucketObjects = $event"
-  ></ngx-query-engine>
+    (userBucketObjectsChange)="userBucketObjects = $event"></ngx-query-engine>
 
   <!-- While a new query runs, the previous results stay on screen but fade
        out, so they don't read as the answer to the query just sent. -->
   <div #resultsArea class="ds-results-area" [class.ds-results-area--stale]="searching" [attr.aria-busy]="searching">
-    <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Your minio objects', items: userBucketObjects }"></ng-container>
-    <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Minio objects shared with your pilot', items: pilotSharedBucketObjects }"></ng-container>
-    <ng-container *ngTemplateOutlet="bucketList; context: { title: 'Public minio objects', items: generalSharedBucketObjects }"></ng-container>
+    <ng-container
+      *ngTemplateOutlet="bucketList; context: { title: 'Your minio objects', items: userBucketObjects }"></ng-container>
+    <ng-container
+      *ngTemplateOutlet="bucketList; context: { title: 'Minio objects shared with your pilot', items: pilotSharedBucketObjects }"></ng-container>
+    <ng-container
+      *ngTemplateOutlet="bucketList; context: { title: 'Public minio objects', items: generalSharedBucketObjects }"></ng-container>
 
     @if (extractedElements?.length) {
-      <div class="ds-results">
-        <div class="ds-results__title">
-          <span>{{ 'Matched elements' | translate }}</span>
-          <span class="ds-badge">{{ extractedElements.length }}</span>
-          <!-- One switch for every card (remembered per browser), rather than
+    <div class="ds-results">
+      <div class="ds-results__title">
+        <span>{{ 'Matched elements' | translate }}</span>
+        <span class="ds-badge">{{ extractedElements.length }}</span>
+        <!-- One switch for every card (remembered per browser), rather than
                a pair of tabs on each of them. -->
-          <div class="ds-seg" role="group" [attr.aria-label]="'Results view' | translate">
-            <button type="button" class="ds-seg__btn" [class.ds-seg__btn--active]="resultsView === 'table'" [attr.aria-pressed]="resultsView === 'table'" (click)="setResultsView('table')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>
-              {{ 'Table' | translate }}
-            </button>
-            <button type="button" class="ds-seg__btn" [class.ds-seg__btn--active]="resultsView === 'json'" [attr.aria-pressed]="resultsView === 'json'" (click)="setResultsView('json')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"/></svg>
-              JSON
-            </button>
-          </div>
-        </div>
-        <div class="ds-element-list">
-          @for (el of extractedElements; track el) {
-            <div #card class="ds-element-card" [class.ds-element-card--max]="fullscreenElement === el">
-              <div class="ds-element-card__head">
-                <span class="ds-element-card__name ds-mono">{{ el.name }}</span>
-                <button type="button" class="ds-element-card__action" [class.ds-element-card__action--done]="copiedElement === el" (click)="copyElement(el)">
-                  @if (copiedElement === el) {
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-                    {{ 'Copied' | translate }}
-                  } @else {
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
-                    {{ 'Copy JSON' | translate }}
-                  }
-                </button>
-                <button
-                  type="button"
-                  class="ds-element-card__action ds-element-card__action--icon"
-                  (click)="toggleFullscreen(card, el)"
-                  [attr.aria-label]="(fullscreenElement === el ? 'Exit full screen' : 'Full screen') | translate"
-                  [title]="(fullscreenElement === el ? 'Exit full screen' : 'Full screen') | translate"
-                >
-                  @if (fullscreenElement === el) {
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
-                  } @else {
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-                  }
-                </button>
-              </div>
-              @if (resultsView === 'table') {
-                <!-- Built only when the card scrolls near the screen: with
-                     dozens of large results, building every table up front
-                     would freeze the page for a moment after each query. -->
-                @defer (on viewport) {
-                  <div class="ds-element-card__table">
-                    <ds-json-table [value]="el.element"></ds-json-table>
-                  </div>
-                } @placeholder {
-                  <div class="ds-element-card__table ds-element-card__table--placeholder"></div>
-                }
-              } @else {
-                <pre class="ds-element-card__body ds-mono">{{ el.element | json }}</pre>
-              }
-            </div>
-          }
+        <div class="ds-seg" role="group" [attr.aria-label]="'Results view' | translate">
+          <button type="button" class="ds-seg__btn" [class.ds-seg__btn--active]="resultsView === 'table'"
+            [attr.aria-pressed]="resultsView === 'table'" (click)="setResultsView('table')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M3 10h18M9 10v10" />
+            </svg>
+            {{ 'Table' | translate }}
+          </button>
+          <button type="button" class="ds-seg__btn" [class.ds-seg__btn--active]="resultsView === 'json'"
+            [attr.aria-pressed]="resultsView === 'json'" (click)="setResultsView('json')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path
+                d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3" />
+            </svg>
+            JSON
+          </button>
         </div>
       </div>
+      <div class="ds-element-list">
+        @for (el of extractedElements; track el) {
+        <div #card class="ds-element-card" [class.ds-element-card--max]="fullscreenElement === el">
+          <div class="ds-element-card__head">
+            <span class="ds-element-card__name ds-mono">{{ el.name }}</span>
+            <button type="button" class="ds-element-card__action"
+              [class.ds-element-card__action--done]="copiedElement === el" (click)="copyElement(el)">
+              @if (copiedElement === el) {
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12l5 5 9-10" />
+              </svg>
+              {{ 'Copied' | translate }}
+              } @else {
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="11" height="11" rx="2" />
+                <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+              </svg>
+              {{ 'Copy JSON' | translate }}
+              }
+            </button>
+            <button type="button" class="ds-element-card__action ds-element-card__action--icon"
+              (click)="toggleFullscreen(card, el)"
+              [attr.aria-label]="(fullscreenElement === el ? 'Exit full screen' : 'Full screen') | translate"
+              [title]="(fullscreenElement === el ? 'Exit full screen' : 'Full screen') | translate">
+              @if (fullscreenElement === el) {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+              </svg>
+              } @else {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+              </svg>
+              }
+            </button>
+          </div>
+          @if (resultsView === 'table') {
+          <!-- Built only when the card scrolls near the screen: with
+                     dozens of large results, building every table up front
+                     would freeze the page for a moment after each query. -->
+          @defer (on viewport) {
+          <div class="ds-element-card__table">
+            <ds-json-table [value]="el.element"></ds-json-table>
+          </div>
+          } @placeholder {
+          <div class="ds-element-card__table ds-element-card__table--placeholder"></div>
+          }
+          } @else {
+          <pre class="ds-element-card__body ds-mono">{{ el.element | json }}</pre>
+          }
+        </div>
+        }
+      </div>
+    </div>
     }
   </div>
 
   <!-- Shown while there are results under the visible part of the page
        (HomeComponent.resultsBelow); clicking it scrolls down to them. -->
   @if (resultsBelow && resultCount && !searching) {
-    <button type="button" class="ds-results-pill" [class.ds-results-pill--raised]="actionsStuck" (click)="scrollToResults()">
-      <svg class="ds-results-pill__arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
-      {{ (resultCount === 1 ? 'One result below' : 'Results below') | translate: { count: resultCount } }}
-    </button>
+  <button type="button" class="ds-results-pill" [class.ds-results-pill--raised]="actionsStuck"
+    (click)="scrollToResults()">
+    <svg class="ds-results-pill__arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 5v14M6 13l6 6 6-6" />
+    </svg>
+    {{ (resultCount === 1 ? 'One result below' : 'Results below') | translate: { count: resultCount } }}
+  </button>
   }
 </div>
 
 <ng-template #bucketList let-title="title" let-items="items">
   @if (items?.length) {
-    <div class="ds-results">
-      <div class="ds-results__title">
-        <span>{{ title | translate }}</span>
-        <span class="ds-badge">{{ items.length }}</span>
-      </div>
-      <div class="ds-results__list">
-        @for (r of items; track r) {
-          <div class="ds-result-row">
-            <svg class="ds-result-row__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg>
-            <div class="ds-result-row__main">
-              <span class="ds-result-row__path ds-mono">{{ r.path }}</span>
-              <span class="ds-result-row__meta">{{ r.bucket }} · {{ formatSize(r.size) }} · {{ r.lastModified }}</span>
-            </div>
-            <span class="ds-badge ds-badge--outline">{{ r.source }}</span>
-          </div>
-        }
-      </div>
+  <div class="ds-results">
+    <div class="ds-results__title">
+      <span>{{ title | translate }}</span>
+      <span class="ds-badge">{{ items.length }}</span>
     </div>
+    <div class="ds-results__list">
+      @for (r of items; track r) {
+      <div class="ds-result-row">
+        <svg class="ds-result-row__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2h9l5 5v15H6z" />
+          <path d="M15 2v5h5" />
+        </svg>
+        <div class="ds-result-row__main">
+          <span class="ds-result-row__path ds-mono">{{ r.path }}</span>
+          <span class="ds-result-row__meta">{{ r.bucket }} · {{ formatSize(r.size) }} · {{ r.lastModified }}</span>
+        </div>
+        <span class="ds-badge ds-badge--outline">{{ r.source }}</span>
+      </div>
+      }
+    </div>
+  </div>
   }
 </ng-template>
