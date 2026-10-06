@@ -21,6 +21,18 @@ function setClient() {
 
 let forbiddenTables = new Set(['users', 'credentials'])
 
+// Visibility filter for keys/values/entries suggestions.
+// With disableAuth there is no user to scope: no filter at all (every key, value and entry is visible).
+function suggestionsVisibilityFilter(prefix, bucketName, visibility) {
+    if (config.authConfig?.disableAuth)
+        return {}
+    if (visibility == "private")
+        return { visibility: prefix.split("/")[0] }
+    if (visibility == "shared")
+        return { visibility: bucketName.toUpperCase() + " SHARED Data" }
+    return { visibility: "public-data" }
+}
+
 function bucketIs(record, bucket) {
     return (record?.s3?.bucket?.name == bucket || record?.bucketName == bucket)
 }
@@ -232,35 +244,25 @@ module.exports = {
 
     async getKeys(prefix, bucketName, visibility, search) {
         console.debug({ visibility, prefix })
-        if (visibility == "private")
-            visibility = prefix.split("/")[0]
-        else if (visibility == "shared")
-            visibility = bucketName.toUpperCase() + " SHARED Data"
-        else
-            visibility = "public-data"
-        console.debug({ visibility })
+        const visibilityFilter = suggestionsVisibilityFilter(prefix, bucketName, visibility)
+        console.debug(visibilityFilter)
         let keys = await Key.find({
             key: { $regex: "^" + search, $options: "i" },
-            visibility
+            ...visibilityFilter
         }, { "key": 1, "_id": 0 })
-        if (keys.lenght > 500)
+        if (keys.length > 500)
             return ["Too many suggestions. Type some characters in order to reduce them"]
         return keys
     },
 
     async getValues(prefix, bucketName, visibility, search) {
-        if (visibility == "private")
-            visibility = prefix.split("/")[0]
-        else if (visibility == "shared")
-            visibility = bucketName.toUpperCase() + " SHARED Data"
-        else
-            visibility = "public-data"
-        console.debug(visibility)
+        const visibilityFilter = suggestionsVisibilityFilter(prefix, bucketName, visibility)
+        console.debug(visibilityFilter)
         let values = await Value.find({
             value: { $regex: "^" + search, $options: "i" },
-            visibility
+            ...visibilityFilter
         }, { "value": 1, "_id": 0 })
-        if (values.lenght > 500)
+        if (values.length > 500)
             return ["Too many suggestions. Type some characters in order to reduce them"]
         return values
     },
@@ -299,17 +301,12 @@ module.exports = {
     },
 
     async getEntries(prefix, bucketName, visibility, searchKey, searchValue) {
-        if (visibility == "private")
-            visibility = prefix.split("/")[0]
-        else if (visibility == "shared")
-            visibility = bucketName.toUpperCase() + " SHARED Data"
-        else
-            visibility = "public-data"
-        console.debug(visibility)
+        const visibilityFilter = suggestionsVisibilityFilter(prefix, bucketName, visibility)
+        console.debug(visibilityFilter)
         let entries = await Entries.find({
             "key": { $regex: "^" + searchKey, $options: "i" },
             "value": { $regex: "^" + searchValue, $options: "i" },
-            visibility
+            ...visibilityFilter
         }, { "key": 1, "value": 1, "_id": 0 })
 
         return entries
