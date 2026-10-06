@@ -93,7 +93,7 @@ module.exports = {
     getEntries: async (req, res) => {
         logger.info("entries")
         let email = req.body.prefix.split("/")[0]
-        if (config.updateOwner == "later" && !process.queryEngine.updatedOwners[email]) {
+        if (config.updateOwner == "later" && !process.queryEngine.updatedOwners[email] && config.minioConfig.ownerInfoEndpoint) {
             try {
                 await service.updateOwner(req.headers.authorization, email)
             }
