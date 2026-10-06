@@ -3,11 +3,13 @@ name: Build Backend
 on:
   push:
     branches:
-      - main   
+      - main  
+      - master 
       - build         
   pull_request:
     branches:
       - main
+      - master
       - build
 
 jobs:
