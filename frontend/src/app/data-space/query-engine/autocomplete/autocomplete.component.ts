@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, OnInit, OnChanges, AfterViewInit, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, OnInit, OnChanges, AfterViewInit, OnDestroy, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
@@ -17,7 +17,7 @@ import { SharedService } from '../../../services/shared.service';
   styleUrls: ['./autocomplete.component.scss'],
   standalone: false
 })
-export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
+export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
 
   @Input() options;
   @Input() placeholder;
@@ -57,9 +57,22 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   // crash. dropdownOpen/panelTop/panelLeft/panelWidth replace what
   // NbAutocompleteDirective used to manage internally.
   dropdownOpen = false;
-  panelTop = 0;
+  panelTop: number | null = 0;
+  panelBottom: number | null = null;
   panelLeft = 0;
   panelWidth = 0;
+  panelMaxHeight = AutocompleteComponent.PANEL_MAX_HEIGHT;
+
+  // The panel is position: fixed, so it doesn't add to the page height: near the bottom of a short page
+  // it used to run past the viewport with no way to scroll to its end. Now its height is clamped to the
+  // space left in the viewport (keeping a visible margin), it opens upwards when below there's almost no
+  // room, and while any dropdown is open the page gets extra room at the bottom (body.ds-dropdown-open
+  // in styles.scss) so it can be scrolled up to give the panel more space.
+  private static readonly PANEL_MAX_HEIGHT = 260;
+  private static readonly PANEL_GAP = 4;           // between input and panel
+  private static readonly VIEWPORT_MARGIN = 16;    // between panel and viewport edge
+  private static readonly MIN_PANEL_HEIGHT = 120;  // below this, open upwards if there's more room there
+  private static openDropdowns = 0;                // shared by every instance (key + value fields, all rows)
 
   // filter() (below) can return one of these two strings in place of real
   // suggestions - "still waiting on data" or "too many results, keep
@@ -199,6 +212,8 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   private openDropdown(): void {
+    if (!this.dropdownOpen)
+      AutocompleteComponent.setOpenDropdowns(+1);
     this.dropdownOpen = true;
     this.updatePanelPosition();
     this.cdr.markForCheck();
@@ -207,16 +222,45 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   closeDropdown(): void {
     if (this.dropdownOpen) {
       this.dropdownOpen = false;
+      AutocompleteComponent.setOpenDropdowns(-1);
       this.cdr.markForCheck();
     }
+  }
+
+  ngOnDestroy(): void {
+    if (this.dropdownOpen) {
+      this.dropdownOpen = false;
+      AutocompleteComponent.setOpenDropdowns(-1);
+    }
+  }
+
+  // A counter rather than a toggle: moving from the key field to the value field opens the new
+  // dropdown before the old one is closed by the outside click.
+  private static setOpenDropdowns(delta: number): void {
+    AutocompleteComponent.openDropdowns = Math.max(0, AutocompleteComponent.openDropdowns + delta);
+    if (typeof document !== 'undefined')
+      document.body.classList.toggle('ds-dropdown-open', AutocompleteComponent.openDropdowns > 0);
   }
 
   private updatePanelPosition(): void {
     if (!this.input) {
       return;
     }
+    const C = AutocompleteComponent;
     const rect = this.input.nativeElement.getBoundingClientRect();
-    this.panelTop = rect.bottom + 4;
+    const spaceBelow = window.innerHeight - rect.bottom - C.PANEL_GAP - C.VIEWPORT_MARGIN;
+    const spaceAbove = rect.top - C.PANEL_GAP - C.VIEWPORT_MARGIN;
+    const openUpwards = spaceBelow < C.MIN_PANEL_HEIGHT && spaceAbove > spaceBelow;
+    if (openUpwards) {
+      this.panelTop = null;
+      this.panelBottom = window.innerHeight - rect.top + C.PANEL_GAP;
+      this.panelMaxHeight = Math.max(0, Math.min(C.PANEL_MAX_HEIGHT, spaceAbove));
+    }
+    else {
+      this.panelTop = rect.bottom + C.PANEL_GAP;
+      this.panelBottom = null;
+      this.panelMaxHeight = Math.max(0, Math.min(C.PANEL_MAX_HEIGHT, spaceBelow));
+    }
     this.panelLeft = rect.left;
     this.panelWidth = rect.width;
   }
@@ -237,6 +281,7 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   onWindowScrollOrResize(): void {
     if (this.dropdownOpen) {
       this.updatePanelPosition();
+      this.cdr.markForCheck(); // OnPush: position/height changed outside any input binding
     }
   }
 
@@ -398,6 +443,11 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
     if (keysOrValuesQueriedAgain && entitiesQueriedAgain) {
       this.options = keysOrValuesQueriedAgain;
       this.entries = entitiesQueriedAgain;
+
+      // Also covers the empty field: the cached keys/values loaded at startup can be the backend's
+      // "too many" answer, which would otherwise be filtered out and leave the dropdown empty.
+      if (this.isBackendTooMany(this.options))
+        return [AutocompleteComponent.TOO_MANY_PLACEHOLDER];
 
       if (this.options.length > 500 && this.entries.length > 500)
         return [AutocompleteComponent.TOO_MANY_PLACEHOLDER];

@@ -1,9 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import { ConfigService } from './config.service';
 
 const STORAGE_KEY = 'data-space-theme';
 
-export type ThemeId = 'light' | 'dark' | 'graphite' | 'sky' | 'navy' | 'sage' | 'olive';
+export type ThemeId = 'light' | 'dark' | 'graphite' | 'sky' | 'navy' | 'sage' | 'olive'
+  | 'dusk' | 'halo' | 'forest' | 'sunset' | 'cosmos';
 
 export interface ThemeOption {
   id: ThemeId;
@@ -25,17 +27,27 @@ export const THEMES: ThemeOption[] = [
   { id: 'navy', label: 'Theme navy', dark: true },
   { id: 'sage', label: 'Theme sage', dark: false },
   { id: 'olive', label: 'Theme olive', dark: true },
+  // Gradient themes (background image, see styles.scss)
+  { id: 'dusk', label: 'Theme dusk', dark: true },
+  { id: 'halo', label: 'Theme halo', dark: false },
+  { id: 'forest', label: 'Theme forest', dark: true },
+  { id: 'sunset', label: 'Theme sunset', dark: true },
+  { id: 'cosmos', label: 'Theme cosmos', dark: true },
 ];
 
 /**
  * Theme of the redesigned UI. Applies `data-ds-theme` on <html> (consumed by
- * the CSS custom properties in styles.scss) and persists the choice - falls
- * back to the OS light/dark preference the first time. The values stored by
- * the old light/dark-only toggle ('light' / 'dark') are still valid ids.
+ * the CSS custom properties in styles.scss) and persists the choice. Initial
+ * theme: the user's saved choice, else `defaultTheme` from assets/config.json
+ * (a theme id, or "system"), else the OS light/dark preference. The values
+ * stored by the old light/dark-only toggle ('light' / 'dark') are still valid ids.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
 
+  // Declared before themeSubject: readInitial() (its initializer) reads it. Config is loaded by an app
+  // initializer, i.e. before AppComponent - the first injector of this service - is created.
+  private configs = inject(ConfigService);
   private themeSubject = new BehaviorSubject<ThemeId>(this.readInitial());
   theme$ = this.themeSubject.asObservable();
 
@@ -79,6 +91,14 @@ export class ThemeService {
     } catch {
       // ignore
     }
+    let configured: string | undefined;
+    try {
+      configured = this.configs.getSettings('defaultTheme', '');
+    } catch {
+      // config not loaded: fall back to the OS preference
+    }
+    const configuredTheme = THEMES.find(t => t.id === configured);
+    if (configuredTheme) return configuredTheme.id;
     return typeof window !== 'undefined' && !!window.matchMedia
       && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }

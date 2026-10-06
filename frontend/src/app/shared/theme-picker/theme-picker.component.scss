@@ -35,6 +35,11 @@
   outline-offset: 1px;
 }
 
+.tp-trigger__label {
+  font-family: inherit;
+  font-size: 13px;
+}
+
 .tp-chevron {
   transition: transform 160ms ease;
 }
@@ -53,7 +58,9 @@
   height: 22px;
   border: 1px solid var(--ds-border-strong);
   border-radius: 6px;
-  background: var(--ds-bg);
+  background-color: var(--ds-bg);
+  background-image: var(--ds-bg-image);
+  background-size: var(--ds-bg-size);
   overflow: hidden;
 }
 
@@ -131,15 +138,17 @@
   cursor: pointer;
 }
 
-// Separator between the neutral, blue and green families.
+// Separator between the neutral, blue, green and gradient families.
 .tp-option:nth-of-type(4),
-.tp-option:nth-of-type(6) {
+.tp-option:nth-of-type(6),
+.tp-option:nth-of-type(8) {
   margin-top: 5px;
   position: relative;
 }
 
 .tp-option:nth-of-type(4)::before,
-.tp-option:nth-of-type(6)::before {
+.tp-option:nth-of-type(6)::before,
+.tp-option:nth-of-type(8)::before {
   content: '';
   position: absolute;
   top: -3px;

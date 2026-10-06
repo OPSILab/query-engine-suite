@@ -1,4 +1,5 @@
 {
+  "defaultTheme": "system",
   "enableAuthentication": false,
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",

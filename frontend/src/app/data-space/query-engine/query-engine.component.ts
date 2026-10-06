@@ -135,8 +135,11 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     this.getUser();
     try {
-      this.keys = Array.from(new Set((await this.beopenAPI.getKeys()).map(e => this.stringify(e.key))));
-      this.values = Array.from(new Set((await this.beopenAPI.getValues()).map(e => this.stringify(e.value))));
+      // Strings are kept as they are: with more than 500 keys/values the backend answers
+      // ["Too many suggestions..."] instead of {key}/{value} objects, and the autocomplete
+      // recognises that message to show its "too many" row (e.value would be undefined here).
+      this.keys = Array.from(new Set((await this.beopenAPI.getKeys()).map(e => typeof e == "string" ? e : this.stringify(e.key))));
+      this.values = Array.from(new Set((await this.beopenAPI.getValues()).map(e => typeof e == "string" ? e : this.stringify(e.value))));
       this.entries = await this.beopenAPI.getEntries();
     } finally {
       // Set regardless of success/failure/emptiness, so the autocomplete
