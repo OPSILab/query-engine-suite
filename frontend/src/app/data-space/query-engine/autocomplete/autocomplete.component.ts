@@ -355,19 +355,32 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   private filter(keyOrValue: string, keysOrValuesQueriedAgain?, entitiesQueriedAgain?) {
-    if ((this.mode == "key" ? this.v : this.key)) {
+    const otherText = this.mode == "key" ? this.v : this.key;
+    if (otherText) {
       // The other field of the row is filled (e.g. a key already chosen): the suggestions are the
       // entries crossing both fields (getEntries(key, value)), not the global keys/values list -
       // which may be the backend's "too many suggestions" answer and would hide everything.
       if (!entitiesQueriedAgain)
         this.queryEntries(keyOrValue, true);
-      else
+      else {
+        // The backend matches the other field by prefix (typing "a" must show "a", "ab", "ac"...).
+        // If the other field's text exists as-is (e.g. key "source" chosen), keep only the entries
+        // with exactly that key/value, so "sourceId", "source_original"... don't leak in; if it
+        // doesn't exist as-is (e.g. "b" while only "barbecue" exists), keep the prefix matches.
+        const otherField = this.mode == "key" ? "value" : "key";
+        const otherLowered = String(otherText).toLowerCase();
+        const exactMatches = entitiesQueriedAgain.filter(entry =>
+          entry?.[otherField] !== undefined && entry?.[otherField] !== null &&
+          String(entry[otherField]).toLowerCase() == otherLowered);
+        if (exactMatches.length)
+          entitiesQueriedAgain = exactMatches;
         keysOrValuesQueriedAgain = Array.from(new Set(
           entitiesQueriedAgain
             .map(entry => this.mode == "key" ? entry.key : entry.value)
             .filter(option => option !== undefined && option !== null)
             .map(option => typeof option == "string" ? option : JSON.stringify(option))
         ));
+      }
     }
     else if (keyOrValue) {
       if (!keysOrValuesQueriedAgain)
