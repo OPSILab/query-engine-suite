@@ -75,6 +75,11 @@
   max-width: 620px;
 }
 
+// Advanced search, SQL and GraphQL use the whole panel width (simple search keeps 620px).
+.ds-mode-panel--wide {
+  max-width: none;
+}
+
 .ds-filters {
   display: flex;
   flex-direction: column;
@@ -100,8 +105,13 @@
   font-size: 11.5px;
   color: var(--ds-text-faint);
 
+  // Same proportions as the fields below: key 40%, value (or dates) 60%.
   span {
-    flex: 1;
+    flex: 3 1 0;
+  }
+
+  span:first-child {
+    flex: 2 1 0;
   }
 }
 
@@ -111,9 +121,14 @@
   gap: 10px;
 }
 
+// Keys are usually short, values (urls, texts) long: key 40%, value 60%.
 .ds-kv-field {
-  flex: 1;
+  flex: 3 1 0;
   min-width: 0;
+}
+
+.ds-kv-field:first-child {
+  flex: 2 1 0;
 }
 
 .ds-action-row {

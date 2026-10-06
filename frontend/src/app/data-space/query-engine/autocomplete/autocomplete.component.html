@@ -3,8 +3,12 @@ the browser's OWN native autofill suggestion box (styled by the OS/browser,
 not by our CSS) can appear too, floating above or overlapping our custom
 .ds-autocomplete-panel below - looking like an unexplained blank box since
 it has no CSS of ours and often no matching saved entries either. -->
-<input #autoInput class="ds-input" type="text" autocomplete="off" (focus)="onFocus()" (input)="onInputEvent()"
-  (keydown.escape)="closeDropdown()" [placeholder]="placeholder | translate" />
+<!-- A single-line textarea rather than an <input>: long values wrap and the field grows with them,
+up to MAX_ROWS lines (then it scrolls) - see autoResize() in the .ts file. Enter is blocked and
+pasted line breaks are turned into spaces, so it still behaves as a one-line field. -->
+<textarea #autoInput class="ds-input ds-autocomplete-input" rows="1" autocomplete="off" spellcheck="false"
+  (focus)="onFocus()" (input)="onInputEvent()" (keydown.enter)="$event.preventDefault()"
+  (keydown.escape)="closeDropdown()" [placeholder]="placeholder | translate"></textarea>
 
 <!-- `as opts` resolves filteredOptions$ through a single async pipe subscription,
 shared by the length check and the *ngFor below. filter() (called while
@@ -28,6 +32,7 @@ would double those requests, so this stays a single subscription on purpose. -->
           class="ds-autocomplete-option"
           [class.ds-autocomplete-option--message]="isPlaceholderOption(option)"
           [disabled]="isPlaceholderOption(option)"
+          [title]="option"
           (click)="selectOption(option)"
         >{{ option }}</button>
       }

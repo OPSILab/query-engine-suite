@@ -11,6 +11,19 @@
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
 }
 
+// The textarea used as a one-line field: same 40px as .ds-input while the value fits, then
+// autoResize() sets the height (wrapping long values - urls included - anywhere).
+.ds-autocomplete-input {
+  display: block;
+  height: 40px;
+  min-height: 40px;
+  padding: 10px 12px;
+  line-height: 18px;
+  resize: none;
+  overflow-y: hidden;
+  overflow-wrap: anywhere;
+}
+
 // Replaces nb-autocomplete's CDK-overlay dropdown panel - see the .ts file's
 // comment on AutocompleteComponent's dropdownOpen/panelTop/panelLeft/panelWidth
 // for why. `position: fixed` here is safe without portaling to <body>: it only
@@ -41,6 +54,9 @@
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 13px;
   text-align: left;
+  // Long values wrap instead of being cut, so the whole value is visible before choosing it.
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 

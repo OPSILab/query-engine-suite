@@ -73,6 +73,28 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, 
   private static readonly VIEWPORT_MARGIN = 16;    // between panel and viewport edge
   private static readonly MIN_PANEL_HEIGHT = 120;  // below this, open upwards if there's more room there
   private static openDropdowns = 0;                // shared by every instance (key + value fields, all rows)
+  private static readonly MAX_ROWS = 6;            // the field grows with long values up to this many lines
+
+  // Grows the field (a textarea) to show the whole value, up to MAX_ROWS lines - beyond that it
+  // scrolls instead, so a very long value doesn't take over the view. Also keeps it single-line
+  // (pasted line breaks become spaces) and puts the full value in the tooltip.
+  private autoResize(): void {
+    const el = this.input?.nativeElement as HTMLTextAreaElement;
+    if (!el || typeof window === 'undefined')
+      return;
+    if (/[\r\n]/.test(el.value))
+      el.value = el.value.replace(/[\r\n]+/g, ' ');
+    const style = window.getComputedStyle(el);
+    const px = (v: string) => parseFloat(v) || 0;
+    const borders = px(style.borderTopWidth) + px(style.borderBottomWidth);
+    const padding = px(style.paddingTop) + px(style.paddingBottom);
+    const maxHeight = px(style.lineHeight) * AutocompleteComponent.MAX_ROWS + padding + borders;
+    el.style.height = 'auto';
+    const needed = el.scrollHeight + borders;
+    el.style.height = Math.min(needed, maxHeight) + 'px';
+    el.style.overflowY = needed > maxHeight ? 'auto' : 'hidden';
+    el.title = el.value;
+  }
 
   // filter() (below) can return one of these two strings in place of real
   // suggestions - "still waiting on data" or "too many results, keep
@@ -187,6 +209,7 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, 
     if (this.value) {
       this.input.nativeElement.value = this.value;
     }
+    this.autoResize();
     // Covers the case ngOnChanges() above had to skip: `ready` (and so
     // cachedOptions/cachedEntries) was already set before this view -
     // and this.input - existed. Refresh now that it does, so the dropdown
@@ -207,6 +230,7 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, 
   }
 
   onInputEvent(): void {
+    this.autoResize();
     this.onChange();
     this.openDropdown();
   }
@@ -276,6 +300,12 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, 
     }
   }
 
+  // A different width changes where long values wrap.
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.autoResize();
+  }
+
   @HostListener('window:scroll')
   @HostListener('window:resize')
   onWindowScrollOrResize(): void {
@@ -290,6 +320,7 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, 
       return;
     }
     this.input.nativeElement.value = option;
+    this.autoResize();
     this.onSelectionChange(option);
     this.closeDropdown();
   }
