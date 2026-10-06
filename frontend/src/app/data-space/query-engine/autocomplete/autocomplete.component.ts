@@ -437,6 +437,11 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   onSelectionChange($event) {
+    // Propagate the chosen option to the parent right away (lines[i].key / lines[i].value).
+    // Before, the parent only received it from onChange(), i.e. after the getKeys/getValues/getEntries
+    // round-trip triggered by the new filteredOptions$ - so an "Apply Query" clicked in the meantime
+    // used the old (partial) text.
+    this.output.emit(this.input.nativeElement.value);
     this.filteredOptions$ = this.getFilteredOptions($event);
     if (this.options.filter(optionValue => optionValue == this.input.nativeElement.value)[0])
       this.verified(true);
