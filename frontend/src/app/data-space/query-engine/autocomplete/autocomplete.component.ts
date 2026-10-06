@@ -71,6 +71,14 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   private static readonly LOADING_PLACEHOLDER = 'loading...';
   private static readonly TOO_MANY_PLACEHOLDER = 'Too much suggestions. Type more characters in order to reduce them';
 
+  // What the backend returns (as a one-element array) in place of keys/values when they are more than 500.
+  private static readonly BACKEND_TOO_MANY_PREFIX = 'Too many suggestions';
+
+  private isBackendTooMany(options): boolean {
+    return Array.isArray(options) && options.length == 1 && typeof options[0] == 'string'
+      && options[0].startsWith(AutocompleteComponent.BACKEND_TOO_MANY_PREFIX);
+  }
+
   isPlaceholderOption(option: string): boolean {
     return option === AutocompleteComponent.LOADING_PLACEHOLDER
       || option === AutocompleteComponent.TOO_MANY_PLACEHOLDER;
@@ -347,15 +355,26 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   private filter(keyOrValue: string, keysOrValuesQueriedAgain?, entitiesQueriedAgain?) {
-    if (keyOrValue) {
+    if ((this.mode == "key" ? this.v : this.key)) {
+      // The other field of the row is filled (e.g. a key already chosen): the suggestions are the
+      // entries crossing both fields (getEntries(key, value)), not the global keys/values list -
+      // which may be the backend's "too many suggestions" answer and would hide everything.
+      if (!entitiesQueriedAgain)
+        this.queryEntries(keyOrValue, true);
+      else
+        keysOrValuesQueriedAgain = Array.from(new Set(
+          entitiesQueriedAgain
+            .map(entry => this.mode == "key" ? entry.key : entry.value)
+            .filter(option => option !== undefined && option !== null)
+            .map(option => typeof option == "string" ? option : JSON.stringify(option))
+        ));
+    }
+    else if (keyOrValue) {
       if (!keysOrValuesQueriedAgain)
         this.queryKeyOrValues(keyOrValue);
+      else if (this.isBackendTooMany(keysOrValuesQueriedAgain))
+        return [AutocompleteComponent.TOO_MANY_PLACEHOLDER];
       else if (keysOrValuesQueriedAgain && !entitiesQueriedAgain)
-        this.queryEntries(keyOrValue, keysOrValuesQueriedAgain);
-    }
-    else if ((this.mode == "key" ? this.v : this.key)) {
-      keysOrValuesQueriedAgain = this.cachedOptions;
-      if (!entitiesQueriedAgain)
         this.queryEntries(keyOrValue, keysOrValuesQueriedAgain);
     }
     else {
