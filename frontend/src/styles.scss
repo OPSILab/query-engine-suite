@@ -348,19 +348,34 @@
   --ds-danger: #FF9AA2;
 }
 
-// Cosmos: near-black night sky, two nebula glows and tiled stars
-// (one --ds-bg-size entry per --ds-bg-image layer).
+// Cosmos: near-black night sky, two nebula glows and 18 layers of tiled stars (1-7px). Tile sizes are
+// distinct primes and star positions follow a low-discrepancy sequence, so the layers practically never
+// line up and the sky reads as random (one --ds-bg-size entry per --ds-bg-image layer, same order).
 [data-ds-theme='cosmos'] {
   color-scheme: dark;
   --ds-bg: #0D1022;
   --ds-bg-image:
-    radial-gradient(5px 5px at 20% 30%, rgba(255, 255, 255, 0.55), transparent 60%),
-    radial-gradient(3px 3px at 70% 15%, rgba(255, 255, 255, 0.45), transparent 60%),
-    radial-gradient(7px 7px at 85% 60%, rgba(255, 255, 255, 0.40), transparent 60%),
-    radial-gradient(2px 2px at 40% 80%, rgba(255, 255, 255, 0.35), transparent 60%),
+    radial-gradient(1px 1px at 15% 67%, rgba(255, 236, 204, 0.47), transparent 60%),
+    radial-gradient(1px 1px at 85% 27%, rgba(255, 236, 204, 0.34), transparent 60%),
+    radial-gradient(1px 1px at 62% 79%, rgba(255, 255, 255, 0.39), transparent 60%),
+    radial-gradient(1.5px 1.5px at 40% 40%, rgba(255, 255, 255, 0.46), transparent 60%),
+    radial-gradient(1.5px 1.5px at 17% 92%, rgba(255, 255, 255, 0.49), transparent 60%),
+    radial-gradient(1.5px 1.5px at 87% 53%, rgba(255, 255, 255, 0.31), transparent 60%),
+    radial-gradient(2px 2px at 64% 13%, rgba(255, 255, 255, 0.46), transparent 60%),
+    radial-gradient(2px 2px at 42% 66%, rgba(255, 255, 255, 0.40), transparent 60%),
+    radial-gradient(2px 2px at 19% 26%, rgba(255, 236, 204, 0.43), transparent 60%),
+    radial-gradient(2.5px 2.5px at 89% 78%, rgba(255, 255, 255, 0.47), transparent 60%),
+    radial-gradient(2.5px 2.5px at 66% 39%, rgba(255, 255, 255, 0.45), transparent 60%),
+    radial-gradient(3px 3px at 43% 91%, rgba(255, 255, 255, 0.39), transparent 60%),
+    radial-gradient(3px 3px at 21% 52%, rgba(207, 227, 255, 0.57), transparent 60%),
+    radial-gradient(4px 4px at 90% 12%, rgba(255, 255, 255, 0.57), transparent 60%),
+    radial-gradient(4px 4px at 68% 64%, rgba(255, 255, 255, 0.58), transparent 60%),
+    radial-gradient(5px 5px at 45% 25%, rgba(207, 227, 255, 0.60), transparent 60%),
+    radial-gradient(6px 6px at 23% 77%, rgba(255, 255, 255, 0.50), transparent 60%),
+    radial-gradient(7px 7px at 92% 38%, rgba(255, 255, 255, 0.40), transparent 60%),
     radial-gradient(ellipse at 80% 10%, rgba(124, 58, 237, 0.30), transparent 50%),
     radial-gradient(ellipse at 10% 90%, rgba(14, 165, 233, 0.22), transparent 55%);
-  --ds-bg-size: 120px 150px, 90px 125px, 105px 80px, 200px 200px, 100% 100%, 100% 100%;
+  --ds-bg-size: 47px 59px, 61px 43px, 67px 53px, 71px 83px, 89px 79px, 73px 97px, 101px 103px, 109px 107px, 127px 113px, 139px 137px, 151px 149px, 173px 163px, 179px 131px, 167px 157px, 197px 199px, 251px 241px, 281px 257px, 347px 359px, 100% 100%, 100% 100%;
   --ds-bg-elevated: #161A33;
   --ds-bg-sunken: #0A0D1C;
   --ds-border: #252A4A;
