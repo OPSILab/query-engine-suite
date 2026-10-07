@@ -19,12 +19,16 @@ describe('buildGqlExamples', () => {
       surveys: ['NAMA_10R_3GDP'],
     });
     expect(labels(examples)).toEqual([
-      'Available sources', 'Sources with their data',
-      'Filter: city = Rome', 'Name contains "Bike"', 'Records of Bike lanes Rome',
+      'Available sources', 'Sources with their data', 'All sources, all fields (find all)',
+      'Filter: city = Rome', 'Filter: city = Rome, all fields', 'Name contains "Bike"', 'Records of Bike lanes Rome',
       'Datapoints — NAMA_10R_3GDP',
     ]);
     expect(queryOf(examples, 'Filter')).toContain('filter: """{"city":"Rome"}"""');
     expect(queryOf(examples, 'Filter')).toContain('doc(fields: ["city"])');
+    const all = examples.find(e => e.label.endsWith('all fields'))!.query;
+    expect(all).toContain('filter: """{"city":"Rome"}"""');
+    expect(all).toMatch(/\n    doc\n/); // doc without fields: the whole document
+    expect(all).not.toContain('fields');
     expect(queryOf(examples, 'Records of')).toContain('sources(source: "https://api.example.org/lanes?city=rome", limit: 10)');
     expect(queryOf(examples, 'Datapoints')).toContain('datapoints(survey: "NAMA_10R_3GDP", limit: 5)');
   });
@@ -42,16 +46,17 @@ describe('buildGqlExamples', () => {
       sources: { sample: { name: 'ab', doc: { record: { bucketName: 'x' }, quoted: 'say "hi"', long: 'x'.repeat(80), nested: { a: 1 }, ok: true } } },
       surveys: [],
     });
-    expect(labels(examples)).toEqual(['Available sources', 'Sources with their data', 'Filter: ok = true']);
+    expect(labels(examples)).toEqual(['Available sources', 'Sources with their data', 'All sources, all fields (find all)', 'Filter: ok = true', 'Filter: ok = true, all fields']);
   });
 
   it('no data / no datapoints: only the examples valid on any data', () => {
-    expect(labels(buildGqlExamples({ sources: {}, surveys: [] }))).toEqual(['Available sources', 'Sources with their data']);
+    expect(labels(buildGqlExamples({ sources: {}, surveys: [] }))).toEqual(['Available sources', 'Sources with their data', 'All sources, all fields (find all)']);
   });
 
   it('surveys unreadable but sources readable: hardcoded datapoints examples only', () => {
     const examples = buildGqlExamples({ sources: {}, surveys: null });
-    expect(labels(examples).slice(2)).toEqual(labels(FALLBACK_GQL_EXAMPLES).slice(-3));
+    expect(labels(examples).slice(3)).toEqual(labels(FALLBACK_GQL_EXAMPLES).slice(-3));
+    expect(labels(FALLBACK_GQL_EXAMPLES)).toContain('Public files, all fields');
   });
 
   it('every example and the discovery queries are well-formed (no mutation, nothing the tokenizer rejects)', () => {

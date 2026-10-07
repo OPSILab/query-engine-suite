@@ -27,6 +27,17 @@ const GENERIC: GqlExample[] = [
     doc
   }
 }` },
+  // "Find all": no filter, every field. Without limit the backend applies queryOptions.graphQLDefaultLimit (100),
+  // at most graphQLMaxLimit (1000) per query: sourcesCount says how many there are, skip reads the next pages.
+  { label: 'All sources, all fields (find all)', query: `query {
+  sourcesCount
+  sources {
+    id
+    name
+    source
+    doc
+  }
+}` },
 ];
 
 const FALLBACK_SOURCES: GqlExample[] = [
@@ -37,6 +48,16 @@ const FALLBACK_SOURCES: GqlExample[] = [
   ) {
     name
     doc(fields: ["json", "csv"])
+  }
+}` },
+  // doc without fields: the whole stored document, whatever its fields (sources have no fixed schema)
+  { label: 'Public files, all fields', query: `query {
+  sources(
+    filter: """{"record.bucketName": "public-data"}"""
+    limit: 5
+  ) {
+    name
+    doc
   }
 }` },
   { label: 'API records by name', query: `query {
@@ -139,26 +160,43 @@ function scalarField(obj: any, prefix = ''): [string, string | number | boolean]
   return null;
 }
 
-function filterExample(doc: any): GqlExample | null {
+/** The filter on a real field: with doc(fields) on that field only, and with the whole documents (doc). */
+function filterExamples(doc: any): GqlExample[] {
   // a top-level field (API / Orion records, JSON files stored as they are), else a field of the first row of a
   // JSON array / CSV file (MinIO files are stored as { json: [...] } / { csv: [...] })
   const found = scalarField(doc)
     ?? (Array.isArray(doc?.json) ? scalarField(doc.json[0], 'json.') : null)
     ?? (Array.isArray(doc?.csv) ? scalarField(doc.csv[0], 'csv.') : null);
-  if (!found) return null;
+  if (!found) return [];
   const [path, value] = found;
-  return {
-    label: `Filter: ${path} = ${short(value)}`,
-    query: `query {
+  const filter = `"""${JSON.stringify({ [path]: value })}"""`;
+  return [
+    {
+      label: `Filter: ${path} = ${short(value)}`,
+      query: `query {
   sources(
-    filter: """${JSON.stringify({ [path]: value })}"""
+    filter: ${filter}
     limit: 10
   ) {
     name
     doc(fields: [${gqlString(path.split('.')[0])}])
   }
 }`,
-  };
+    },
+    {
+      // doc without fields: every field of the document, even without knowing them
+      label: `Filter: ${path} = ${short(value)}, all fields`,
+      query: `query {
+  sources(
+    filter: ${filter}
+    limit: 5
+  ) {
+    name
+    doc
+  }
+}`,
+    },
+  ];
 }
 
 function nameExample(name: any): GqlExample | null {
@@ -208,7 +246,7 @@ function datapointsExample(survey: string): GqlExample {
 export function buildGqlExamples(data: GqlExampleData): GqlExample[] {
   const examples = [...GENERIC];
   if (data.sources) {
-    for (const example of [filterExample(data.sources.sample?.doc), nameExample(data.sources.sample?.name), apiExample(data.sources.api)])
+    for (const example of [...filterExamples(data.sources.sample?.doc), nameExample(data.sources.sample?.name), apiExample(data.sources.api)])
       if (example) examples.push(example);
   } else {
     examples.push(...FALLBACK_SOURCES);

@@ -296,7 +296,7 @@ describe('GraphQL examples from the real data', () => {
     comp.setMode('Query GraphQL');
     await new Promise(resolve => setTimeout(resolve));
     expect(comp.graphqlExamples!.map(e => e.label)).toEqual([
-      'Available sources', 'Sources with their data', 'Filter: city = Rome', 'Name contains "Bike"', 'Records of Lanes', 'Datapoints — NAMA_10R_3GDP',
+      'Available sources', 'Sources with their data', 'All sources, all fields (find all)', 'Filter: city = Rome', 'Filter: city = Rome, all fields', 'Name contains "Bike"', 'Records of Lanes', 'Datapoints — NAMA_10R_3GDP',
     ]);
     expect(http.requests.every(r => r.options.headers.get('visibility') === 'public')).toBe(true);
   });
