@@ -60,6 +60,7 @@ async function search(mongoQuery, { format, page, collections, visibility = "pub
     return { status: res.status, body: res.status == 200 ? await res.json() : await res.text(), warnings: header ? JSON.parse(decodeURIComponent(header)) : [] }
 }
 const names = list => list.map(d => d.name).sort()
+const ALL = { collections: ["api", "orion", "minio"] }
 
 describe("file types", () => {
     test("no type / Object: top-level fields", async () => {
@@ -79,12 +80,12 @@ describe("file types", () => {
     })
 
     test("an array field matches any of its elements (dimensions = Lovech)", async () => {
-        assert.deepEqual(names((await search({ dimensions: "Lovech" })).body), ["Datapoint"])
+        assert.deepEqual(names((await search({ dimensions: "Lovech" }, ALL)).body), ["Datapoint"])
     })
 
     test("a number typed in the form matches numbers and text (datapoints' value is a number)", async () => {
-        assert.deepEqual(names((await search({ value: "1" })).body), ["Datapoint"])
-        assert.deepEqual(names((await search({ value: "1.0" })).body), ["Datapoint"])
+        assert.deepEqual(names((await search({ value: "1" }, ALL)).body), ["Datapoint"])
+        assert.deepEqual(names((await search({ value: "1.0" }, ALL)).body), ["Datapoint"])
         assert.deepEqual(names((await search({ n: "1" }, { format: "JSON" })).body), ["Item 1", "public-a.json"]) // JSON rows and top-level fields
         assert.deepEqual(names((await search({ code: "007" })).body), ["Text code"])
         assert.deepEqual(names((await search({ value: "1x" })).body), [])
@@ -97,8 +98,25 @@ describe("file types", () => {
 })
 
 describe("collections", () => {
-    test("every collection by default, only the chosen ones with `collections`; _collection on every result", async () => {
-        const all = (await search({ kind: "item" })).body
+    test("without `collections` (older clients): API records and MinIO files only, as before - no datapoints, no _collection", async () => {
+        const legacy = (await search({ kind: "item" })).body
+        assert.deepEqual([legacy.length, legacy.some(r => r.name == "Datapoint"), legacy.some(r => "_collection" in r)], [7, false, false])
+        assert.deepEqual(names((await search({ value: "1" })).body), [])
+    })
+
+    test("queryOptions.defaultCollections decides what the requests without `collections` search", async () => {
+        config.queryOptions.defaultCollections = ["api", "orion"]
+        assert.deepEqual(names((await search({ value: "1" })).body), ["Datapoint"])
+        config.queryOptions.defaultCollections = ["orion"]
+        assert.deepEqual(names((await search({ kind: "item" })).body), ["Datapoint"])
+        for (const invalid of [[], ["ftp"], "api"]) { // invalid: the default (api, minio)
+            config.queryOptions.defaultCollections = invalid
+            assert.equal((await search({ kind: "item" })).body.length, 7, JSON.stringify(invalid))
+        }
+    })
+
+    test("only the chosen collections with `collections`; _collection on every result", async () => {
+        const all = (await search({ kind: "item" }, ALL)).body
         assert.deepEqual([...new Set(all.map(r => r._collection))].sort(), ["api", "orion"])
         const api = (await search({ kind: "item" }, { collections: ["api"] })).body
         assert.deepEqual([api.length, [...new Set(api.map(r => r._collection))]], [7, ["api"]])
@@ -120,7 +138,7 @@ describe("collections", () => {
 
 describe("pages", () => {
     test("{ results, hasMore, skip, next }: per collection, sorted; next = skip of the collections with more", async () => {
-        const first = (await search({ kind: "item" }, { page: { limit: 3 } })).body
+        const first = (await search({ kind: "item" }, { page: { limit: 3 }, ...ALL })).body
         assert.deepEqual(first.results.filter(r => r._collection == "api").map(r => r.n), [0, 1, 2])
         assert.deepEqual(first.results.filter(r => r._collection == "orion").map(r => r.n), [100])
         assert.deepEqual([first.hasMore, first.limit, first.skip, first.next], [true, 3, { api: 0, orion: 0, minio: 0 }, { api: 3 }])
@@ -131,7 +149,7 @@ describe("pages", () => {
     })
 
     test("a number as skip: every collection", async () => {
-        const page = (await search({ kind: "item" }, { page: { limit: 3, skip: 6 } })).body
+        const page = (await search({ kind: "item" }, { page: { limit: 3, skip: 6 }, ...ALL })).body
         assert.deepEqual(page.results.map(r => r.n), [6])
     })
 
@@ -149,11 +167,13 @@ describe("pages", () => {
 
     test("without a page: at most advancedSearchMaxResults per collection, a warning for each one with more", async () => {
         config.queryOptions.advancedSearchMaxResults = 5
-        const { body, warnings } = await search({ kind: "item" })
+        const { body, warnings } = await search({ kind: "item" }, ALL)
         assert.equal(body.length, 6) // 5 api + 1 orion
         assert.deepEqual(warnings.map(w => [w.kind, w.code, w.source]), [["runtime", "RESULTS_TRUNCATED", "api"]])
         config.queryOptions.advancedSearchMaxResults = 7
-        assert.deepEqual((await search({ kind: "item" })).warnings, [])
+        assert.deepEqual((await search({ kind: "item" }, ALL)).warnings, [])
+        config.queryOptions.advancedSearchMaxResults = 5
+        assert.deepEqual((await search({ kind: "item" })).body.length, 5) // older clients: the same limit
     })
 })
 

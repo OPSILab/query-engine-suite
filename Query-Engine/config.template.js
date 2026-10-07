@@ -87,7 +87,11 @@ module.exports = {
     graphQLQuery: true,
     graphQLDefaultLimit: 100, // GraphQL sources: documents returned when the query has no limit
     graphQLMaxLimit: 1000,    // GraphQL sources: highest accepted limit
-    advancedSearchMaxResults: 1000 // Advanced search: highest page size, and results without page
+    advancedSearchMaxResults: 1000, // Advanced search: highest page size, and results without page
+    // Collections searched by the requests without `collections` (clients older than the collections): Advanced
+    // search, keys / values / entries suggestions, GraphQL sources. Default: what the old `sources` collection held,
+    // no datapoints. Ids: api, orion, minio. The Simple search does not read these collections.
+    defaultCollections: ["api", "minio"]
   },
   // The MongoDB collections of the Source-Connector, one per connector: same names as in its config (only mongo /
   // toMongo are used here). The frontend lets the user choose which ones to search (GET /api/collections).

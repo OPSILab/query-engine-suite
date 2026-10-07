@@ -26,7 +26,7 @@ before(async () => {
         { key: "apiOnly", visibility: pub, connectors: ["api"] },
         { key: "apiAndOrion", visibility: pub, connectors: ["api", "orion"] },
         { key: "value", visibility: pub, valuesNotIndexed: ["https://eurostat/a.xml"], connectors: ["orion", "api"] },
-        { key: "measure", visibility: ["anna@demetrix.it"], valuesNotIndexed: ["https://x"] },
+        { key: "measure", visibility: ["anna@demetrix.it"], valuesNotIndexed: ["https://x"], connectors: ["orion"] },
         { key: "region", visibility: pub, valuesNotIndexed: [] }
     ])
     await Value.collection.insertMany([{ value: "Rome", visibility: pub }, { value: "rovigo", visibility: pub }, { value: "Milan", visibility: pub }])
@@ -106,7 +106,7 @@ describe("without a page (older clients): never the whole collection", () => {
     })
 
     test("entries: the first 500", async () => {
-        assert.equal((await get("/entries?key=&value=")).body.length, 6)
+        assert.equal((await get("/entries?key=&value=")).body.length, 5) // no datapoints for older clients
     })
 })
 
@@ -134,7 +134,9 @@ describe("GET /keys/notIndexed: keys whose values are not suggested", () => {
 
     test("authentication disabled: all of them", async () => {
         const res = await fetch(`${baseUrl}/keys/notIndexed`, { headers: { visibility: "public" } })
-        assert.deepEqual(await res.json(), { keys: ["measure", "value"] })
+        assert.deepEqual(await res.json(), { keys: ["value"] }) // no collections: no Orion-only keys
+        const orion = await fetch(`${baseUrl}/keys/notIndexed?collections=orion`, { headers: { visibility: "public" } })
+        assert.deepEqual(await orion.json(), { keys: ["measure", "value"] })
     })
 })
 
@@ -149,12 +151,20 @@ describe("collections: only the suggestions of the chosen collections", () => {
         const entries = await (await get("entries", { key: "", value: "", limit: 10, collections: "orion" })).json()
         assert.deepEqual(entries.items, [{ key: "dimensions", value: "Lovech" }])
         assert.deepEqual(await (await get("keys/notIndexed", { collections: "minio" })).json(), { keys: [] })
-        assert.deepEqual(await (await get("keys/notIndexed", { collections: "orion" })).json(), { keys: ["value"] })
+        // written before the connectors existed (no `connectors`): API / MinIO data
+        assert.deepEqual((await (await get("keys", { key: "count", limit: 10, collections: "api" })).json()).items, [{ key: "country" }])
+        assert.deepEqual((await (await get("keys", { key: "count", limit: 10, collections: "orion" })).json()).items, [])
+        assert.deepEqual(await (await get("keys/notIndexed", { collections: "orion" })).json(), { keys: ["measure", "value"] })
     })
 
-    test("without collections: everything; unknown collection: 400", async () => {
+    test("without collections (older clients): api and minio, never datapoints only; unknown collection: 400", async () => {
         const all = await (await get("keys", { key: "api", limit: 10 })).json()
         assert.deepEqual(all.items.map(k => k.key), ["apiAndOrion", "apiOnly"])
+        const entries = await (await get("entries", { key: "dimensions", value: "", limit: 10 })).json()
+        assert.deepEqual(entries.items, []) // dimensions = Lovech comes from Orion only
+        config.queryOptions.defaultCollections = ["api", "orion", "minio"]
+        const withOrion = await (await get("entries", { key: "dimensions", value: "", limit: 10 })).json()
+        assert.deepEqual(withOrion.items, [{ key: "dimensions", value: "Lovech" }])
         assert.equal((await get("values", { value: "", limit: 10, collections: "ftp" })).status, 400)
     })
 })

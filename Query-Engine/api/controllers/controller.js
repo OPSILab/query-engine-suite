@@ -3,7 +3,7 @@ const logger = require('percocologger')
 const config = require('../../config')
 const fs = require("fs")
 const simpleSearch = require("../services/simpleSearch")
-const { CONNECTORS, collectionSettings, parseCollections } = require("../services/collections")
+const { CONNECTORS, collectionSettings, defaultCollections, parseCollections } = require("../services/collections")
 const manageCollectionsView = fs.readFileSync("api/view/manage-collections.html", "utf-8")
 
 // ?limit=&skip= of the keys / values / entries suggestions: a page ({ items, hasMore }), else undefined (legacy list)
@@ -98,14 +98,17 @@ module.exports = {
     queryMongo,
 
     // What the configuration leaves out of the simple search (shown by the frontend as a warning)
-    // The collections the frontend can offer: { collections: [{ id, advancedSearch, simpleSearch }] }
+    // The collections the frontend can offer: { collections: [{ id, advancedSearch, simpleSearch, default }] }
     // advancedSearch: stored in MongoDB (collections.<id>.toMongo); simpleSearch: searched by the Simple search
-    // (simpleSearchOptions). The labels shown to the user are in the frontend config.
+    // (simpleSearchOptions); default: in queryOptions.defaultCollections (selected for a user who has not chosen
+    // yet). The labels shown to the user are in the frontend config.
     getCollections: async (req, res) => {
         const live = simpleSearch.options()
+        const byDefault = defaultCollections()
         res.send({
             collections: CONNECTORS.map(id => ({
                 id,
+                default: byDefault.includes(id),
                 advancedSearch: collectionSettings(id).toMongo,
                 simpleSearch: id == "orion" ? live.orion === true : live[id] !== false
             }))

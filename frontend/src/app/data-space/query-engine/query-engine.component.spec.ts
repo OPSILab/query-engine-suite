@@ -461,6 +461,26 @@ describe('collections ("Search in")', () => {
     expect(comp.collectionsFor('Simple search')).toEqual(['api', 'minio']); // Orion not in the Simple search
   });
 
+  it('never chosen in this browser: the Query-Engine defaults (queryOptions.defaultCollections), also for the suggestions', async () => {
+    const withDefaults = { collections: COLLECTIONS.collections.map(c => ({ ...c, default: c.id !== 'orion' })) };
+    const { comp, http } = create({ backend: { collections: withDefaults } });
+    await comp.ngOnInit();
+    expect(comp.selectedCollections).toEqual(['api', 'minio']);
+    expect(comp.collectionsFor('Advanced search')).toEqual(['api', 'minio']);
+    const keys = http.requests.filter(r => r.url.endsWith('/api/keys'));
+    expect(keys.map(r => r.options.params.get('collections'))).toEqual(['api,minio']); // read once, with the defaults
+    expect(localStorage.getItem('qe.selectedCollections')).toBeNull(); // not a choice of the user
+  });
+
+  it('a choice saved in this browser wins over the defaults', async () => {
+    localStorage.setItem('qe.selectedCollections', JSON.stringify(['orion']));
+    const withDefaults = { collections: COLLECTIONS.collections.map(c => ({ ...c, default: c.id !== 'orion' })) };
+    const { comp } = create({ backend: { collections: withDefaults } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.selectedCollections).toEqual(['orion']);
+  });
+
   it('an older Query-Engine: no choice, nothing sent', async () => {
     const { comp, http } = create({ backend: { query: () => [] } });
     await comp.ngOnInit();

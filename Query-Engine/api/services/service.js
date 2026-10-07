@@ -102,10 +102,18 @@ async function suggestions(Model, filter, projection, sort, page, tooMany) {
 
 // Everything with disableAuth, otherwise only what the user may see for the selected visibility (see visibility.js).
 const { objectFilter, collectionVisibilityFilter, visibleIn } = require('./visibility')
-const { CONNECTORS, storedCollections, collectionModel } = require('./collections')
+const { CONNECTORS, defaultCollections, storedCollections, collectionModel } = require('./collections')
 
-// keys / values / entries of some collections only (the Source-Connector writes the connectors in `connectors`)
-const connectorsFilter = collections => collections ? { connectors: { $in: collections } } : {}
+// keys / values / entries of some collections only (the Source-Connector writes the connectors in `connectors`).
+// No collections: queryOptions.defaultCollections (default api + minio: no datapoints). Documents written before the
+// connectors existed have no `connectors`: they come from the API records and MinIO files (datapoints were not
+// indexed then), so they count as api / minio until the rebuild.
+function connectorsFilter(collections = defaultCollections()) {
+    const conditions = [{ connectors: { $in: collections } }]
+    if (collections.includes("api") || collections.includes("minio"))
+        conditions.push({ connectors: { $exists: false } })
+    return { $or: conditions }
+}
 const simpleSearch = require('./simpleSearch')
 
 /*async function resetCache(queriesMapfilter, cacheFilter) {
@@ -377,12 +385,13 @@ module.exports = {
     ADVANCED_SEARCH_MAX,
 
     /**
-     * Advanced search on the collections of the connectors (collections.js): `collections` (default: all of them;
-     * those not stored in MongoDB are skipped). Where the fields are looked for depends on the format:
+     * Advanced search on the collections of the connectors (collections.js): `collections` (default: api and
+     * minio, see below; those not stored in MongoDB are skipped). Where the fields are looked for depends on the format:
      * "object" / none: top-level fields; "json": the rows of JSON arrays; "json+object": either (the "JSON" file
      * type); "csv": CSV rows; "geojson": feature properties (and coordinates) - in every collection.
      * Only what the user may see (visibility in the query, then checked on each document), sorted by _id in each
-     * collection; every result has `_collection` (its collection id).
+     * collection. Without `collections` (older clients): queryOptions.defaultCollections, the results as they were (no
+     * `_collection`); with it, every result has `_collection` (its collection id).
      * page = { limit, skip }: up to `limit` results per collection; skip is a number (every collection) or
      * { <collection>: n }. Answer { results, hasMore, limit, skip, next }: next = { <collection>: skip } of the
      * collections with more results (send it as page.skip, with those collections, for the next page).
@@ -396,7 +405,7 @@ module.exports = {
         for (const key in fields)
             if (!(format == "geojson" && key == "coordinates")) // compared as a number already
                 fields[key] = textOrNumber(fields[key])
-        const searched = (collections || CONNECTORS).filter(c => storedCollections().includes(c))
+        const searched = (collections || defaultCollections()).filter(c => storedCollections().includes(c))
         const max = ADVANCED_SEARCH_MAX()
         const limit = page ? page.limit : max
         const skipOf = c => !page ? 0 : typeof page.skip === "object" && page.skip !== null ? (page.skip[c] || 0) : (page.skip || 0)
@@ -405,7 +414,8 @@ module.exports = {
             const rows = await collectionModel(c).find(filter).sort({ _id: 1 }).skip(skipOf(c)).limit(limit + 1).lean()
             const results = rows.slice(0, limit)
                 .filter(obj => visibleIn(c, obj, prefix, bucket, visibility))
-                .map(obj => ({ ...(c == "minio" ? withFileInfo(obj) : obj), _collection: c }))
+                .map(obj => c == "minio" ? withFileInfo(obj) : obj)
+                .map(obj => collections ? { ...obj, _collection: c } : obj)
             return { c, results, more: rows.length > limit }
         }))
         const results = perCollection.flatMap(r => r.results)

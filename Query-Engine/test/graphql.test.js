@@ -161,6 +161,11 @@ describe("collections", () => {
         assert.match((await exec('{ sources(collections: ["ftp"]) { name } }')).errors[0].message, /Unknown collections/)
     })
 
+    test("queryOptions.defaultCollections: the collections of sources without `collections`", async () => {
+        config.queryOptions.defaultCollections = ["api"]
+        assert.deepEqual(names(await exec("{ sources { name } }")), ["Item One", "Item Two", "pg-style"])
+    })
+
     test("limit and skip apply to each collection", async () => {
         const result = await exec('{ sources(limit: 1) { collection } }')
         assert.deepEqual(result.data.sources.map(s => s.collection).sort(), ["api", "minio"])

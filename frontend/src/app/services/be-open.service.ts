@@ -54,6 +54,8 @@ export interface CollectionInfo {
   id: string;
   advancedSearch: boolean;
   simpleSearch: boolean;
+  /** Selected for a user who has not chosen yet (the Query-Engine's queryOptions.defaultCollections). */
+  default?: boolean;
 }
 
 /** Names shown for the collections, unless config.json has "collectionLabels". */
@@ -235,7 +237,7 @@ export class BeopenAPIService {
     return firstValueFrom(this.http.get<any>(`${this.queryEngineBaseUrl}/api/collections`))
       .then(res => (Array.isArray(res?.collections) ? res.collections : [])
         .filter((c: any) => typeof c?.id === "string")
-        .map((c: any) => ({ id: c.id, advancedSearch: c.advancedSearch !== false, simpleSearch: c.simpleSearch !== false })))
+        .map((c: any) => ({ id: c.id, advancedSearch: c.advancedSearch !== false, simpleSearch: c.simpleSearch !== false, ...(typeof c.default === "boolean" ? { default: c.default } : {}) })))
       .catch(() => []);
   }
 

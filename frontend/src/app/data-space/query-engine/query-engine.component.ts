@@ -95,12 +95,15 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
 
   // ---- Collections searched: one per Source-Connector connector (api: Sources, orion: Datapoints, minio: Files).
   // The Query-Engine says which ones exist (GET /api/collections), the labels come from config.json
-  // ("collectionLabels"), the user chooses with the "Search in" pills - remembered in this browser. An older
+  // ("collectionLabels"), the user chooses with the "Search in" pills - remembered in this browser. Until the user
+  // chooses, the selected ones are the Query-Engine's defaults (queryOptions.defaultCollections). An older
   // Query-Engine without collections: no choice shown, nothing sent.
   static readonly COLLECTIONS_STORAGE_KEY = 'qe.selectedCollections';
   static readonly ALL_COLLECTIONS = ['api', 'orion', 'minio'];
   collectionOptions: (CollectionInfo & { label: string })[] = [];
-  selectedCollections: string[] = QueryEngineComponent.readSelectedCollections();
+  // the user's choice in this browser, or null if never chosen
+  private readonly savedCollections = QueryEngineComponent.readSelectedCollections();
+  selectedCollections: string[] = this.savedCollections ?? [...QueryEngineComponent.ALL_COLLECTIONS];
   // Seconds since the query started, shown next to the buttons once the
   // answer is taking a while ("Waiting for the query engine... 4 s").
   loadingSeconds = 0;
@@ -174,10 +177,17 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
 
   async ngOnInit(): Promise<void> {
     this.getUser();
+    const collections = this.beopenAPI.getCollections().then(list => {
+      this.collectionOptions = list.map(c => ({ ...c, label: this.beopenAPI.collectionLabel(c.id) }));
+      // never chosen in this browser: the Query-Engine's defaults (all of them if it doesn't say)
+      if (!this.savedCollections && list.some(c => c.default !== undefined))
+        this.selectedCollections = QueryEngineComponent.ALL_COLLECTIONS.filter(id => list.some(c => c.id === id && c.default));
+    });
+    // the suggestions follow the selection: with a saved choice they can be read at once, else after the defaults
+    if (!this.savedCollections)
+      await collections;
     this.preloadSuggestions();
     this.loadKeysWithValuesNotSuggested();
-    this.beopenAPI.getCollections().then(collections =>
-      this.collectionOptions = collections.map(c => ({ ...c, label: this.beopenAPI.collectionLabel(c.id) })));
     this.beopenAPI.getSimpleSearchLimits().then(warnings => this.simpleSearchLimits = warnings.filter(w => w.kind === "config"));
     // the configuration ones are already listed under the field: only what happened during the query
     this.queryWarningsSub = this.beopenAPI.queryWarnings$.subscribe(warnings => {
@@ -189,15 +199,15 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
 
   // ---- collections
 
-  private static readSelectedCollections(): string[] {
+  private static readSelectedCollections(): string[] | null {
     try {
       const saved = JSON.parse(localStorage.getItem(QueryEngineComponent.COLLECTIONS_STORAGE_KEY) ?? 'null');
       if (Array.isArray(saved))
         return QueryEngineComponent.ALL_COLLECTIONS.filter(id => saved.includes(id));
     } catch {
-      // not readable: everything
+      // not readable: as never chosen
     }
-    return [...QueryEngineComponent.ALL_COLLECTIONS];
+    return null;
   }
 
   isCollectionSelected(id: string): boolean {

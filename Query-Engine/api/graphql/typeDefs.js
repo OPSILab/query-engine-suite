@@ -64,7 +64,8 @@ const typeDefs = gql`
     #           $exists $type $regex $options $not $and $or $nor $elemMatch $all $size $mod
     #   name:   "contains", case insensitive
     #   source: exact origin url of API / Orion records
-    #   collections: api, orion, minio - default ["api", "minio"] (the Orion datapoints: datapoints(...))
+    #   collections: api, orion, minio - default queryOptions.defaultCollections, ["api", "minio"] unless configured
+    #                (the Orion datapoints: datapoints(...))
     #   limit:  default queryOptions.graphQLDefaultLimit (100), at most queryOptions.graphQLMaxLimit (1000);
     #           limit and skip apply to each collection
     # To read the stored data use doc (whole document) or doc(fields: [...]).

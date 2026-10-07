@@ -5,8 +5,8 @@
 //   $function, $expr, ... i.e. nothing that runs code or reads other collections.
 // - name: case-insensitive "contains" on `name`; source: exact match on the origin url (api: `source`,
 //   orion: `fromUrl`; minio: `source`, a field of the file if any).
-// - collections: the collections searched (collections.js); default DEFAULT_COLLECTIONS: api and minio, i.e. the old
-//   `sources` collection - the Orion datapoints are read with `datapoints`, or with collections: ["orion"].
+// - collections: the collections searched (collections.js); default queryOptions.defaultCollections (api and minio,
+//   the old `sources` collection - the Orion datapoints are read with `datapoints`, or with collections: ["orion"]).
 //   limit / skip apply to each collection.
 // - limit / skip: limit defaults to queryOptions.graphQLDefaultLimit (100) and is capped at
 //   queryOptions.graphQLMaxLimit (1000).
@@ -16,9 +16,7 @@
 const { UserInputError } = require('apollo-server-express')
 const config = require('../../config')
 const { collectionVisibilityFilter } = require('../services/visibility')
-const { collectionSettings, storedCollections, parseCollections } = require('../services/collections')
-
-const DEFAULT_COLLECTIONS = ["api", "minio"]
+const { DEFAULT_COLLECTIONS, defaultCollections, collectionSettings, storedCollections, parseCollections } = require('../services/collections')
 
 const ALLOWED_OPERATORS = new Set([
     "$eq", "$ne", "$gt", "$gte", "$lt", "$lte", "$in", "$nin",
@@ -85,7 +83,7 @@ function visibilityQuery(req, connector = "minio") {
 function sourcesCollections(args = {}) {
     let list
     try {
-        list = parseCollections(args.collections) || DEFAULT_COLLECTIONS
+        list = parseCollections(args.collections) || defaultCollections()
     }
     catch (error) {
         throw new UserInputError(error.message)

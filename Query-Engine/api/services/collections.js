@@ -12,6 +12,25 @@ const mongoose = require("mongoose")
 const config = require("../../config")
 
 const CONNECTORS = ["api", "orion", "minio"]
+// Requests without `collections` (clients written before the collections existed): queryOptions.defaultCollections.
+// Fallback: what the single `sources` collection held, API records and MinIO files - not the datapoints, which
+// were in their own collection.
+const DEFAULT_COLLECTIONS = ["api", "minio"]
+
+let warnedDefault
+function defaultCollections() {
+    const configured = config.queryOptions?.defaultCollections
+    if (configured === undefined || configured === null)
+        return DEFAULT_COLLECTIONS
+    const valid = Array.isArray(configured) && configured.length > 0 && configured.every(id => CONNECTORS.includes(id))
+    if (valid)
+        return [...new Set(configured)]
+    if (!warnedDefault) {
+        warnedDefault = true
+        require("percocologger").warn(`queryOptions.defaultCollections must be a non-empty list of ${CONNECTORS.join(" / ")}: using ${DEFAULT_COLLECTIONS.join(", ")}`)
+    }
+    return DEFAULT_COLLECTIONS
+}
 const DEFAULTS = {
     api: { mongo: "sources", toMongo: true },
     orion: { mongo: "datapoints", toMongo: true },
@@ -50,4 +69,4 @@ function parseCollections(value) {
     return list
 }
 
-module.exports = { CONNECTORS, DEFAULTS, collectionSettings, storedCollections, collectionModel, parseCollections }
+module.exports = { CONNECTORS, DEFAULT_COLLECTIONS, defaultCollections, DEFAULTS, collectionSettings, storedCollections, collectionModel, parseCollections }
