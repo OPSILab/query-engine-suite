@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
+    "test:db": "docker compose -f docker-compose.test.yml up -d --wait",
+    "test:db:down": "docker compose -f docker-compose.test.yml down",
     "start": "nodemon index.js"
   },
   "repository": {

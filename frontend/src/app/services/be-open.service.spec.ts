@@ -1,15 +1,18 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { of } from 'rxjs';
-import { HttpHeaders, HttpParams } from '@angular/common/http';
-import { BeopenAPIService, definedHeaders } from './be-open.service';
+import { firstValueFrom, of, throwError } from 'rxjs';
+import { HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
+import { BeopenAPIService, QueryWarning, definedHeaders, parseQueryWarnings } from './be-open.service';
 
-// Minimal HttpClient: records calls, answers `response`
-function fakeHttp(response: any = []) {
+// Minimal HttpClient: records calls, answers `response` (request(): as an HttpResponse with `responseHeaders`)
+function fakeHttp(response: any = [], responseHeaders: Record<string, string> = {}) {
   const calls: { method: string; url: string; options?: any }[] = [];
   return {
     calls,
-    request: (method: string, url: string, options: any) => { calls.push({ method, url, options }); return of(response); },
-    get: (url: string) => { calls.push({ method: 'GET', url }); return of(response); },
+    request: (method: string, url: string, options: any) => {
+      calls.push({ method, url, options });
+      return of(new HttpResponse({ body: response, headers: new HttpHeaders(responseHeaders) }));
+    },
+    get: (url: string) => { calls.push({ method: 'GET', url }); return typeof response === 'function' ? response(url) : of(response); },
   };
 }
 
@@ -24,8 +27,8 @@ function fakeConfig(settings: any) {
   };
 }
 
-function service(settings: any = { beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }, response?: any) {
-  const http = fakeHttp(response);
+function service(settings: any = { beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }, response?: any, responseHeaders?: Record<string, string>) {
+  const http = fakeHttp(response, responseHeaders);
   return { http, api: new BeopenAPIService(http as any, fakeConfig(settings) as any) };
 }
 
@@ -117,5 +120,45 @@ describe('suggestions', () => {
       'http://qe/api/values?value=',
       'http://qe/api/entries?key=\\[k&value=\\[v',
     ]);
+  });
+});
+
+describe('query warnings (Simple search)', () => {
+  const warnings: QueryWarning[] = [
+    { kind: 'config', code: 'ORION_DISABLED', message: 'Orion sources are not searched' },
+    { kind: 'runtime', code: 'API_ERROR', source: 'Città', message: 'API "Città" could not be searched' },
+  ];
+  const header = encodeURIComponent(JSON.stringify(warnings));
+
+  it('parseQueryWarnings: URI-encoded JSON array; anything else is no warning', () => {
+    expect(parseQueryWarnings(header)).toEqual(warnings);
+    for (const bad of [null, undefined, '', '%E0%A4%A', 'not json', encodeURIComponent('{"code":"X"}'), encodeURIComponent('[1, {"no":"code"}]')])
+      expect(parseQueryWarnings(bad as any)).toEqual([]);
+  });
+
+  it('a query returns the body and publishes the X-Query-Warnings of its response', async () => {
+    const { api } = service(undefined, [{ name: 'r' }], { 'X-Query-Warnings': header });
+    const published: QueryWarning[][] = [];
+    api.queryWarnings$.subscribe(w => published.push(w));
+    expect(await firstValueFrom(api.minioQuery('Simple search', 'Rome', {}, '', 'public', undefined)!)).toEqual([{ name: 'r' }]);
+    expect(published).toEqual([warnings]);
+  });
+
+  it('no header: nothing published', async () => {
+    const { api } = service(undefined, []);
+    const published: any[] = [];
+    api.queryWarnings$.subscribe(w => published.push(w));
+    await firstValueFrom(api.graphqlQuery('{ sources { id } }', 'public'));
+    expect(published).toEqual([]);
+  });
+
+  it('getSimpleSearchLimits: the warnings of /api/query/simple/limits, [] when unavailable', async () => {
+    const ok = service(undefined, (url: string) => of({ warnings }));
+    expect(await ok.api.getSimpleSearchLimits()).toEqual(warnings);
+    expect(ok.http.calls[0].url).toBe('http://qe/api/query/simple/limits');
+    const missing = service(undefined, () => throwError(() => new Error('404')));
+    expect(await missing.api.getSimpleSearchLimits()).toEqual([]);
+    const odd = service(undefined, () => of({}));
+    expect(await odd.api.getSimpleSearchLimits()).toEqual([]);
   });
 });

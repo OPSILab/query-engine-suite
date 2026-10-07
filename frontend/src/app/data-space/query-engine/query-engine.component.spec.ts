@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { of, throwError } from 'rxjs';
+import { of, throwError, map } from 'rxjs';
+import { HttpHeaders, HttpResponse } from '@angular/common/http';
 
 // Only NbAuthService's getToken() is used (snippet with the real token): no need to load Nebular
 vi.mock('@nebular/auth', () => ({ NbAuthService: class { } }));
 
 import { QueryEngineComponent } from './query-engine.component';
-import { BeopenAPIService } from '../../services/be-open.service';
+import { BeopenAPIService, QueryWarning } from '../../services/be-open.service';
 
 const TOO_MANY = ['Too many suggestions. Type some characters in order to reduce them'];
 
@@ -14,6 +15,8 @@ interface Backend {
   entries?: (key: string) => any;               // GET /api/entries?key=...
   query?: (format: string | null) => any[];     // POST /api/query (Advanced search), by format param
   fail?: RegExp;                                // urls that answer with an error
+  limits?: QueryWarning[];                      // GET /api/query/simple/limits
+  warningsHeader?: string;                      // X-Query-Warnings of the query responses
 }
 
 // Real BeopenAPIService on a fake HttpClient: the component's requests go through the real request builders.
@@ -30,16 +33,18 @@ function fakeHttp(backend: Backend) {
         return backend.entries?.(key) ?? [];
       }
       if (url.includes('/api/user')) return { email: 'anna@demetrix.it' };
+      if (url.includes('/api/query/simple/limits')) return { warnings: backend.limits ?? [] };
       return [];
     }),
     request: (method: string, url: string, options: any) => {
       requests.push({ method, url, options });
-      return answer(url, () => backend.query?.(options.params.get('format')) ?? []);
+      return answer(url, () => backend.query?.(options.params.get('format')) ?? []).pipe(map(body =>
+        new HttpResponse({ body, headers: new HttpHeaders(backend.warningsHeader ? { 'X-Query-Warnings': backend.warningsHeader } : {}) })));
     },
   };
 }
 
-function create({ backend = {}, settings = {}, token = null as string | null } = {}) {
+function create({ backend = {} as Backend, settings = {}, token = null as string | null, translation = {} as any } = {}) {
   const allSettings: any = { beopenApiBaseUrl: 'http://qe', ...settings };
   const config = {
     getSettings: (key?: string, defaultValue?: any) => !key ? allSettings : (allSettings[key] ?? defaultValue),
@@ -50,11 +55,11 @@ function create({ backend = {}, settings = {}, token = null as string | null } =
   const shared = { userRoles$: of([]) };
   const toast = { show: vi.fn() };
   const comp = new QueryEngineComponent(
-    {} as any, api, {} as any, toast as any, {} as any, shared as any, { BucketObjectsPush: () => { } } as any, nbAuth as any, config as any,
+    {} as any, api, translation, toast as any, {} as any, shared as any, { BucketObjectsPush: () => { } } as any, nbAuth as any, config as any,
     { nativeElement: document.createElement('div') } as any,
   );
   comp.visibility = 'public';
-  return { comp, http };
+  return { comp, http, api, toast };
 }
 
 describe('startup', () => {
@@ -185,5 +190,67 @@ describe('"Generate curl / fetch / axios"', () => {
     comp.setSnippetLang('curl');
     expect(comp.snippetCode).toContain('"query": "SELECT * FROM publicdata"');
     expect(comp.snippetFileName).toBe('query-engine-request.sh');
+  });
+});
+
+describe('Simple search warnings', () => {
+  const limits: QueryWarning[] = [
+    { kind: 'config', code: 'MINIO_DISABLED', message: 'MinIO files are not searched' },
+    { kind: 'config', code: 'ORION_DISABLED', message: 'Orion sources are not searched' },
+    { kind: 'config', code: 'API_EXCLUDED', source: 'Huge', message: 'API "Huge" is not searched' },
+  ];
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+
+  it('loads the configuration limits at startup', async () => {
+    const { comp } = create({ backend: { limits } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.simpleSearchLimits).toEqual(limits);
+  });
+
+  it('API / Orion limits only matter for public data (or with authentication disabled)', async () => {
+    const { comp } = create({ backend: { limits }, settings: { enableAuthentication: true } });
+    await comp.ngOnInit();
+    await flush();
+    comp.visibility = 'private';
+    expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['MINIO_DISABLED']);
+    comp.visibility = 'public';
+    expect(comp.shownSimpleSearchLimits.length).toBe(3);
+    comp.authEnabled = false;
+    comp.visibility = 'private';
+    expect(comp.shownSimpleSearchLimits.length).toBe(3);
+  });
+
+  it('a Query-Engine without the limits endpoint: no limits shown', async () => {
+    const { comp } = create({ backend: { fail: /simple\/limits/ } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.simpleSearchLimits).toEqual([]);
+  });
+
+  it('warningText: the translation with {{source}}, else the backend message', () => {
+    const translation = { instant: (key: string, p: any) => key === 'Simple search warning API_EXCLUDED' ? `API ${p.source} esclusa` : key };
+    const { comp } = create({ translation });
+    expect(comp.warningText(limits[2])).toBe('API Huge esclusa');
+    expect(comp.warningText(limits[1])).toBe('Orion sources are not searched');
+    expect(create().comp.warningText(limits[2])).toBe('API "Huge" is not searched'); // no translation service
+  });
+
+  it('runtime warnings of a search become a toast; configuration ones do not', async () => {
+    const warnings: QueryWarning[] = [
+      { kind: 'config', code: 'ORION_DISABLED', message: 'Orion sources are not searched' },
+      { kind: 'runtime', code: 'API_ERROR', source: 'Weather', message: 'API "Weather" could not be searched (HTTP 500)' },
+    ];
+    const { comp, toast } = create({ backend: { warningsHeader: encodeURIComponent(JSON.stringify(warnings)), query: () => [{ name: 'x' }] } });
+    await comp.ngOnInit();
+    comp.setMode('Simple search');
+    comp.value = 'Rome';
+    comp.minioQuery(false);
+    await flush();
+    expect(toast.show).toHaveBeenCalledTimes(1);
+    const [status, , text] = toast.show.mock.calls[0];
+    expect(status).toBe('warning');
+    expect(text).toBe('API "Weather" could not be searched (HTTP 500)');
+    comp.ngOnDestroy();
   });
 });

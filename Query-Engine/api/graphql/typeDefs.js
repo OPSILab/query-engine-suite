@@ -55,7 +55,18 @@ const typeDefs = gql`
   }
 
   type Query {
-    sources: [Source]
+    # Source documents visible to the user (Private / Shared / Public, like the REST queries).
+    #   filter: MongoDB filter as JSON - simplest as a block string, which needs no escaping:
+    #             sources(filter: """{"record.bucketName": "public-data", "year": {"$gte": 2020}}""")
+    #           (or a JSON object through variables). Read operators only: $eq $ne $gt $gte $lt $lte $in $nin
+    #           $exists $type $regex $options $not $and $or $nor $elemMatch $all $size $mod
+    #   name:   "contains", case insensitive
+    #   source: exact origin url of API / Orion records
+    #   limit:  default queryOptions.graphQLDefaultLimit (100), at most queryOptions.graphQLMaxLimit (1000)
+    # To read the stored data use doc (whole document) or doc(fields: [...]).
+    sources(filter: JSON, name: String, source: String, limit: Int, skip: Int): [Source]
+    # How many documents sources would return without limit / skip
+    sourcesCount(filter: JSON, name: String, source: String): Int
     source(id: ID!): Source
     datapoints(
       survey: String

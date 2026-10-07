@@ -34,9 +34,21 @@ jobs:
           cache: npm
           cache-dependency-path: Query-Engine/package-lock.json
 
+      # Same compose file used locally (npm run test:db): MongoDB 4.4 on 27019 (GraphQL sources tests)
+      - name: Start test database
+        run: npm run test:db
+
       - name: Install
         run: npm ci
 
-      # No database: visibility, auth, GraphQL and suggestions are tested with the models stubbed
+      # Simple search: the APIs / Orion / mapper are a local fake server started by the tests
       - name: Test
         run: npm test
+
+      - name: Database logs
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs
+
+      - name: Stop test database
+        if: always()
+        run: npm run test:db:down

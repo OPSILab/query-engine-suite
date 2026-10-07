@@ -459,3 +459,28 @@ a.ds-external-link:hover .ds-external-link__icon {
     animation: none;
   }
 }
+
+// Simple search: sources left out by the configuration (amber, readable on light and dark themes)
+.ds-search-limits {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, #D97706 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #D97706 10%, transparent);
+  color: var(--ds-text);
+  font-size: calc(12.5px * var(--ds-font-scale));
+
+  ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+  }
+}
+
+.ds-search-limits__icon {
+  flex: none;
+  margin-top: 1px;
+  color: #D97706;
+}

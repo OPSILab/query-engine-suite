@@ -35,6 +35,7 @@ function suggestionsVisibilityFilter(prefix, bucketName, visibility) {
 
 // Everything with disableAuth, otherwise only what the user may see for the selected visibility (see visibility.js).
 const { objectFilter } = require('./visibility')
+const simpleSearch = require('./simpleSearch')
 
 /*async function resetCache(queriesMapfilter, cacheFilter) {
     const { collections, queriesMap } = await filterCollections(queriesMapfilter, cacheFilter, QueriesMap)
@@ -456,22 +457,37 @@ module.exports = {
         }
     },
 
-    async rawQuery(query, prefix, bucket, visibility) {
+    // Simple search on the original sources: the MinIO files and - live, for public data - the APIs and Orion
+    // (simpleSearch.js). `warnings` collects what was not searched or is incomplete (config and runtime).
+    simpleSearchLimits() {
+        return simpleSearch.limits()
+    },
+
+    async rawQuery(query, prefix, bucket, visibility, warnings = []) {
         logger.info("Raw query")
         let objects = []
         if (visibility == "public")
             bucket = "public-data"
-        for (let obj of await minioWriter.listObjects(bucket)) {
-            try {
-                if (obj.size && obj.isLatest) {
-                    let objectGot = await minioWriter.getObject(bucket, obj.name, obj.name?.split(".").pop())
-                    objects.push({ raw: objectGot, record: { ...obj, bucketName: bucket }, name: obj.name })
+        const options = simpleSearch.options()
+        if (options.minio !== false)
+            for (let obj of await minioWriter.listObjects(bucket)) {
+                try {
+                    if (obj.size && obj.isLatest) {
+                        let objectGot = await minioWriter.getObject(bucket, obj.name, obj.name?.split(".").pop())
+                        objects.push({ raw: objectGot, record: { ...obj, bucketName: bucket }, name: obj.name })
+                    }
+                }
+                catch (error) {
+                    logger.error(error)
                 }
             }
-            catch (error) {
-                logger.error(error)
-            }
+        // API / Orion records are public data: searched for the public visibility (or everything, with disableAuth)
+        if (visibility == "public" || config.authConfig?.disableAuth) {
+            warnings.push(...simpleSearch.limits().filter(w => w.code != "MINIO_DISABLED"))
+            objects.push(...await simpleSearch.searchLive(query.value, warnings))
         }
+        if (options.minio === false)
+            warnings.unshift(...simpleSearch.limits().filter(w => w.code == "MINIO_DISABLED"))
         return objects.filter(obj => typeof obj.raw == "string" ? objectFilter(obj, prefix, bucket, visibility) && (!query.value || obj.raw.includes(query.value)) : objectFilter(obj, prefix, bucket, visibility) && (!query.value || JSON.stringify(obj.raw).includes(query.value)))
 
     },

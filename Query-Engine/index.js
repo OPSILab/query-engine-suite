@@ -28,7 +28,8 @@ mongoose.connect(config.mongo, { useNewUrlParser: true }).then(() => {
         const { auth } = require("./api/middlewares/auth")
         app.use('/graphql', express.json(), (req, res, next) => { req.isGraphql = true; next() }, auth);
         server.applyMiddleware({ app, path: '/graphql' });
-        app.use(cors());
+        // X-Query-Warnings: what the simple search did not search / returned incomplete (read by the frontend)
+        app.use(cors({ exposedHeaders: ["X-Query-Warnings"] }));
         app.use(express.urlencoded({ extended: false }));
         app.use(bodyParser.json());
         app.use(config.basePath || "/api", routes);

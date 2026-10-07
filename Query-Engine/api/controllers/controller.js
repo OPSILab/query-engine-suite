@@ -6,8 +6,15 @@ const manageCollectionsView = fs.readFileSync("api/view/manage-collections.html"
 
 const queryMongo = async (req, res) => {
     logger.info(req.body, req.query)
-    if (req.headers.israwquery)
-        return await res.send(await service.rawQuery(req.query, req.body.prefix, req.body.bucketName, req.headers.visibility)) && logger.info("Raw query finished")
+    if (req.headers.israwquery) {
+        const warnings = []
+        const results = await service.rawQuery(req.query, req.body.prefix, req.body.bucketName, req.headers.visibility, warnings)
+        // what was not searched / is incomplete: [{ kind, code, source?, message }], URI-encoded JSON
+        if (warnings.length)
+            res.set("X-Query-Warnings", encodeURIComponent(JSON.stringify(warnings)))
+        res.send(results)
+        return logger.info("Raw query finished")
+    }
     logger.info("Query mongo")
     logger.debug("format ", req.query.format)
     if (req.query.format == "JSON") {
@@ -44,6 +51,11 @@ const querySQL = async (req, res) => {
 module.exports = {
 
     queryMongo,
+
+    // What the configuration leaves out of the simple search (shown by the frontend as a warning)
+    simpleSearchLimits: async (req, res) => {
+        res.send({ warnings: service.simpleSearchLimits() })
+    },
 
     querySQL,
 

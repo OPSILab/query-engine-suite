@@ -61,10 +61,36 @@ export class GraphqlEditorComponent implements OnInit {
   // note in the backend's buildCachePrefix() for why a datapoints query with
   // neither `source` nor `survey` (nor `dimensions`) currently fails there.
   @Input() examples: GqlExample[] = [
+    // sources: filter (MongoDB filter as JSON, a """block string""" needs no escaping), name, source,
+    // limit (default 100), skip; doc returns the stored document - see the Query-Engine's typeDefs.js.
     { label: 'Available sources', query: `query {
-  sources {
+  sourcesCount
+  sources(limit: 20) {
     id
     name
+    source
+  }
+}` },
+    { label: 'Sources with their data', query: `query {
+  sources(limit: 5) {
+    name
+    doc
+  }
+}` },
+    { label: 'Public files, filtered', query: `query {
+  sources(
+    filter: """{"record.bucketName": "public-data"}"""
+    limit: 10
+  ) {
+    name
+    doc(fields: ["json", "csv"])
+  }
+}` },
+    { label: 'API records by name', query: `query {
+  sources(name: "rome", limit: 10) {
+    name
+    source
+    doc
   }
 }` },
     { label: 'Online purchase — Severozapaden', query: `query {

@@ -7,6 +7,7 @@ const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
 const logger = require("percocologger")
 const { objectFilter } = require("../services/visibility")
+const { sourcesQuery, limits } = require("./sourcesQuery")
 
 // Same scoping as the REST queries: everything with disableAuth, otherwise only the documents the user may see
 // for the visibility header (prefix and bucket are set on req.body by the auth middleware, see index.js).
@@ -43,8 +44,14 @@ function scalarOrNull(value) {
 
 const resolvers = {
   Query: {
+    // filter / name / source / limit / skip: see sourcesQuery.js. The visibility is part of the MongoDB query
+    // (limit and skip apply to what the user may see) and every document is checked again with objectFilter.
     sources: async (parent, args, { req }) => {
-      return (await Source.find()).filter(doc => visibleTo(req, doc));
+      const { limit, skip } = limits(args)
+      return (await Source.find(sourcesQuery(args, req)).skip(skip).limit(limit)).filter(doc => visibleTo(req, doc));
+    },
+    sourcesCount: async (parent, args, { req }) => {
+      return await Source.countDocuments(sourcesQuery(args, req));
     },
     source: async (parent, { id }, { req }) => {
       const doc = await Source.findById(id);

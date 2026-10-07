@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 
 router.post(encodeURI("/query"), auth, bodyCheck, controller.query)//, controller.queryMongo)
 router.get(encodeURI("/query"), auth, controller.queryMongo)
+router.get(encodeURI("/query/simple/limits"), auth, controller.simpleSearchLimits)
 router.get(encodeURI("/keys"), auth, controller.getKeys)
 router.get(encodeURI("/values"), auth, controller.getValues)
 router.get(encodeURI("/entries"), auth, controller.getEntries)

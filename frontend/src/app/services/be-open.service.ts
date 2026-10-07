@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { ConfigService } from "./config.service";
-import { Observable } from "rxjs";
+import { Observable, Subject, firstValueFrom, map } from "rxjs";
 import { BeopenUser } from "../model/beopen-user";
 import { QueryRequest } from "../data-space/query-engine/request-snippets";
 
@@ -17,10 +17,36 @@ export function definedHeaders(headers: Record<string, any>): Record<string, str
   return out;
 }
 
+/**
+ * What a query did not search or returned incomplete, as sent by the Query-Engine (Simple search): in the
+ * X-Query-Warnings header of a query, or from /api/query/simple/limits. "config": left out by the configuration
+ * (e.g. Orion disabled); "runtime": happened during this query (an API unreachable, results truncated...).
+ */
+export interface QueryWarning {
+  kind: "config" | "runtime";
+  code: string;
+  source?: string;
+  message: string;
+}
+
+/** X-Query-Warnings: URI-encoded JSON array. Anything unreadable counts as no warning. */
+export function parseQueryWarnings(header: string | null | undefined): QueryWarning[] {
+  if (!header) return [];
+  try {
+    const warnings = JSON.parse(decodeURIComponent(header));
+    return Array.isArray(warnings) ? warnings.filter(w => w && typeof w.code === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 @Injectable({
   providedIn: "root",
 })
 export class BeopenAPIService {
+  /** Warnings sent with the response of a query (see QueryWarning). */
+  readonly queryWarnings$ = new Subject<QueryWarning[]>();
+
   private apiBaseUrl: string;
   queryEngineBaseUrl: string;
   /**
@@ -102,7 +128,19 @@ export class BeopenAPIService {
       body: request.body,
       params: new HttpParams({ fromObject: request.params }),
       headers: new HttpHeaders(definedHeaders(request.headers)),
-    });
+      observe: "response",
+    }).pipe(map(response => {
+      const warnings = parseQueryWarnings(response.headers?.get("X-Query-Warnings"));
+      if (warnings.length) this.queryWarnings$.next(warnings);
+      return response.body;
+    }));
+  }
+
+  /** What the configuration leaves out of the Simple search ([] with a Query-Engine that doesn't report it). */
+  getSimpleSearchLimits(): Promise<QueryWarning[]> {
+    return firstValueFrom(this.http.get<{ warnings: QueryWarning[] }>(`${this.queryEngineBaseUrl}/api/query/simple/limits`))
+      .then(res => (Array.isArray(res?.warnings) ? res.warnings : []))
+      .catch(() => []);
   }
 
 

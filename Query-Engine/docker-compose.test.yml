@@ -1,0 +1,20 @@
+# Throwaway MongoDB for the tests (test/helpers/db.js), same image as production.
+#   npm run test:db        start it and wait until it is healthy
+#   npm test
+#   npm run test:db:down   stop and remove it (data lives in tmpfs, nothing is kept)
+# Also used by .github/workflows/tests-query-engine.yml.
+# Port 27019: no clash with a local MongoDB nor with the Source-Connector test databases (27018 / 5433).
+name: query-engine-test
+
+services:
+  mongo:
+    image: mongo:4.4
+    ports:
+      - "27019:27017"
+    tmpfs:
+      - /data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

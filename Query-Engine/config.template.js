@@ -84,7 +84,21 @@ module.exports = {
     simpleSearch: true,
     advancedSearch: true,
     SQLQuery: true,
-    graphQLQuery: true
+    graphQLQuery: true,
+    graphQLDefaultLimit: 100, // GraphQL sources: documents returned when the query has no limit
+    graphQLMaxLimit: 1000     // GraphQL sources: highest accepted limit
+  },
+  // Simple search: besides the MinIO files, the APIs of apiConnectorConfig.apiUrls (same format as in the
+  // Source-Connector config; an API with simpleSearch: false is skipped) and Orion are searched live.
+  // What is left out is reported to the frontend, which shows it as a warning.
+  simpleSearchOptions: {
+    minio: true,
+    api: true,
+    orion: false,          // every Orion entity points to a whole dataset, downloaded (and mapped, with a mapID) at every search
+    maxPages: 20,          // pages read from a paginated API
+    maxOrionEntities: 20,  // Orion entities downloaded per search
+    maxResults: 1000,      // results of the API / Orion sources
+    timeout: 30000         // ms, per request
   },
   apiConnectorConfig: {
     upsertRecords: false,

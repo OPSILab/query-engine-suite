@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input
 import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
-import { BeopenAPIService } from '../../services/be-open.service';
+import { BeopenAPIService, QueryWarning } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
 import { UntypedFormGroup, UntypedFormControl } from '@angular/forms';
@@ -128,6 +128,10 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
   // Same condition TokenInterceptor uses to add the Authorization header.
   authEnabled = false;
 
+  // Simple search: what the configuration leaves out (shown under the search field) - see QueryWarning.
+  simpleSearchLimits: QueryWarning[] = [];
+  private queryWarningsSub?: Subscription;
+
   constructor(
     private zone: NgZone,
     private beopenAPI: BeopenAPIService,
@@ -155,6 +159,13 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     this.getUser();
+    this.beopenAPI.getSimpleSearchLimits().then(warnings => this.simpleSearchLimits = warnings.filter(w => w.kind === "config"));
+    // the configuration ones are already listed under the field: only what happened during the query
+    this.queryWarningsSub = this.beopenAPI.queryWarnings$.subscribe(warnings => {
+      const runtime = warnings.filter(w => w.kind === "runtime");
+      if (runtime.length)
+        this.createToastr('warning', this.tr("Simple search incomplete"), runtime.map(w => this.warningText(w)).join(" — "));
+    });
     try {
       // Strings are kept as they are: with more than 500 keys/values the backend answers
       // ["Too many suggestions..."] instead of {key}/{value} objects, and the autocomplete
@@ -639,7 +650,32 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stuckObserver.observe(this.panelEnd.nativeElement);
   }
 
+  /**
+   * Limits to show under the Simple search field. API / Orion records are public data, searched only with the
+   * Public visibility (or with authentication disabled): their limits don't apply to Private / Shared searches.
+   */
+  get shownSimpleSearchLimits(): QueryWarning[] {
+    const liveSourcesSearched = !this.authEnabled || this.visibility === "public";
+    return this.simpleSearchLimits.filter(w => w.code === "MINIO_DISABLED" || liveSourcesSearched);
+  }
+
+  /** Translated text of a warning ("Simple search warning <CODE>", with {{source}}), else the backend's message. */
+  warningText(w: QueryWarning): string {
+    const key = `Simple search warning ${w.code}`;
+    const text = this.tr(key, { source: w.source ?? "" });
+    return text && text !== key ? text : w.message;
+  }
+
+  private tr(key: string, params?: object): string {
+    try {
+      return this.translation?.instant?.(key, params) ?? key;
+    } catch {
+      return key;
+    }
+  }
+
   ngOnDestroy(): void {
+    this.queryWarningsSub?.unsubscribe();
     clearTimeout(this.snippetCopiedTimer);
     this.pendingQuery?.unsubscribe();
     clearInterval(this.loadingTimer);

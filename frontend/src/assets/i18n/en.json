@@ -93,5 +93,16 @@
   "Copy": "Copy",
   "Download": "Download",
   "Close": "Close",
-  "Fill the form with a key and a value that exist in your data": "Fill the form with a key and a value that exist in your data"
+  "Fill the form with a key and a value that exist in your data": "Fill the form with a key and a value that exist in your data",
+  "Simple search limits title": "Not searched by the Simple search",
+  "Simple search incomplete": "Simple search incomplete",
+  "Simple search warning MINIO_DISABLED": "MinIO files (disabled in the configuration)",
+  "Simple search warning API_DISABLED": "API sources (disabled in the configuration)",
+  "Simple search warning API_EXCLUDED": "API \"{{source}}\" (excluded in the configuration)",
+  "Simple search warning ORION_DISABLED": "Orion sources (disabled in the configuration)",
+  "Simple search warning API_ERROR": "API \"{{source}}\" could not be searched",
+  "Simple search warning API_TRUNCATED": "API \"{{source}}\": only its first pages were searched",
+  "Simple search warning ORION_ERROR": "Orion ({{source}}) could not be searched",
+  "Simple search warning ORION_TRUNCATED": "Only the first Orion entities were searched",
+  "Simple search warning MAX_RESULTS": "Too many results from the APIs / Orion: only the first ones are shown"
 }
