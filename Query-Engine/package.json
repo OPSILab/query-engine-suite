@@ -4,7 +4,7 @@
   "description": "sql",
   "main": "index.js",
   "scripts": {
-    "test": "npm test",
+    "test": "node --test \"test/**/*.test.js\"",
     "start": "nodemon index.js"
   },
   "repository": {

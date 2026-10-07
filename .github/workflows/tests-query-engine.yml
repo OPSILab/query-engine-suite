@@ -1,0 +1,42 @@
+name: Tests Query Engine
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'Query-Engine/**'
+      - '.github/workflows/tests-query-engine.yml'
+  pull_request:
+    paths:
+      - 'Query-Engine/**'
+      - '.github/workflows/tests-query-engine.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    defaults:
+      run:
+        working-directory: Query-Engine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: Query-Engine/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # No database: visibility, auth, GraphQL and suggestions are tested with the models stubbed
+      - name: Test
+        run: npm test

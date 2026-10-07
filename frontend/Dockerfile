@@ -18,8 +18,10 @@ WORKDIR /app
 
 # Copied on their own first, so this layer stays cached until the lockfile
 # actually changes - `COPY . .` below would otherwise invalidate the install
-# on every source edit.
-COPY package.json package-lock.json .npmrc ./
+# on every source edit. Which dependencies may run install scripts is the
+# "allowScripts" field of package.json (no .npmrc: npm >= 11.16 rejects
+# allow-scripts there with EALLOWSCRIPTS).
+COPY package.json package-lock.json ./
 
 # `npm ci`, not `npm install`: installs exactly what package-lock.json pins and
 # fails if package.json and the lockfile have drifted apart, which is what you

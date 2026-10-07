@@ -1,7 +1,7 @@
 {
   "defaultTheme": "smartera",
   "fontScale": 1.15,
-  "enableAuthentication": true,
+  "enableAuthentication": false,
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",
   "queryEngineBaseUrl": "http://localhost:3001",

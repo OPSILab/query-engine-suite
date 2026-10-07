@@ -1,0 +1,53 @@
+name: Tests Source Connector
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'Source-Connector/**'
+      - '.github/workflows/tests-source-connector.yml'
+  pull_request:
+    paths:
+      - 'Source-Connector/**'
+      - '.github/workflows/tests-source-connector.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    defaults:
+      run:
+        working-directory: Source-Connector
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: Source-Connector/package-lock.json
+
+      # Same compose file used locally (npm run test:db): MongoDB 4.4 on 27018, PostgreSQL 16 on 5433
+      - name: Start test databases
+        run: npm run test:db
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Database logs
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs
+
+      - name: Stop test databases
+        if: always()
+        run: npm run test:db:down
