@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
-import { Observable, Subscription, defer, finalize } from 'rxjs';
+import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
 import { BeopenAPIService } from '../../services/be-open.service';
@@ -212,16 +212,87 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
     item.type = t;
   }
 
-  demo() {
-    this.lines = [
-      {
-        "key": "a",
-        "value": "a1",
-        "type": "String"
+  // ---- Demo: fills the form with a key/value pair that really exists in the backend
+
+  demoLoading = false;
+  // Used only when the backend can't offer a real pair (too many keys to list, nothing indexed, errors).
+  private static readonly DEMO_FALLBACK = { key: "a", value: "a1" };
+  // Technical fields added by the Source-Connector: valid keys, but poor examples - tried only as a last resort.
+  private static readonly DEMO_TECHNICAL_KEYS = new Set(["source", "sourceId", "source_original", "sourceId_original", "datePolled", "record", "name", "_id", "id"]);
+  private static readonly DEMO_MAX_KEYS_TRIED = 4;
+
+  async demo(): Promise<void> {
+    if (this.demoLoading) return;
+    this.demoLoading = true;
+    try {
+      const pair = await this.pickDemoPair();
+      const type = pair ? await this.pickDemoFormat(pair.key, pair.value) : "JSON";
+      const { key, value } = pair || QueryEngineComponent.DEMO_FALLBACK;
+      // New objects: the @for tracks them by identity, so the rows (and their autocompletes) are re-created
+      // and show the new values.
+      this.lines = [{ key, value, type: "String" }];
+      this.value = value;
+      this.type = type;
+    } finally {
+      this.demoLoading = false;
+    }
+  }
+
+  /**
+   * getKeys(), then getEntries(key) for a few random keys (data keys first) until one has values: returns
+   * that key and one of its values. null when the backend answers "too many suggestions" (or has nothing).
+   */
+  private async pickDemoPair(): Promise<{ key: string; value: string } | null> {
+    let keysResponse: any[];
+    try {
+      keysResponse = await this.beopenAPI.getKeys();
+    } catch {
+      return null;
+    }
+    const tooMany = Array.isArray(keysResponse) && keysResponse.length === 1 && typeof keysResponse[0] === "string"
+      && keysResponse[0].startsWith("Too many suggestions");
+    if (!Array.isArray(keysResponse) || !keysResponse.length || tooMany) return null;
+
+    const keys = Array.from(new Set(keysResponse.map(k => typeof k === "string" ? k : k?.key).filter(k => typeof k === "string" && k)));
+    const shuffle = (a: string[]) => a.map(v => [Math.random(), v] as [number, string]).sort((x, y) => x[0] - y[0]).map(([, v]) => v);
+    const technical = QueryEngineComponent.DEMO_TECHNICAL_KEYS;
+    const candidates = [...shuffle(keys.filter(k => !technical.has(k))), ...shuffle(keys.filter(k => technical.has(k)))]
+      .slice(0, QueryEngineComponent.DEMO_MAX_KEYS_TRIED);
+
+    for (const key of candidates) {
+      let entries: any[];
+      try {
+        entries = await this.beopenAPI.getEntries(key, "");
+      } catch {
+        continue; // e.g. a key the backend's prefix regex can't digest
       }
-    ];
-    this.value = "a1";
-    this.type = "JSON";
+      // getEntries matches the key by prefix: keep only this exact key
+      const values = (entries || [])
+        .filter(e => e?.key === key && e.value !== undefined && e.value !== null && e.value !== "")
+        .map(e => typeof e.value === "string" ? e.value : JSON.stringify(e.value));
+      // short, plain values make a nicer example than whole JSON objects
+      const nice = values.filter(v => v.length <= 80 && !/^[\[{]/.test(v));
+      const pool = nice.length ? nice : values;
+      if (pool.length) return { key, value: pool[Math.floor(Math.random() * pool.length)] };
+    }
+    return null;
+  }
+
+  /**
+   * The format (file type pill) under which the pair actually finds results: entries come from CSV rows, JSON
+   * arrays, GeoJSON properties or plain JSON objects (no format), and only the right one matches.
+   */
+  private async pickDemoFormat(key: string, value: string): Promise<string | undefined> {
+    for (const format of ["JSON", "CSV", "GeoJSON", undefined]) {
+      try {
+        const result = await firstValueFrom(this.beopenAPI.minioQuery("Advanced search", value, { [key]: value }, "", this.visibility, format));
+        const items = Array.isArray(result) ? result : (result?.results || result?.data || result?.items || []);
+        if (items.length) return format;
+      } catch {
+        // try the next format
+      }
+    }
+    return "JSON";
   }
 
   minioQuery(all: Boolean) {

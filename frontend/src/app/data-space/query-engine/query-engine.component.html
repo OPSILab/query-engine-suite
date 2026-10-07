@@ -26,7 +26,8 @@
         >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
       </button>
-      <button type="button" class="ds-ghost-button" (click)="demo()">Demo</button>
+      <button type="button" class="ds-ghost-button" [disabled]="demoLoading" [attr.aria-busy]="demoLoading"
+        [title]="'Fill the form with a key and a value that exist in your data' | translate" (click)="demo()">{{ demoLoading ? 'Demo…' : 'Demo' }}</button>
     </div>
   </div>
 

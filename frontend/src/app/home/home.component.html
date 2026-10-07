@@ -19,7 +19,9 @@
         }
       </select>
       <app-theme-picker></app-theme-picker>
-      <a class="ds-link" routerLink="/keycloak-auth/logout">{{ 'Logout' | translate }}</a>
+      @if (authEnabled) {
+        <a class="ds-link" routerLink="/keycloak-auth/logout">{{ 'Logout' | translate }}</a>
+      }
     </div>
   </div>
 

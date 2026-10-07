@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, ElementRef, HostListener, Injector, NgZone, OnDestroy, ViewChild, afterNextRender } from '@angular/core';
 import { ThemeService } from '../services/theme.service';
+import { ConfigService } from '../services/config.service';
 
 const RESULTS_VIEW_KEY = 'data-space-results-view';
 
@@ -70,7 +71,13 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
 
   // public: was read by the old light/dark toggle in the template; the
   // theme menu (app-theme-picker) now uses the service directly.
-  constructor(public theme: ThemeService, private zone: NgZone, private injector: Injector) {}
+  // "enableAuthentication" in assets/config.json: without authentication nobody is logged in,
+  // so there's nothing to log out of and the Logout link is hidden.
+  readonly authEnabled: boolean;
+
+  constructor(public theme: ThemeService, private zone: NgZone, private injector: Injector, configService: ConfigService) {
+    this.authEnabled = !!configService.getSettings('enableAuthentication', false);
+  }
 
   ngAfterViewInit(): void {
     if (typeof IntersectionObserver === 'undefined') {

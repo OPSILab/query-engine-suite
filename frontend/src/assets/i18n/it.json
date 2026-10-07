@@ -92,5 +92,6 @@
   "Replace <TOKEN> with a valid access token.": "Sostituisci <TOKEN> con un token di accesso valido.",
   "Copy": "Copia",
   "Download": "Scarica",
-  "Close": "Chiudi"
+  "Close": "Chiudi",
+  "Fill the form with a key and a value that exist in your data": "Compila il form con una chiave e un valore presenti nei tuoi dati"
 }
