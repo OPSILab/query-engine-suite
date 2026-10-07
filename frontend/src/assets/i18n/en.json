@@ -81,5 +81,16 @@
   "Theme forest": "Forest",
   "Theme sunset": "Sunset",
   "Theme smartera": "Smartera",
-  "Theme cosmos": "Cosmos"
+  "Theme cosmos": "Cosmos",
+  "Generate curl / fetch / axios": "Generate curl / fetch / axios",
+  "Get the code to send this same request from a terminal or another app": "Get the code to send this same request from a terminal or another app",
+  "Request code": "Request code",
+  "Same request the app sends for the current search. Run it from a terminal or another app.": "Same request the app sends for the current search. Run it from a terminal or another app.",
+  "Find all (ignore the filters)": "Find all (ignore the filters)",
+  "Include my current access token": "Include my current access token",
+  "This code contains your access token: do not share it.": "This code contains your access token: do not share it.",
+  "Replace <TOKEN> with a valid access token.": "Replace <TOKEN> with a valid access token.",
+  "Copy": "Copy",
+  "Download": "Download",
+  "Close": "Close"
 }

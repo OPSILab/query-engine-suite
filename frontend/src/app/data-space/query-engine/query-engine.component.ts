@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { Observable, Subscription, defer, finalize } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
@@ -10,6 +10,9 @@ import { BeopenUser } from '../../model/beopen-user';
 import { Router } from '@angular/router';
 import { SharedService } from '../../services/shared.service';
 import { DataSpaceService } from '../data-space.service';
+import { NbAuthService } from '@nebular/auth';
+import { ConfigService } from '../../services/config.service';
+import { QueryRequest, SNIPPET_LANGS, SnippetLang, toSnippet } from './request-snippets';
 
 /**
  * Ported from the main dashboard's QueryEngineComponent
@@ -111,6 +114,20 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
   // entries on its own.
   autocompleteDataReady = false;
 
+  // "Generate curl / fetch / axios" dialog: the request the current form would send, as code.
+  readonly snippetLangs = SNIPPET_LANGS;
+  snippetOpen = false;
+  snippetLang: SnippetLang = 'curl';
+  snippetCode = '';
+  // Advanced search only: the request of "Find all" (no filters) instead of "Apply Query".
+  snippetFindAll = false;
+  // Off by default: a snippet with a real token is a credential, easy to paste in a chat or a ticket.
+  snippetIncludeToken = false;
+  snippetCopied = false;
+  private snippetCopiedTimer?: ReturnType<typeof setTimeout>;
+  // Same condition TokenInterceptor uses to add the Authorization header.
+  authEnabled = false;
+
   constructor(
     private zone: NgZone,
     private beopenAPI: BeopenAPIService,
@@ -118,8 +135,12 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
     private toastService: ToastService,
     private router: Router,
     private sharedService: SharedService,
-    private dataSpaceService: DataSpaceService
+    private dataSpaceService: DataSpaceService,
+    private nbAuth: NbAuthService,
+    private configService: ConfigService,
+    private host: ElementRef<HTMLElement>
   ) {
+    this.authEnabled = !!this.configService.getSettings('enableAuthentication', false);
     this.form = new UntypedFormGroup({
       mode: new UntypedFormControl(this.modes[1])
     });
@@ -213,16 +234,7 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
       this.runGraphqlQuery(all ? 'all' : 'query');
       return;
     }
-    let mongoQuery = {};
-    if (!all)
-      for (let l of this.lines) {
-        if (l.type == "Date")
-          mongoQuery[l.key] = JSON.stringify({
-            $gte: new Date(l.from),
-            $lte: new Date(l.to),
-          });
-        else mongoQuery[l.key] = l.value;
-      }
+    const mongoQuery = this.buildMongoQuery(all);
     this.pendingQuery = this.track(all ? 'all' : 'query', this.beopenAPI.minioQuery(this.mode, this.value, mongoQuery, this.sqlQuery, this.visibility, this.type)).subscribe(queryResult => {
       this.generalSharedBucketObjects = [];
       this.pilotSharedBucketObjects = [];
@@ -326,6 +338,115 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
       console.error("Query error", err);
       this.createToastr('danger', "Error querying objects", err.error);
     });
+  }
+
+  /** Advanced search filters as sent to the backend ("Find all" = no filters). */
+  private buildMongoQuery(all: Boolean): any {
+    let mongoQuery = {};
+    if (!all)
+      for (let l of this.lines) {
+        if (l.type == "Date")
+          mongoQuery[l.key] = JSON.stringify({
+            $gte: new Date(l.from),
+            $lte: new Date(l.to),
+          });
+        else mongoQuery[l.key] = l.value;
+      }
+    return mongoQuery;
+  }
+
+  // ---- "Generate curl / fetch / axios" dialog
+
+  openSnippet(): void {
+    this.snippetFindAll = false;
+    this.snippetCopied = false;
+    this.refreshSnippet();
+    this.snippetOpen = true;
+    setTimeout(() => this.host.nativeElement.querySelector<HTMLElement>('.ds-modal')?.focus());
+  }
+
+  closeSnippet(): void {
+    this.snippetOpen = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.snippetOpen) this.closeSnippet();
+  }
+
+  setSnippetLang(lang: SnippetLang): void {
+    this.snippetLang = lang;
+    this.refreshSnippet();
+  }
+
+  refreshSnippet(): void {
+    this.snippetCopied = false;
+    const request = this.currentRequest();
+    this.snippetCode = request ? toSnippet(this.snippetLang, request, this.snippetAuthHeader()) : '';
+  }
+
+  /** The request "Apply Query" (or "Find all", see snippetFindAll) would send right now. */
+  private currentRequest(): QueryRequest | undefined {
+    if (this.mode === "Query GraphQL")
+      return this.beopenAPI.buildGraphqlRequest(this.graphqlText);
+    const all = this.mode === "Advanced search" && this.snippetFindAll;
+    return this.beopenAPI.buildQueryRequest(this.mode, this.value, this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type);
+  }
+
+  private snippetAuthHeader(): string | null {
+    if (!this.authEnabled) return null;
+    const token = this.snippetIncludeToken ? this.currentAccessToken() : null;
+    return `Bearer ${token || '<TOKEN>'}`;
+  }
+
+  // Read the same way TokenInterceptor does (NbAuthService emits the stored token synchronously).
+  private currentAccessToken(): string | null {
+    let token: string | null = null;
+    this.nbAuth.getToken().subscribe((t: any) => token = t?.getPayload?.()?.access_token || null).unsubscribe();
+    return token;
+  }
+
+  // In the component, not the template: "<TOKEN>" inside {{ }} is read as an HTML tag by the template parser.
+  get snippetTokenNote(): string {
+    return this.snippetIncludeToken
+      ? 'This code contains your access token: do not share it.'
+      : 'Replace <TOKEN> with a valid access token.';
+  }
+
+  get snippetFileName(): string {
+    const lang = this.snippetLangs.find(l => l.id === this.snippetLang);
+    return `query-engine-request.${lang?.extension || 'txt'}`;
+  }
+
+  async copySnippet(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.snippetCode);
+    } catch {
+      // No navigator.clipboard outside secure contexts (plain http): old execCommand way.
+      const ta = document.createElement('textarea');
+      ta.value = this.snippetCode;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    this.snippetCopied = true;
+    clearTimeout(this.snippetCopiedTimer);
+    this.snippetCopiedTimer = setTimeout(() => this.snippetCopied = false, 1600);
+  }
+
+  downloadSnippet(): void {
+    const url = URL.createObjectURL(new Blob([this.snippetCode], { type: 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = this.snippetFileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url));
   }
 
   runGraphqlQuery(kind: 'query' | 'all' = 'query'): void {
@@ -448,6 +569,7 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.snippetCopiedTimer);
     this.pendingQuery?.unsubscribe();
     clearInterval(this.loadingTimer);
     this.stuckObserver?.disconnect();

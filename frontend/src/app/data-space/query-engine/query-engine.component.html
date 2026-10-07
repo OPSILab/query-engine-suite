@@ -156,6 +156,16 @@
         }
         {{ "Find all" | translate }}
       </button>
+      <button
+        type="button"
+        class="ds-primary-button ds-primary-button--secondary"
+        [disabled]="mode == 'Query GraphQL' && graphqlBlocked"
+        [title]="'Get the code to send this same request from a terminal or another app' | translate"
+        (click)="openSnippet()"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 4l-3 16"/></svg>
+        {{ "Generate curl / fetch / axios" | translate }}
+      </button>
 
       <!-- role="status": screen readers announce it when a query starts.
            After 3 s it switches to the elapsed time, so a slow backend reads
@@ -173,6 +183,61 @@
        is below the visible area, i.e. whether the action row is floating. -->
   <div #panelEnd class="ds-panel__end" aria-hidden="true"></div>
 </div>
+
+<!-- "Generate curl / fetch / axios": the request the current form would send, as code to replay it elsewhere. -->
+@if (snippetOpen) {
+  <div class="ds-modal-backdrop" (click)="closeSnippet()">
+    <div class="ds-modal" role="dialog" aria-modal="true" aria-labelledby="ds-snippet-title" tabindex="-1" (click)="$event.stopPropagation()">
+      <div class="ds-modal__header">
+        <h2 id="ds-snippet-title" class="ds-modal__title">{{ 'Request code' | translate }}</h2>
+        <button type="button" class="ds-icon-button" [attr.aria-label]="'Close' | translate" (click)="closeSnippet()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <p class="ds-modal__hint">{{ 'Same request the app sends for the current search. Run it from a terminal or another app.' | translate }}</p>
+
+      <div class="ds-modal__toolbar">
+        <div class="ds-tabs" role="tablist">
+          @for (l of snippetLangs; track l.id) {
+            <button type="button" role="tab" class="ds-tab" [class.ds-tab--active]="snippetLang === l.id"
+              [attr.aria-selected]="snippetLang === l.id" (click)="setSnippetLang(l.id)">{{ l.label }}</button>
+          }
+        </div>
+        <div class="ds-modal__options">
+          @if (mode == 'Advanced search') {
+            <label class="ds-check">
+              <input type="checkbox" [(ngModel)]="snippetFindAll" (ngModelChange)="refreshSnippet()" />
+              {{ 'Find all (ignore the filters)' | translate }}
+            </label>
+          }
+          @if (authEnabled) {
+            <label class="ds-check">
+              <input type="checkbox" [(ngModel)]="snippetIncludeToken" (ngModelChange)="refreshSnippet()" />
+              {{ 'Include my current access token' | translate }}
+            </label>
+          }
+        </div>
+      </div>
+
+      @if (authEnabled) {
+        <p class="ds-modal__note" [class.ds-modal__note--warn]="snippetIncludeToken">
+          {{ snippetTokenNote | translate }}
+        </p>
+      }
+
+      <pre class="ds-code"><code>{{ snippetCode }}</code></pre>
+
+      <div class="ds-modal__actions">
+        <button type="button" class="ds-primary-button" (click)="copySnippet()">
+          {{ (snippetCopied ? 'Copied' : 'Copy') | translate }}
+        </button>
+        <button type="button" class="ds-ghost-button" (click)="downloadSnippet()">
+          {{ 'Download' | translate }} ({{ snippetFileName }})
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 <ng-template #keyValueLine1 let-item="item" let-i="i">
   <div class="ds-field-row">
