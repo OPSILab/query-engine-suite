@@ -80,3 +80,21 @@
   background: transparent;
   color: var(--ds-text-faint);
 }
+
+// "Load more suggestions": the next page of the list
+.ds-autocomplete-option--more {
+  color: var(--ds-accent);
+  font-family: inherit;
+  font-weight: 500;
+}
+
+// "values of this key are not suggested" at the top of the value dropdown
+.ds-autocomplete-note {
+  color: #D97706;
+  white-space: normal;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.ds-autocomplete-note:hover {
+  color: #D97706;
+}

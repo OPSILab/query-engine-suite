@@ -19,7 +19,7 @@ describe('buildGqlExamples', () => {
       surveys: ['NAMA_10R_3GDP'],
     });
     expect(labels(examples)).toEqual([
-      'Available sources', 'Sources with their data', 'All sources, all fields (find all)',
+      'Available sources', 'API data only (Sources)', 'Sources with their data', 'All sources, all fields (find all)',
       'Filter: city = Rome', 'Filter: city = Rome, all fields', 'Name contains "Bike"', 'Records of Bike lanes Rome',
       'Datapoints — NAMA_10R_3GDP',
     ]);
@@ -46,16 +46,16 @@ describe('buildGqlExamples', () => {
       sources: { sample: { name: 'ab', doc: { record: { bucketName: 'x' }, quoted: 'say "hi"', long: 'x'.repeat(80), nested: { a: 1 }, ok: true } } },
       surveys: [],
     });
-    expect(labels(examples)).toEqual(['Available sources', 'Sources with their data', 'All sources, all fields (find all)', 'Filter: ok = true', 'Filter: ok = true, all fields']);
+    expect(labels(examples)).toEqual(['Available sources', 'API data only (Sources)', 'Sources with their data', 'All sources, all fields (find all)', 'Filter: ok = true', 'Filter: ok = true, all fields']);
   });
 
   it('no data / no datapoints: only the examples valid on any data', () => {
-    expect(labels(buildGqlExamples({ sources: {}, surveys: [] }))).toEqual(['Available sources', 'Sources with their data', 'All sources, all fields (find all)']);
+    expect(labels(buildGqlExamples({ sources: {}, surveys: [] }))).toEqual(['Available sources', 'API data only (Sources)', 'Sources with their data', 'All sources, all fields (find all)']);
   });
 
   it('surveys unreadable but sources readable: hardcoded datapoints examples only', () => {
     const examples = buildGqlExamples({ sources: {}, surveys: null });
-    expect(labels(examples).slice(3)).toEqual(labels(FALLBACK_GQL_EXAMPLES).slice(-3));
+    expect(labels(examples).slice(4)).toEqual(labels(FALLBACK_GQL_EXAMPLES).slice(-3));
     expect(labels(FALLBACK_GQL_EXAMPLES)).toContain('Public files, all fields');
   });
 

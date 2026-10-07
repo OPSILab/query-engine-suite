@@ -5,6 +5,7 @@
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",
   "queryEngineBaseUrl": "http://localhost:3001",
+  "collectionLabels": { "api": "Sources", "orion": "Datapoints", "minio": "Files" },
   "keycloak": {
     "authProfile": "oidc",
     "baseURL": "https://dx-lab.eng.it/auth/realms/smartera/protocol/openid-connect",

@@ -479,8 +479,38 @@ a.ds-external-link:hover .ds-external-link__icon {
   }
 }
 
+// under an Advanced search row (its key has values that are not suggested)
+.ds-search-limits--row {
+  margin-top: 6px;
+}
+
 .ds-search-limits__icon {
   flex: none;
   margin-top: 1px;
   color: #D97706;
+}
+
+// "Search in": the collections searched by Simple / Advanced search
+.ds-collections {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ds-pill--check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ds-pill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ds-collections__hint {
+  margin: 0;
+  color: #D97706;
+  font-size: calc(12px * var(--ds-font-scale));
 }

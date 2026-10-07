@@ -27,7 +27,8 @@
 
   <app-intro></app-intro>
 
-  <ngx-query-engine [visibility]="visibility" (loadingChange)="onSearchingChange($event)"
+  <ngx-query-engine #qe [visibility]="visibility" (loadingChange)="onSearchingChange($event)"
+    (hasMoreResultsChange)="moreResults = $event"
     (actionsStuckChange)="actionsStuck = $event" (extractedElementsChange)="extractedElements = $event; onResults()"
     (generalSharedBucketObjectsChange)="generalSharedBucketObjects = $event"
     (pilotSharedBucketObjectsChange)="pilotSharedBucketObjects = $event"
@@ -76,6 +77,10 @@
         <div #card class="ds-element-card" [class.ds-element-card--max]="fullscreenElement === el">
           <div class="ds-element-card__head">
             <span class="ds-element-card__name ds-mono">{{ el.name }}</span>
+            @if (el.collection) {
+            <!-- the collection of an Advanced search result: Sources (API), Datapoints (Orion), Files (MinIO) -->
+            <span class="ds-element-card__collection">{{ el.collection }}</span>
+            }
             <button type="button" class="ds-element-card__action"
               [class.ds-element-card__action--done]="copiedElement === el" (click)="copyElement(el)">
               @if (copiedElement === el) {
@@ -128,6 +133,13 @@
         }
       </div>
     </div>
+    }
+    <!-- Advanced search answers one page at a time: the next one is appended here. -->
+    @if (moreResults) {
+    <button type="button" class="ds-ghost-button ds-load-more" [disabled]="!!qe.loading"
+      [attr.aria-busy]="qe.loading === 'more'" (click)="qe.loadMoreResults()">
+      {{ (qe.loading === 'more' ? 'Loading more results' : 'Load more results') | translate }}
+    </button>
     }
   </div>
 

@@ -40,8 +40,8 @@ beforeEach(() => {
     config.apiConnectorConfig.apiUrls = [{ name: "Single", url: fake.url + "/single" }, { name: "Broken", url: fake.url + "/fail" }]
 })
 
-async function simpleSearch(value, { visibility = "public", token } = {}) {
-    const res = await fetch(`${baseUrl}/query?value=${encodeURIComponent(value)}`, {
+async function simpleSearch(value, { visibility = "public", token, collections } = {}) {
+    const res = await fetch(`${baseUrl}/query?value=${encodeURIComponent(value)}` + (collections !== undefined ? "&collections=" + collections : ""), {
         headers: { isRawQuery: "yes", visibility, ...(token ? { Authorization: "Bearer " + token } : {}) }
     })
     const header = res.headers.get("x-query-warnings")
@@ -108,5 +108,27 @@ describe("GET /api/query/simple/limits", () => {
     test("requires authentication when it is enabled", async () => {
         config.authConfig.disableAuth = false
         assert.equal((await fetch(baseUrl + "/query/simple/limits")).status, 401)
+    })
+})
+
+describe("collections", () => {
+    test("simple search on the chosen collections only (minio: the files, api / orion: live)", async () => {
+        const files = await simpleSearch("Rome", { collections: "minio" })
+        assert.deepEqual([files.body.map(r => r.name), files.warnings], [["rome.json"], []])
+        const api = await simpleSearch("Rome", { collections: "api" })
+        assert.deepEqual(api.body.map(r => r.name), ["Single"])
+        assert.deepEqual(api.warnings.map(w => w.code), ["API_ERROR"]) // ORION_DISABLED: Orion not chosen
+        assert.equal((await simpleSearch("Rome", { collections: "ftp" })).status, 400)
+    })
+
+    test("GET /api/collections: what each collection offers", async () => {
+        config.collections.orion.toMongo = false
+        config.simpleSearchOptions = { orion: true, api: false }
+        const res = await fetch(baseUrl + "/collections")
+        assert.deepEqual(await res.json(), { collections: [
+            { id: "api", advancedSearch: true, simpleSearch: false },
+            { id: "orion", advancedSearch: false, simpleSearch: true },
+            { id: "minio", advancedSearch: true, simpleSearch: true }
+        ] })
     })
 })

@@ -31,22 +31,24 @@ function apis() {
 
 const warning = (kind, code, message, source) => source === undefined ? { kind, code, message } : { kind, code, source, message }
 
-// What the configuration leaves out of the simple search
+// What the configuration leaves out of the simple search. `collection` (minio / api / orion): the collection the
+// warning is about, so that the frontend shows only those of the selected collections.
 function limits() {
     const o = options()
     const warnings = []
+    const add = (collection, w) => warnings.push({ ...w, collection })
     if (o.minio === false)
-        warnings.push(warning("config", "MINIO_DISABLED", "MinIO files are not searched (simpleSearchOptions.minio = false)"))
+        add("minio", warning("config", "MINIO_DISABLED", "MinIO files are not searched (simpleSearchOptions.minio = false)"))
     if (o.api === false) {
         if (apis().length)
-            warnings.push(warning("config", "API_DISABLED", "API sources are not searched (simpleSearchOptions.api = false)"))
+            add("api", warning("config", "API_DISABLED", "API sources are not searched (simpleSearchOptions.api = false)"))
     }
     else
         for (const api of apis())
             if (api.simpleSearch === false)
-                warnings.push(warning("config", "API_EXCLUDED", `API "${api.name}" is not searched (simpleSearch: false)`, api.name))
+                add("api", warning("config", "API_EXCLUDED", `API "${api.name}" is not searched (simpleSearch: false)`, api.name))
     if (o.orion !== true)
-        warnings.push(warning("config", "ORION_DISABLED", "Orion sources are not searched (simpleSearchOptions.orion = false)"))
+        add("orion", warning("config", "ORION_DISABLED", "Orion sources are not searched (simpleSearchOptions.orion = false)"))
     return warnings
 }
 
@@ -274,7 +276,8 @@ const matches = (item, value) => !value || (typeof item === "string" ? item : JS
 
 // Records of the APIs (and of Orion, if enabled) containing `value`, shaped like the MinIO simple search results
 // ({ raw, name, record }) with record.from = origin: they are public data (visibility.isApiRecord).
-async function searchLive(value, warnings = []) {
+// which: { api, orion } - the live sources to search (the collections selected by the user), both by default
+async function searchLive(value, warnings = [], which = { api: true, orion: true }) {
     const o = options()
     const results = []
     let full = false
@@ -290,7 +293,7 @@ async function searchLive(value, warnings = []) {
     }
 
     const searches = []
-    if (o.api !== false)
+    if (o.api !== false && which.api !== false)
         for (const api of apis().filter(api => api.simpleSearch !== false))
             searches.push((async () => {
                 try {
@@ -307,7 +310,7 @@ async function searchLive(value, warnings = []) {
                 }
             })())
 
-    if (o.orion === true)
+    if (o.orion === true && which.orion !== false)
         searches.push((async () => {
             let listed
             try {

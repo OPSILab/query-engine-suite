@@ -1,19 +1,32 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { firstValueFrom } from 'rxjs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AutocompleteComponent } from './autocomplete.component';
+import { SUGGESTIONS_PAGE_SIZE } from '../../../services/be-open.service';
 
-const LOADING = 'loading...';
-const TOO_MANY = 'Too much suggestions. Type more characters in order to reduce them';
-const BACKEND_TOO_MANY = ['Too many suggestions. Type some characters in order to reduce them'];
-
-// getKeys/getValues/getEntries resolve with what the test sets in `answers`
-function fakeApi(answers: { keys?: any; values?: any; entries?: any } = {}) {
+// Paged backend over in-memory keys / values / entries (prefix and exact matches case insensitive, like the
+// Query-Engine). Records every call.
+function fakeApi(data: { keys?: string[]; values?: string[]; entries?: { key: string; value: string }[] } = {}, fail = false) {
   const calls: any[] = [];
+  const starts = (text: string, prefix: string) => text.toLowerCase().startsWith(prefix.toLowerCase());
+  const equals = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const page = <T>(all: T[], skip: number, limit: number) => ({ items: all.slice(skip, skip + limit), hasMore: all.length > skip + limit });
   return {
     calls,
-    getKeys: vi.fn(async (v?: string) => { calls.push(['getKeys', v]); return answers.keys ?? []; }),
-    getValues: vi.fn(async (v?: string) => { calls.push(['getValues', v]); return answers.values ?? []; }),
-    getEntries: vi.fn(async (k?: string, v?: string) => { calls.push(['getEntries', k, v]); return answers.entries ?? []; }),
+    getKeys: vi.fn(async (prefix = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE, collections?: string[]) => {
+      calls.push(['keys', prefix, skip]);
+      if (collections) calls.push(['collections', collections]);
+      if (fail) throw new Error('HTTP 500');
+      return page((data.keys ?? []).filter(k => starts(k, prefix)), skip, limit);
+    }),
+    getValues: vi.fn(async (prefix = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE) => {
+      calls.push(['values', prefix, skip]);
+      return page((data.values ?? []).filter(v => starts(v, prefix)), skip, limit);
+    }),
+    getEntries: vi.fn(async (key = '', value = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE, exact: { key?: boolean; value?: boolean } = {}, collections?: string[]) => {
+      calls.push(['entries', key, value, skip, exact]);
+      if (collections) calls.push(['collections', collections]);
+      const match = (field: string, text: string, isExact?: boolean) => isExact ? equals(field, text) : starts(field, text);
+      return page((data.entries ?? []).filter(e => match(e.key, key, exact.key) && match(e.value, value, exact.value)), skip, limit);
+    }),
   };
 }
 
@@ -25,37 +38,23 @@ function create(mode: 'key' | 'value', api = fakeApi(), init: Partial<Autocomple
   host.appendChild(textarea);
   document.body.appendChild(host);
   const cdr = { markForCheck: vi.fn() };
-  const comp = new AutocompleteComponent({} as any, api as any, {} as any, {} as any, cdr as any, { nativeElement: host } as any);
+  const comp = new AutocompleteComponent(api as any, cdr as any, { nativeElement: host } as any);
   comp.input = { nativeElement: textarea };
   comp.mode = mode;
-  comp.key = '';
-  comp.v = '';
-  comp.options = [];
-  comp.entries = [];
   Object.assign(comp, init);
   created.push(comp);
-  return { comp, api, textarea, host, cdr };
+  const emitted = { output: [] as any[], ver: [] as boolean[] };
+  comp.output.subscribe(v => emitted.output.push(v));
+  comp.ver.subscribe(v => emitted.ver.push(v));
+  return { comp, api, textarea, host, emitted };
 }
 
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
-const shown = (comp: AutocompleteComponent) => firstValueFrom(comp.filteredOptions$);
+const settle = () => new Promise(resolve => setTimeout(resolve));
 
-// Like the template's async pipe: subscribes once to every new filteredOptions$ (filter() runs - and
-// queries the backend - at subscription), until the suggestions settle. Returns what is shown last.
-async function settle(comp: AutocompleteComponent): Promise<any[]> {
-  let subscribed: any;
-  let last: any[] = [];
-  for (let i = 0; i < 10 && comp.filteredOptions$ !== subscribed; i++) {
-    subscribed = comp.filteredOptions$;
-    last = await firstValueFrom(subscribed);
-    await flush();
-  }
-  return last;
-}
-
-function type(comp: AutocompleteComponent, textarea: HTMLTextAreaElement, text: string) {
+async function type(comp: AutocompleteComponent, textarea: HTMLTextAreaElement, text: string) {
   textarea.value = text;
   comp.onInputEvent();
+  await settle();
 }
 
 afterEach(() => {
@@ -64,91 +63,171 @@ afterEach(() => {
   document.body.className = '';
 });
 
-describe('suggestions', () => {
-  it('empty field: the options loaded at startup, paired with the entries', async () => {
-    const { comp } = create('key', fakeApi(), {
-      cachedOptions: ['city', 'country', 'name'],
-      cachedEntries: [{ key: 'city', value: 'Rome' }, { key: 'name', value: 'x' }],
-    });
-    comp.onChange();
-    expect(await shown(comp)).toEqual(['city', 'name']); // "country" has no entry
+describe('suggestions, other field empty', () => {
+  it('focus on the empty field: first page of keys', async () => {
+    const { comp, api } = create('key', fakeApi({ keys: ['city', 'country', 'name'] }));
+    comp.onFocus();
+    expect(comp.loadingSuggestions).toBe(true);
+    await settle();
+    expect(comp.suggestions).toEqual(['city', 'country', 'name']);
+    expect(comp.hasMore).toBe(false);
+    expect(comp.loadingSuggestions).toBe(false);
+    expect(api.calls).toEqual([['keys', '', 0]]);
   });
 
-  it('"loading..." while waiting for the backend', async () => {
-    const { comp, textarea } = create('key', fakeApi());
-    type(comp, textarea, 'ci');
-    expect(await shown(comp)).toEqual([LOADING]);
+  it('typing: keys / values starting with the text; the text is sent to the parent at once', async () => {
+    const keys = create('key', fakeApi({ keys: ['city', 'cityCode', 'name'] }));
+    await type(keys.comp, keys.textarea, 'ci');
+    expect(keys.comp.suggestions).toEqual(['city', 'cityCode']);
+    expect(keys.emitted.output).toEqual(['ci']);
+    const values = create('value', fakeApi({ values: ['Rome', 'rovigo', 'Milan'] }));
+    await type(values.comp, values.textarea, 'RO');
+    expect(values.comp.suggestions).toEqual(['Rome', 'rovigo']);
   });
 
-  it('typing a key: getKeys, then getEntries, then the filtered keys', async () => {
-    const api = fakeApi({ keys: [{ key: 'city' }, { key: 'cityCode' }], entries: [{ key: 'city', value: 'Rome' }, { key: 'cityCode', value: 'RM' }] });
+  it('pages: "Load more" appends the next page, until there is no more', async () => {
+    const all = Array.from({ length: SUGGESTIONS_PAGE_SIZE * 2 + 5 }, (_, i) => 'k' + String(i).padStart(3, '0'));
+    const { comp, api } = create('key', fakeApi({ keys: all }));
+    comp.onFocus();
+    await settle();
+    expect(comp.suggestions.length).toBe(SUGGESTIONS_PAGE_SIZE);
+    expect(comp.hasMore).toBe(true);
+    await comp.loadMore();
+    await comp.loadMore();
+    expect(comp.suggestions).toEqual(all);
+    expect(comp.hasMore).toBe(false);
+    await comp.loadMore(); // nothing more: no request
+    expect(api.calls.map(c => c[2])).toEqual([0, SUGGESTIONS_PAGE_SIZE, SUGGESTIONS_PAGE_SIZE * 2]);
+  });
+
+  it('a new text starts again from the first page', async () => {
+    const all = Array.from({ length: SUGGESTIONS_PAGE_SIZE + 1 }, (_, i) => 'a' + i);
+    const { comp, textarea } = create('key', fakeApi({ keys: [...all, 'b1'] }));
+    comp.onFocus();
+    await settle();
+    await comp.loadMore();
+    await type(comp, textarea, 'b');
+    expect(comp.suggestions).toEqual(['b1']);
+  });
+
+  it('answers of an older text are ignored', async () => {
+    const api = fakeApi({ keys: ['alpha', 'beta'] });
+    let release!: () => void;
+    const slow = new Promise<void>(resolve => release = resolve);
+    const original = api.getKeys.getMockImplementation()!;
+    api.getKeys.mockImplementationOnce(async (...args: any[]) => { await slow; return original(...args); });
     const { comp, textarea } = create('key', api);
-    type(comp, textarea, 'ci');
-    expect(await settle(comp)).toEqual(['city', 'cityCode']);
-    expect(api.calls).toEqual([['getKeys', 'ci'], ['getEntries', 'ci', '']]);
+    textarea.value = 'a';
+    comp.onInputEvent();         // slow
+    await type(comp, textarea, 'b');
+    release();
+    await settle();
+    expect(comp.suggestions).toEqual(['beta']);
   });
 
-  it('backend "too many" answer: the too-many row right away, no getEntries', async () => {
-    const api = fakeApi({ keys: BACKEND_TOO_MANY });
-    const { comp, textarea } = create('key', api);
-    type(comp, textarea, 'a');
-    expect(await settle(comp)).toEqual([TOO_MANY]);
-    expect(api.getEntries).not.toHaveBeenCalled();
-  });
-
-  it('startup options that are the "too many" answer: too-many row on the empty field', async () => {
-    const { comp } = create('value', fakeApi(), { cachedOptions: BACKEND_TOO_MANY, cachedEntries: [] });
-    comp.onChange();
-    expect(await shown(comp)).toEqual([TOO_MANY]);
-  });
-
-  it('value field with the key chosen: values of exactly that key (no "sourceId" leaks)', async () => {
-    const api = fakeApi({
-      entries: [
-        { key: 'source', value: 'https://a' },
-        { key: 'sourceId', value: 'https://not-this' },
-        { key: 'source', value: 'https://b' },
-        { key: 'source', value: 42 },
-      ],
-    });
-    const { comp, textarea } = create('value', api, { key: 'source' });
-    type(comp, textarea, 'https');
-    expect(await settle(comp)).toEqual(['https://a', 'https://b']);
-    expect(api.calls).toEqual([['getEntries', 'source', 'https']]);
-  });
-
-  it('other field not an exact match: keeps the prefix matches', async () => {
-    const api = fakeApi({ entries: [{ key: 'barbecue', value: 'yes' }, { key: 'bar', value: 'yes' }] });
-    const { comp, textarea } = create('key', api, { v: 'y' });
-    type(comp, textarea, 'b');
-    expect(await settle(comp)).toEqual(['barbecue', 'bar']);
-    expect(api.calls).toEqual([['getEntries', 'b', 'y']]);
+  it('backend error: no suggestions, no endless loading', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => { });
+    const { comp } = create('key', fakeApi({}, true));
+    comp.onFocus();
+    await settle();
+    expect(comp.suggestions).toEqual([]);
+    expect(comp.loadingSuggestions).toBe(false);
   });
 });
 
-describe('selection', () => {
-  it('placeholders are not selectable', () => {
-    const { comp, textarea } = create('key');
-    const emitted: any[] = [];
-    comp.output.subscribe(v => emitted.push(v));
-    expect(comp.isPlaceholderOption(LOADING)).toBe(true);
-    expect(comp.isPlaceholderOption(TOO_MANY)).toBe(true);
-    comp.selectOption(LOADING);
-    expect(textarea.value).toBe('');
-    expect(emitted).toEqual([]);
+describe('preloaded first page (read by the parent at startup)', () => {
+  const preloaded = (items: string[], hasMore = false) => Promise.resolve({ items, hasMore });
+
+  it('focus on the empty field: the preloaded page, without a request; "Load more" goes on from it', async () => {
+    const all = Array.from({ length: SUGGESTIONS_PAGE_SIZE + 2 }, (_, i) => 'k' + String(i).padStart(3, '0'));
+    const { comp, api } = create('key', fakeApi({ keys: all }), { preloaded: preloaded(all.slice(0, SUGGESTIONS_PAGE_SIZE), true) });
+    comp.onFocus();
+    await Promise.resolve(); await Promise.resolve(); // microtasks only: ready before the next render
+    expect(comp.suggestions.length).toBe(SUGGESTIONS_PAGE_SIZE);
+    expect(api.calls).toEqual([]);
+    await comp.loadMore();
+    expect(comp.suggestions).toEqual(all);
+    expect(api.calls).toEqual([['keys', '', SUGGESTIONS_PAGE_SIZE]]);
   });
 
-  it('selecting an option fills the field and emits it immediately (before any backend round-trip)', () => {
-    const { comp, textarea, api } = create('key', fakeApi(), { options: ['city'] });
-    const emitted: any[] = [];
-    const verified: any[] = [];
-    comp.output.subscribe(v => emitted.push(v));
-    comp.ver.subscribe(v => verified.push(v));
+  it('not used with some text, nor with the other field filled', async () => {
+    const typed = create('value', fakeApi({ values: ['Rome', 'Milan'] }), { preloaded: preloaded(['Milan', 'Rome']) });
+    await type(typed.comp, typed.textarea, 'R');
+    expect(typed.comp.suggestions).toEqual(['Rome']);
+    const other = create('value', fakeApi({ entries: [{ key: 'city', value: 'Rome' }] }), { preloaded: preloaded(['Milan']), key: 'city' });
+    other.comp.onFocus();
+    await settle();
+    expect(other.comp.suggestions).toEqual(['Rome']);
+  });
+
+  it('a failed preload: the page is read now', async () => {
+    const failed = Promise.reject(new Error('HTTP 500'));
+    failed.catch(() => { });
+    const { comp, api } = create('key', fakeApi({ keys: ['city'] }), { preloaded: failed });
+    comp.onFocus();
+    await settle();
+    expect(comp.suggestions).toEqual(['city']);
+    expect(api.calls).toEqual([['keys', '', 0]]);
+  });
+});
+
+describe('suggestions, other field filled: only pairs that exist', () => {
+  const entries = [
+    { key: 'source', value: 'https://a' },
+    { key: 'sourceId', value: 'https://not-this' },
+    { key: 'source', value: 'https://b' },
+    { key: 'barbecue', value: 'yes' },
+    { key: 'bar', value: 'yes' },
+  ];
+
+  it('value field, key chosen and existing as it is: values of exactly that key', async () => {
+    const { comp, textarea, api } = create('value', fakeApi({ entries }), { key: 'source' });
+    await type(comp, textarea, 'https');
+    expect(comp.suggestions).toEqual(['https://a', 'https://b']);
+    expect(api.calls).toEqual([['entries', 'source', 'https', 0, { key: true }]]);
+  });
+
+  it('other field not existing as it is: prefix matches', async () => {
+    const { comp, textarea, api } = create('key', fakeApi({ entries }), { v: 'y' });
+    await type(comp, textarea, 'b');
+    expect(comp.suggestions).toEqual(['barbecue', 'bar']);
+    expect(api.calls).toEqual([['entries', 'b', 'y', 0, { value: true }], ['entries', 'b', 'y', 0, { value: false }]]);
+  });
+
+  it('"Load more" keeps the exact / prefix choice of the first page', async () => {
+    const many = Array.from({ length: SUGGESTIONS_PAGE_SIZE + 3 }, (_, i) => ({ key: 'source', value: 'v' + String(i).padStart(3, '0') }));
+    const { comp, api } = create('value', fakeApi({ entries: [...many, { key: 'sourceId', value: 'v999' }] }), { key: 'source' });
+    comp.onFocus();
+    await settle();
+    await comp.loadMore();
+    expect(comp.suggestions.length).toBe(SUGGESTIONS_PAGE_SIZE + 3);
+    expect(comp.suggestions).not.toContain('v999');
+    expect(api.calls.at(-1)).toEqual(['entries', 'source', '', SUGGESTIONS_PAGE_SIZE, { key: true }]);
+  });
+
+  it('the same value under several keys is listed once', async () => {
+    const { comp } = create('value', fakeApi({ entries: [{ key: 'a', value: 'x' }, { key: 'ab', value: 'x' }] }), { key: 'a' });
+    comp.onFocus();
+    await settle();
+    expect(comp.suggestions).toEqual(['x']);
+  });
+});
+
+describe('selection and verification', () => {
+  it('selecting fills the field and tells the parent at once', () => {
+    const { comp, textarea, emitted, api } = create('key');
     comp.selectOption('city');
     expect(textarea.value).toBe('city');
-    expect(emitted).toEqual(['city']);
-    expect(verified).toEqual([true]);
+    expect(emitted.output).toEqual(['city']);
+    expect(emitted.ver).toEqual([true]);
     expect(api.calls).toEqual([]);
+  });
+
+  it('ver: whether the text is one of the suggestions', async () => {
+    const { comp, textarea, emitted } = create('key', fakeApi({ keys: ['city', 'cityCode'] }));
+    await type(comp, textarea, 'cit');
+    await type(comp, textarea, 'city');
+    expect(emitted.ver).toEqual([false, true]);
   });
 
   it('long values are flattened to one line and shown in the tooltip', () => {
@@ -157,23 +236,28 @@ describe('selection', () => {
     expect(textarea.value).toBe('first line second line');
     expect(textarea.title).toBe('first line second line');
   });
+
+  it('the initial value is put in the field', () => {
+    const { comp, textarea } = create('key', fakeApi(), { value: 'region' });
+    comp.ngAfterViewInit();
+    expect(textarea.value).toBe('region');
+  });
 });
 
 describe('dropdown', () => {
   it('opens on focus, closes on outside click, not on inside click', () => {
-    const { comp, textarea, host } = create('key', fakeApi(), { cachedOptions: [], cachedEntries: [] });
+    const { comp, textarea } = create('key');
     comp.onFocus();
     expect(comp.dropdownOpen).toBe(true);
     comp.onDocumentClick({ target: textarea } as any);
     expect(comp.dropdownOpen).toBe(true);
     comp.onDocumentClick({ target: document.body } as any);
     expect(comp.dropdownOpen).toBe(false);
-    expect(host.isConnected).toBe(true);
   });
 
   it('body.ds-dropdown-open while at least one dropdown is open (key -> value field)', () => {
-    const a = create('key', fakeApi(), { cachedOptions: [], cachedEntries: [] }).comp;
-    const b = create('value', fakeApi(), { cachedOptions: [], cachedEntries: [] }).comp;
+    const a = create('key').comp;
+    const b = create('value').comp;
     a.onFocus();
     b.onFocus();          // opened before a is closed by the outside click
     a.closeDropdown();
@@ -183,38 +267,53 @@ describe('dropdown', () => {
   });
 
   it('opens upwards near the bottom of the viewport', () => {
-    const { comp, textarea } = create('key', fakeApi(), { cachedOptions: [], cachedEntries: [] });
+    const { comp, textarea } = create('key');
     vi.spyOn(textarea, 'getBoundingClientRect').mockReturnValue({ top: window.innerHeight - 60, bottom: window.innerHeight - 30, left: 10, width: 200 } as DOMRect);
     comp.onFocus();
     expect(comp.panelTop).toBeNull();
     expect(comp.panelBottom).toBe(60 + 4);
     expect(comp.panelLeft).toBe(10);
     expect(comp.panelWidth).toBe(200);
-    comp.closeDropdown();
+  });
+
+  it('"Load more" does not close the dropdown', async () => {
+    const all = Array.from({ length: SUGGESTIONS_PAGE_SIZE + 1 }, (_, i) => 'k' + i);
+    const { comp } = create('key', fakeApi({ keys: all }));
+    comp.onFocus();
+    await settle();
+    const event = new MouseEvent('click');
+    const stop = vi.spyOn(event, 'stopPropagation');
+    await comp.loadMore(event);
+    expect(stop).toHaveBeenCalled();
+    expect(comp.dropdownOpen).toBe(true);
   });
 });
 
-describe('ready flag', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  it('"loading..." until the parent is ready, then the real options', async () => {
-    const { comp } = create('key', fakeApi(), { ready: false });
-    comp.ngOnInit();
-    expect(await shown(comp)).toEqual([LOADING]);
-
-    comp.options = ['k'];
-    comp.entries = [{ key: 'k', value: 'v' }];
-    comp.ready = true;
-    comp.ngOnChanges({ ready: { currentValue: true } } as any);
-    vi.runAllTimers();
-    expect(await shown(comp)).toEqual(['k']);
+describe('values not suggested for the key', () => {
+  it('value field: the note opens the dropdown even without suggestions', async () => {
+    const { comp } = create('value', fakeApi({ entries: [] }), { key: 'value', valuesNotSuggested: true });
+    comp.onFocus();
+    await settle();
+    expect(comp.suggestions).toEqual([]);
+    expect(comp.showNotSuggestedNote).toBe(true);
+    expect(comp.dropdownOpen).toBe(true);
   });
 
-  it('ready with empty data: no endless "loading..."', async () => {
-    const { comp } = create('key', fakeApi(), { ready: true, options: [], entries: [] });
-    comp.ngOnChanges({ ready: { currentValue: true } } as any);
-    vi.runAllTimers();
-    expect(await shown(comp)).toEqual([]);
+  it('never in the key field, nor without the flag', () => {
+    expect(create('key', fakeApi(), { valuesNotSuggested: true }).comp.showNotSuggestedNote).toBe(false);
+    expect(create('value', fakeApi(), { key: 'city' }).comp.showNotSuggestedNote).toBe(false);
+  });
+});
+
+describe('collections', () => {
+  it('the suggestions are read from the chosen collections', async () => {
+    const keys = create('key', fakeApi({ keys: ['city'] }), { collections: ['api'] });
+    keys.comp.onFocus();
+    await settle();
+    expect(keys.api.calls).toEqual([['keys', '', 0], ['collections', ['api']]]);
+    const values = create('value', fakeApi({ entries: [{ key: 'city', value: 'Rome' }] }), { key: 'city', collections: ['orion', 'minio'] });
+    values.comp.onFocus();
+    await settle();
+    expect(values.api.calls).toContainEqual(['collections', ['orion', 'minio']]);
   });
 });

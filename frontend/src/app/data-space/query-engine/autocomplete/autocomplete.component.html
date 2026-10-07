@@ -10,35 +10,35 @@ pasted line breaks are turned into spaces, so it still behaves as a one-line fie
   (focus)="onFocus()" (input)="onInputEvent()" (keydown.enter)="$event.preventDefault()"
   (keydown.escape)="closeDropdown()" [placeholder]="placeholder | translate"></textarea>
 
-<!-- `as opts` resolves filteredOptions$ through a single async pipe subscription,
-shared by the length check and the *ngFor below. filter() (called while
-resolving this observable) can trigger real API requests as a side
-effect (see queryKeyOrValues/queryEntries) - subscribing to
-filteredOptions$ a second time here (e.g. one async pipe per *ngIf/*ngFor)
-would double those requests, so this stays a single subscription on purpose. -->
-@if (filteredOptions$ | async; as opts) {
-  @if (dropdownOpen && opts.length) {
-    <div
-      class="ds-autocomplete-panel"
-      [style.top.px]="panelTop"
-      [style.bottom.px]="panelBottom"
-      [style.max-height.px]="panelMaxHeight"
-      [style.left.px]="panelLeft"
-      [style.width.px]="panelWidth"
-      >
-      @for (option of opts; track option) {
-        <button
-          type="button"
-          class="ds-autocomplete-option"
-          [class.ds-autocomplete-option--message]="isPlaceholderOption(option)"
-          [disabled]="isPlaceholderOption(option)"
-          [title]="option"
-          (click)="selectOption(option)"
-        >{{ option }}</button>
-      }
-    </div>
-  }
+<!-- One page of suggestions at a time: "Load more" reads the next one (see the .ts file). -->
+@if (dropdownOpen && (suggestions.length || loadingSuggestions || showNotSuggestedNote)) {
+  <div
+    class="ds-autocomplete-panel"
+    [style.top.px]="panelTop"
+    [style.bottom.px]="panelBottom"
+    [style.max-height.px]="panelMaxHeight"
+    [style.left.px]="panelLeft"
+    [style.width.px]="panelWidth"
+    >
+    @if (showNotSuggestedNote) {
+      <div class="ds-autocomplete-option ds-autocomplete-option--message ds-autocomplete-note" role="note">
+        {{ 'Values not suggested short' | translate }}
+      </div>
+    }
+    @for (option of suggestions; track $index) {
+      <button
+        type="button"
+        class="ds-autocomplete-option"
+        [title]="option"
+        (click)="selectOption(option)"
+      >{{ option }}</button>
+    }
+    @if (loadingSuggestions) {
+      <div class="ds-autocomplete-option ds-autocomplete-option--message">{{ 'loading...' | translate }}</div>
+    } @else if (hasMore) {
+      <button type="button" class="ds-autocomplete-option ds-autocomplete-option--more" (click)="loadMore($event)">
+        {{ 'Load more suggestions' | translate }}
+      </button>
+    }
+  </div>
 }
-
-<input hidden="true" [(ngModel)]="input" (ngModelChange)="onInputChange($event)" />
-<input hidden="true" [(ngModel)]="otherVerified" (ngModelChange)="otherVerifiedChange($event)" />

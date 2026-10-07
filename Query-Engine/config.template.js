@@ -86,7 +86,15 @@ module.exports = {
     SQLQuery: true,
     graphQLQuery: true,
     graphQLDefaultLimit: 100, // GraphQL sources: documents returned when the query has no limit
-    graphQLMaxLimit: 1000     // GraphQL sources: highest accepted limit
+    graphQLMaxLimit: 1000,    // GraphQL sources: highest accepted limit
+    advancedSearchMaxResults: 1000 // Advanced search: highest page size, and results without page
+  },
+  // The MongoDB collections of the Source-Connector, one per connector: same names as in its config (only mongo /
+  // toMongo are used here). The frontend lets the user choose which ones to search (GET /api/collections).
+  collections: {
+    api: { mongo: "sources", toMongo: true, postgres: "sources", toPostgres: true },
+    orion: { mongo: "datapoints", toMongo: true, postgres: "datapoints", toPostgres: false },
+    minio: { mongo: "minio", toMongo: true, toPostgres: true }
   },
   // Simple search: besides the MinIO files, the APIs of apiConnectorConfig.apiUrls (same format as in the
   // Source-Connector config; an API with simpleSearch: false is skipped) and Orion are searched live.

@@ -12,13 +12,23 @@ export interface GqlExample {
 // Valid whatever the data: no fallback needed.
 const GENERIC: GqlExample[] = [
   // sources: filter (MongoDB filter as JSON, a """block string""" needs no escaping), name, source,
-  // limit (default 100), skip; doc returns the stored document - see the Query-Engine's typeDefs.js.
+  // collections (api / orion / minio, default api + minio), limit (default 100, per collection), skip; doc returns
+  // the stored document - see the Query-Engine's typeDefs.js.
   { label: 'Available sources', query: `query {
   sourcesCount
   sources(limit: 20) {
     id
+    collection
     name
     source
+  }
+}` },
+  { label: 'API data only (Sources)', query: `query {
+  sourcesCount(collections: ["api"])
+  sources(collections: ["api"], limit: 20) {
+    name
+    source
+    doc
   }
 }` },
   { label: 'Sources with their data', query: `query {

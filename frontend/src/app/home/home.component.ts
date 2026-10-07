@@ -28,6 +28,8 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   // True while <ngx-query-engine> has a query in flight (its loadingChange
   // output): the results below fade out until the new ones arrive.
   searching = false;
+  // Advanced search: more results after the ones shown ("Load more results", QueryEngineComponent.loadMoreResults).
+  moreResults = false;
 
   // The results start below the query panel, and with the intro open (or the
   // Advanced search filters) that's often just past the bottom edge of the

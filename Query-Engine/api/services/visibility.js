@@ -30,4 +30,43 @@ function objectFilter(obj, prefix, bucket, visibility) {
     return false
 }
 
-module.exports = { bucketIs, isApiRecord, objectFilter }
+const escapeRegex = text => String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const NOTHING = { _id: { $in: [] } }
+
+// objectFilter as a MongoDB query (so that limit / skip apply to what the user may see): the queries add it to
+// their filter and still check every document with objectFilter.
+function visibilityMongoFilter(prefix, bucket, visibility) {
+    if (config.authConfig?.disableAuth)
+        return {}
+    const inBucket = name => ({ $or: [{ "record.s3.bucket.name": name }, { "record.bucketName": name }] })
+    if (visibility == "private")
+        return prefix ? { $or: [{ name: { $regex: escapeRegex(prefix) } }, { "record.name": { $regex: escapeRegex(prefix) } }] } : NOTHING
+    if (visibility == "shared")
+        return bucket ? { $and: [inBucket(bucket), { name: { $regex: escapeRegex(bucket.toUpperCase() + " SHARED Data/") } }] } : NOTHING
+    if (visibility == "public")
+        return {
+            $or: [
+                inBucket("public-data"),
+                // API / Orion records: string source and no MinIO record, or a PostgreSQL-style record.from
+                { source: { $type: "string" }, "record.bucketName": { $in: [null, ""] }, "record.s3": { $in: [null, ""] } },
+                { "record.from": { $nin: [null, ""] } }
+            ]
+        }
+    return NOTHING
+}
+
+// Per collection (api/services/collections.js): API and Orion records are public data (visible with the public
+// visibility, or with disableAuth); MinIO files follow the rules above.
+function collectionVisibilityFilter(connector, prefix, bucket, visibility) {
+    if (connector == "minio")
+        return visibilityMongoFilter(prefix, bucket, visibility)
+    return config.authConfig?.disableAuth || visibility == "public" ? {} : NOTHING
+}
+
+function visibleIn(connector, obj, prefix, bucket, visibility) {
+    if (connector == "minio")
+        return objectFilter(obj, prefix, bucket, visibility)
+    return !!(config.authConfig?.disableAuth || visibility == "public")
+}
+
+module.exports = { bucketIs, isApiRecord, objectFilter, visibilityMongoFilter, collectionVisibilityFilter, visibleIn }

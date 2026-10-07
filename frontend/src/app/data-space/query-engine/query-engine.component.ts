@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input
 import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
-import { BeopenAPIService, QueryWarning } from '../../services/be-open.service';
+import { ADVANCED_SEARCH_PAGE_SIZE, BeopenAPIService, CollectionInfo, QueryWarning, ResultsPage, SUGGESTIONS_PAGE_SIZE, SuggestionsPage } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
 import { UntypedFormGroup, UntypedFormControl } from '@angular/forms';
@@ -83,7 +83,24 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   // Which button started the query in flight (it shows the spinner), or null
   // when nothing is running. Both buttons are disabled while it's set, so a
   // slow answer can't be "fixed" by clicking again and stacking requests.
-  loading: 'query' | 'all' | null = null;
+  // 'more' = "Load more results" (loadMoreResults): the results on screen stay as they are (no loadingChange).
+  loading: 'query' | 'all' | 'more' | null = null;
+
+  // Advanced search answers one page at a time: the request of the results on screen and whether there are more
+  // after them ("Load more results", see loadMoreResults). Emitted so that HomeComponent shows the button.
+  hasMoreResults = false;
+  @Output() hasMoreResultsChange = new EventEmitter<boolean>();
+  // next: the skip of each collection with more results (the answer's `next`); collections: those searched
+  private resultsRequest?: { mongoQuery: any; type: string; visibility: string; kind: 'query' | 'all'; page: ResultsPage; collections?: string[]; next?: Record<string, number> };
+
+  // ---- Collections searched: one per Source-Connector connector (api: Sources, orion: Datapoints, minio: Files).
+  // The Query-Engine says which ones exist (GET /api/collections), the labels come from config.json
+  // ("collectionLabels"), the user chooses with the "Search in" pills - remembered in this browser. An older
+  // Query-Engine without collections: no choice shown, nothing sent.
+  static readonly COLLECTIONS_STORAGE_KEY = 'qe.selectedCollections';
+  static readonly ALL_COLLECTIONS = ['api', 'orion', 'minio'];
+  collectionOptions: (CollectionInfo & { label: string })[] = [];
+  selectedCollections: string[] = QueryEngineComponent.readSelectedCollections();
   // Seconds since the query started, shown next to the buttons once the
   // answer is taking a while ("Waiting for the query engine... 4 s").
   loadingSeconds = 0;
@@ -103,17 +120,14 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   actionsStuck = false;
   private stuckObserver?: IntersectionObserver;
 
-  keys = [];
-  values = [];
-  entries: any[];
+  // The key / value autocompletes read their suggestions themselves, one page at a time; the first page of keys
+  // and of values is read once here, so that a click on an empty field shows it at once (see preloadSuggestions).
+  preloadedKeys?: Promise<SuggestionsPage<string>>;
+  preloadedValues?: Promise<SuggestionsPage<string>>;
+  // Keys whose values are not suggested (not indexed for some sources, e.g. the datapoints' `value`): the row warns.
+  keysWithValuesNotSuggested = new Set<string>();
   valueVerified = [];
   keyVerified = [];
-
-  // Passed down to <autocomplete [ready]="autocompleteDataReady">. See the
-  // long comment on AutocompleteComponent.ngOnChanges() for why this exists
-  // instead of having each autocomplete instance poll this.keys/values/
-  // entries on its own.
-  autocompleteDataReady = false;
 
   // "Generate curl / fetch / axios" dialog: the request the current form would send, as code.
   readonly snippetLangs = SNIPPET_LANGS;
@@ -160,6 +174,10 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
 
   async ngOnInit(): Promise<void> {
     this.getUser();
+    this.preloadSuggestions();
+    this.loadKeysWithValuesNotSuggested();
+    this.beopenAPI.getCollections().then(collections =>
+      this.collectionOptions = collections.map(c => ({ ...c, label: this.beopenAPI.collectionLabel(c.id) })));
     this.beopenAPI.getSimpleSearchLimits().then(warnings => this.simpleSearchLimits = warnings.filter(w => w.kind === "config"));
     // the configuration ones are already listed under the field: only what happened during the query
     this.queryWarningsSub = this.beopenAPI.queryWarnings$.subscribe(warnings => {
@@ -167,20 +185,83 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       if (runtime.length)
         this.createToastr('warning', this.tr("Simple search incomplete"), runtime.map(w => this.warningText(w)).join(" — "));
     });
+  }
+
+  // ---- collections
+
+  private static readSelectedCollections(): string[] {
     try {
-      // Strings are kept as they are: with more than 500 keys/values the backend answers
-      // ["Too many suggestions..."] instead of {key}/{value} objects, and the autocomplete
-      // recognises that message to show its "too many" row (e.value would be undefined here).
-      this.keys = Array.from(new Set((await this.beopenAPI.getKeys()).map(e => typeof e == "string" ? e : this.stringify(e.key))));
-      this.values = Array.from(new Set((await this.beopenAPI.getValues()).map(e => typeof e == "string" ? e : this.stringify(e.value))));
-      this.entries = await this.beopenAPI.getEntries();
-    } finally {
-      // Set regardless of success/failure/emptiness, so the autocomplete
-      // fields below stop waiting either way instead of showing "loading..."
-      // forever if one of the calls above rejects or genuinely comes back
-      // with zero keys/values/entries.
-      this.autocompleteDataReady = true;
+      const saved = JSON.parse(localStorage.getItem(QueryEngineComponent.COLLECTIONS_STORAGE_KEY) ?? 'null');
+      if (Array.isArray(saved))
+        return QueryEngineComponent.ALL_COLLECTIONS.filter(id => saved.includes(id));
+    } catch {
+      // not readable: everything
     }
+    return [...QueryEngineComponent.ALL_COLLECTIONS];
+  }
+
+  isCollectionSelected(id: string): boolean {
+    return this.selectedCollections.includes(id);
+  }
+
+  /** The collection is searched by the current mode (e.g. Orion is not in the Simple search unless configured). */
+  collectionAvailable(c: CollectionInfo, mode = this.mode): boolean {
+    return mode === 'Simple search' ? c.simpleSearch : c.advancedSearch;
+  }
+
+  toggleCollection(id: string): void {
+    const selected = new Set(this.selectedCollections);
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.selectedCollections = QueryEngineComponent.ALL_COLLECTIONS.filter(c => selected.has(c));
+    try {
+      localStorage.setItem(QueryEngineComponent.COLLECTIONS_STORAGE_KEY, JSON.stringify(this.selectedCollections));
+    } catch {
+      // not remembered - fine
+    }
+    // the suggestions follow the collections
+    this.preloadSuggestions();
+    this.loadKeysWithValuesNotSuggested();
+  }
+
+  /**
+   * The collections a query of this mode searches: the selected ones that the mode can search. undefined (send
+   * nothing, i.e. everything) with an older Query-Engine, or before GET /api/collections has answered.
+   */
+  collectionsFor(mode = this.mode): string[] | undefined {
+    if (!this.collectionOptions.length) return undefined;
+    return this.collectionOptions.filter(c => this.collectionAvailable(c, mode) && this.isCollectionSelected(c.id)).map(c => c.id);
+  }
+
+  /** Simple / Advanced search with no collection to search: Apply Query and Find all are disabled. */
+  get noCollectionSelected(): boolean {
+    return (this.mode === 'Simple search' || this.mode === 'Advanced search') && this.collectionsFor()?.length === 0;
+  }
+
+  /** Collections of the suggestions (keys / values / entries): the selected ones. */
+  get suggestionCollections(): string[] {
+    return this.selectedCollections;
+  }
+
+  private loadKeysWithValuesNotSuggested(): void {
+    this.beopenAPI.getKeysWithValuesNotIndexed(this.suggestionCollections).then(keys => this.keysWithValuesNotSuggested = new Set(keys));
+  }
+
+  /** First page of keys and of values, read before the user clicks a field (a failed read is read again later). */
+  preloadSuggestions(): void {
+    const preload = (read: () => Promise<SuggestionsPage<string>>) => {
+      const page = read();
+      page.catch(err => console.warn("Could not preload the suggestions", err));
+      return page;
+    };
+    const collections = this.suggestionCollections;
+    this.preloadedKeys = preload(() => this.beopenAPI.getKeys("", 0, SUGGESTIONS_PAGE_SIZE, collections));
+    this.preloadedValues = preload(() => this.beopenAPI.getValues("", 0, SUGGESTIONS_PAGE_SIZE, collections));
+  }
+
+  /** The row's key has values that are not suggested (they can still be typed and searched). */
+  valuesNotSuggested(key: any): boolean {
+    return typeof key === "string" && this.keysWithValuesNotSuggested.has(key);
   }
 
   getUser() {
@@ -252,21 +333,19 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   }
 
   /**
-   * getKeys(), then getEntries(key) for a few random keys (data keys first) until one has values: returns
-   * that key and one of its values. null when the backend answers "too many suggestions" (or has nothing).
+   * A page of keys, then getEntries(key) for a few random ones (data keys first) until one has values: returns
+   * that key and one of its values. null when the backend has nothing (or can't be read).
    */
   private async pickDemoPair(): Promise<{ key: string; value: string } | null> {
-    let keysResponse: any[];
+    let keys: string[];
     try {
-      keysResponse = await this.beopenAPI.getKeys();
+      const page = await (this.preloadedKeys ?? Promise.reject()).catch(() => this.beopenAPI.getKeys("", 0, SUGGESTIONS_PAGE_SIZE, this.suggestionCollections));
+      keys = Array.from(new Set(page.items.filter(k => typeof k === "string" && k)));
     } catch {
       return null;
     }
-    const tooMany = Array.isArray(keysResponse) && keysResponse.length === 1 && typeof keysResponse[0] === "string"
-      && keysResponse[0].startsWith("Too many suggestions");
-    if (!Array.isArray(keysResponse) || !keysResponse.length || tooMany) return null;
+    if (!keys.length) return null;
 
-    const keys = Array.from(new Set(keysResponse.map(k => typeof k === "string" ? k : k?.key).filter(k => typeof k === "string" && k)));
     const shuffle = (a: string[]) => a.map(v => [Math.random(), v] as [number, string]).sort((x, y) => x[0] - y[0]).map(([, v]) => v);
     const technical = QueryEngineComponent.DEMO_TECHNICAL_KEYS;
     const candidates = [...shuffle(keys.filter(k => !technical.has(k))), ...shuffle(keys.filter(k => technical.has(k)))]
@@ -275,11 +354,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     for (const key of candidates) {
       let entries: any[];
       try {
-        entries = await this.beopenAPI.getEntries(key, "");
+        entries = (await this.beopenAPI.getEntries(key, "", 0, undefined, { key: true }, this.suggestionCollections)).items;
       } catch {
-        continue; // e.g. a key the backend's prefix regex can't digest
+        continue;
       }
-      // getEntries matches the key by prefix: keep only this exact key
+      // exact key (case insensitive on the backend): keep only this very key
       const values = (entries || [])
         .filter(e => e?.key === key && e.value !== undefined && e.value !== null && e.value !== "")
         .map(e => typeof e.value === "string" ? e.value : JSON.stringify(e.value));
@@ -298,7 +377,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   private async pickDemoFormat(key: string, value: string): Promise<string | undefined> {
     for (const format of ["JSON", "CSV", "GeoJSON", undefined]) {
       try {
-        const result = await firstValueFrom(this.beopenAPI.minioQuery("Advanced search", value, { [key]: value }, "", this.visibility, format));
+        const result = await firstValueFrom(this.beopenAPI.minioQuery("Advanced search", value, { [key]: value }, "", this.visibility, format, { limit: 1, skip: 0 }, this.collectionsFor("Advanced search")));
         const items = Array.isArray(result) ? result : (result?.results || result?.data || result?.items || []);
         if (items.length) return format;
       } catch {
@@ -309,7 +388,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   }
 
   minioQuery(all: Boolean) {
-    if (this.loading) {
+    if (this.loading || this.noCollectionSelected) {
       return;
     }
     if (this.mode === "Query GraphQL") {
@@ -319,109 +398,164 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       return;
     }
     const mongoQuery = this.buildMongoQuery(all);
-    this.pendingQuery = this.track(all ? 'all' : 'query', this.beopenAPI.minioQuery(this.mode, this.searchValue(all), mongoQuery, this.sqlQuery, this.visibility, this.type)).subscribe(queryResult => {
-      this.generalSharedBucketObjects = [];
-      this.pilotSharedBucketObjects = [];
-      this.userBucketObjects = [];
-      this.extractedElements = [];
-
-      // Simple search (a GET) always came back as a bare array, which is
-      // the only shape the loop below ever handled. Advanced search / Query
-      // SQL (both POST /api/query) can come back wrapped - e.g. as
-      // { results: [...] } - depending on the backend route. If that's the
-      // actual cause of "results arrive but nothing renders" for those two
-      // modes, this normalizes it instead of silently iterating zero items.
-      const items = Array.isArray(queryResult)
-        ? queryResult
-        : (queryResult?.results || queryResult?.data || queryResult?.items || []);
-
-      if (!Array.isArray(queryResult)) {
-        console.warn("minioQuery(): response for mode", this.mode, "was not a bare array - unwrapped to", items.length, "item(s). Raw response:", queryResult);
-      }
-
-      let skipped = 0;
-      for (let obj of items) {
-        try {
-          // Some responses may already be the record itself rather than
-          // { record, name, element } - fall back to the item itself so a
-          // shape difference between modes doesn't throw away the whole
-          // batch (see the try/catch below either way).
-          const record = obj.record || obj;
-          // The item's own data, i.e. everything except `record` - taken
-          // BEFORE the lines below add objectPath/pilot/insertedBy to obj.
-          // Advanced search returns the stored Source documents as they are,
-          // `{ _id, name, json | csv | <the file's own keys>, record }`, where
-          // `record` is only the MinIO/S3 metadata of the uploaded file: showing
-          // `record` for those (as this used to) showed the metadata and never
-          // the data itself.
-          const { record: _meta, ...ownData } = obj;
-          obj.objectPath = record.name;
-          obj.pilot = record.bucketName;
-          obj.insertedBy = record.insertedBy; //TODO now it is empty
-
-          // TODO(technical debt, acknowledged - not something to silently
-          // work around forever): BucketObjectsPush assumes every record is
-          // a minio bucket object and, lacking a real `bucketName`, tries to
-          // guess one by splitting `.name` on "/" and treating the first
-          // segment as the bucket and the last as the file. For a plain
-          // MongoDB document that isn't a bucket object at all, `.name` is
-          // just ordinary text with no such structure - and this guess
-          // doesn't fail safely on that: it can silently drop the record
-          // (SMARTERA's "Italian", "English" - name has no "/", so bucket
-          // and fileName both end up equal to the whole name and get
-          // filtered out) or, worse, silently fabricate a bogus file entry
-          // out of it (SMARTERA's "Bosnian/Croatian/Serbian" - that's a
-          // language name, not a path, but its "/"s are enough to make
-          // BucketObjectsPush invent bucket:"Bosnian" + file:"Serbian" and
-          // show it as if it were a real file with no size or date). Both
-          // are real, observed backend data, not edge cases. The real fix
-          // is decoupling the query-result shape from Minio's file model on
-          // both backend and frontend so results are represented
-          // generically regardless of source; until then, only attempt this
-          // classification when the record actually carries a real
-          // `bucketName` - the one field BucketObjectsPush can't fall back
-          // to guessing - so a record that isn't a bucket object never gets
-          // put through a heuristic built for one. It still isn't lost: the
-          // raw-record fallback below always keeps it available.
-          if (record.bucketName) {
-            this.BucketObjectsPush(record, this.isAdmin, this.generalSharedBucketObjects, this.pilotSharedBucketObjects, this.userBucketObjects, record.pilot);
-          }
-
-          if (obj.element !== undefined && obj.element !== null) {
-            // Advanced search / Query SQL can extract a nested element out
-            // of a matched file (obj.element is the JSON/GeoJSON sub-object
-            // the query matched inside it) - more specific than the raw
-            // record, so show that instead of it.
-            const bucketName = record.bucketName || record.s3?.bucket?.name || "?";
-            this.extractedElements.push({ name: bucketName + "/" + (obj.name || record.name || "?"), element: obj.element });
-          } else {
-            // No nested element to be more specific than - show the item's
-            // data. Simple search (isRawQuery: "yes" on the request) carries
-            // the true unprocessed file in obj.raw: prefer that. Otherwise
-            // show ownData - the item minus its `record` metadata (see where
-            // it's taken, above). For items that have no `record` at all
-            // (e.g. the SMARTERA language views, plain Mongo documents) that
-            // is the whole item, same as before. `record` itself is only
-            // shown when the item carries nothing else. It's the only place
-            // some results (non-file Mongo documents) show up at all.
-            const rawData = obj.raw !== undefined
-              ? obj.raw
-              : (Object.keys(ownData).length ? ownData.json || ownData.csv || ownData : record);
-            this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: rawData });
-          }
-        } catch (itemErr) {
-          skipped++;
-          console.error("minioQuery(): could not process one result item, skipping it - item was:", obj, itemErr);
-        }
-      }
-      if (skipped > 0) {
-        this.createToastr('warning', "Some results could not be displayed", `${skipped} of ${items.length} result(s) had an unexpected shape - see the console for details.`);
-      }
-      this.sendData();
+    const kind = all ? 'all' : 'query';
+    const page = this.mode === "Advanced search" ? { limit: ADVANCED_SEARCH_PAGE_SIZE, skip: 0 } : undefined;
+    const collections = this.collectionsFor();
+    this.pendingQuery = this.track(kind, this.beopenAPI.minioQuery(this.mode, this.searchValue(all), mongoQuery, this.sqlQuery, this.visibility, this.type, page, collections)).subscribe(queryResult => {
+      this.resultsRequest = page ? { mongoQuery, type: this.type, visibility: this.visibility, kind, page, collections, next: queryResult?.next } : undefined;
+      this.showQueryResult(queryResult, false);
     }, err => {
       console.error("Query error", err);
       this.createToastr('danger', "Error querying objects", err.error);
     });
+  }
+
+  /**
+   * Advanced search: the next page of the query on screen, appended to its results. Same filters, file type,
+   * visibility and collections as the first page, whatever the form says now: only the collections that have
+   * more results, from where each one stopped (the answer's `next`).
+   */
+  loadMoreResults(): void {
+    const request = this.resultsRequest;
+    if (this.loading || !this.hasMoreResults || !request) {
+      return;
+    }
+    const next = request.next && typeof request.next === 'object' && Object.keys(request.next).length ? request.next : undefined;
+    // a Query-Engine without `next`: one skip for everything
+    const page: ResultsPage = next
+      ? { limit: request.page.limit, skip: next }
+      : { limit: request.page.limit, skip: (typeof request.page.skip === 'number' ? request.page.skip : 0) + request.page.limit };
+    const collections = next ? Object.keys(next) : request.collections;
+    this.pendingQuery = this.track('more', this.beopenAPI.minioQuery("Advanced search", "", request.mongoQuery, "", request.visibility, request.type, page, collections)).subscribe(queryResult => {
+      if (this.resultsRequest !== request) return; // a new query was sent meanwhile
+      request.page = page;
+      request.next = queryResult?.next;
+      this.showQueryResult(queryResult, true);
+    }, err => {
+      console.error("Query error", err);
+      this.createToastr('danger', "Error querying objects", err.error);
+    });
+  }
+
+  /** Shows a REST answer: in place of the results on screen, or after them (append, a further page). */
+  private showQueryResult(queryResult: any, append: boolean): void {
+    if (!append) {
+      this.generalSharedBucketObjects = [];
+      this.pilotSharedBucketObjects = [];
+      this.userBucketObjects = [];
+      this.extractedElements = [];
+    }
+    // new arrays: the parent gets a new list (and its @for sees the change)
+    this.generalSharedBucketObjects = [...this.generalSharedBucketObjects];
+    this.pilotSharedBucketObjects = [...this.pilotSharedBucketObjects];
+    this.userBucketObjects = [...this.userBucketObjects];
+    this.extractedElements = [...this.extractedElements];
+
+    // Simple search (a GET) always came back as a bare array, which is
+    // the only shape the loop below ever handled. Advanced search / Query
+    // SQL (both POST /api/query) can come back wrapped - e.g. as
+    // { results: [...] } - depending on the backend route. If that's the
+    // actual cause of "results arrive but nothing renders" for those two
+    // modes, this normalizes it instead of silently iterating zero items.
+    const items = Array.isArray(queryResult)
+      ? queryResult
+      : (queryResult?.results || queryResult?.data || queryResult?.items || []);
+    // a page ({ results, hasMore }); a bare array is everything (or a Query-Engine without pages)
+    this.setHasMoreResults(!!this.resultsRequest && queryResult?.hasMore === true);
+
+    if (!Array.isArray(queryResult) && !Array.isArray(queryResult?.results)) {
+      console.warn("minioQuery(): response for mode", this.mode, "was not a bare array - unwrapped to", items.length, "item(s). Raw response:", queryResult);
+    }
+
+    let skipped = 0;
+    for (let obj of items) {
+      try {
+        // Some responses may already be the record itself rather than
+        // { record, name, element } - fall back to the item itself so a
+        // shape difference between modes doesn't throw away the whole
+        // batch (see the try/catch below either way).
+        const record = obj.record || obj;
+        // The item's own data, i.e. everything except `record` - taken
+        // BEFORE the lines below add objectPath/pilot/insertedBy to obj.
+        // Advanced search returns the stored Source documents as they are,
+        // `{ _id, name, json | csv | <the file's own keys>, record }`, where
+        // `record` is only the MinIO/S3 metadata of the uploaded file: showing
+        // `record` for those (as this used to) showed the metadata and never
+        // the data itself.
+        // `_collection`: the collection of an Advanced search result (shown as a label, not as data)
+        const { record: _meta, _collection, ...ownData } = obj;
+        delete obj._collection;
+        const collection = typeof _collection === 'string' ? this.beopenAPI.collectionLabel(_collection) : undefined;
+        obj.objectPath = record.name;
+        obj.pilot = record.bucketName;
+        obj.insertedBy = record.insertedBy; //TODO now it is empty
+
+        // TODO(technical debt, acknowledged - not something to silently
+        // work around forever): BucketObjectsPush assumes every record is
+        // a minio bucket object and, lacking a real `bucketName`, tries to
+        // guess one by splitting `.name` on "/" and treating the first
+        // segment as the bucket and the last as the file. For a plain
+        // MongoDB document that isn't a bucket object at all, `.name` is
+        // just ordinary text with no such structure - and this guess
+        // doesn't fail safely on that: it can silently drop the record
+        // (SMARTERA's "Italian", "English" - name has no "/", so bucket
+        // and fileName both end up equal to the whole name and get
+        // filtered out) or, worse, silently fabricate a bogus file entry
+        // out of it (SMARTERA's "Bosnian/Croatian/Serbian" - that's a
+        // language name, not a path, but its "/"s are enough to make
+        // BucketObjectsPush invent bucket:"Bosnian" + file:"Serbian" and
+        // show it as if it were a real file with no size or date). Both
+        // are real, observed backend data, not edge cases. The real fix
+        // is decoupling the query-result shape from Minio's file model on
+        // both backend and frontend so results are represented
+        // generically regardless of source; until then, only attempt this
+        // classification when the record actually carries a real
+        // `bucketName` - the one field BucketObjectsPush can't fall back
+        // to guessing - so a record that isn't a bucket object never gets
+        // put through a heuristic built for one. It still isn't lost: the
+        // raw-record fallback below always keeps it available.
+        if (record.bucketName) {
+          this.BucketObjectsPush(record, this.isAdmin, this.generalSharedBucketObjects, this.pilotSharedBucketObjects, this.userBucketObjects, record.pilot);
+        }
+
+        if (obj.element !== undefined && obj.element !== null) {
+          // Advanced search / Query SQL can extract a nested element out
+          // of a matched file (obj.element is the JSON/GeoJSON sub-object
+          // the query matched inside it) - more specific than the raw
+          // record, so show that instead of it.
+          const bucketName = record.bucketName || record.s3?.bucket?.name || "?";
+          this.extractedElements.push({ name: bucketName + "/" + (obj.name || record.name || "?"), element: obj.element, collection });
+        } else {
+          // No nested element to be more specific than - show the item's
+          // data. Simple search (isRawQuery: "yes" on the request) carries
+          // the true unprocessed file in obj.raw: prefer that. Otherwise
+          // show ownData - the item minus its `record` metadata (see where
+          // it's taken, above). For items that have no `record` at all
+          // (e.g. the SMARTERA language views, plain Mongo documents) that
+          // is the whole item, same as before. `record` itself is only
+          // shown when the item carries nothing else. It's the only place
+          // some results (non-file Mongo documents) show up at all.
+          const rawData = obj.raw !== undefined
+            ? obj.raw
+            : (Object.keys(ownData).length ? ownData.json || ownData.csv || ownData : record);
+          this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: rawData, collection });
+        }
+      } catch (itemErr) {
+        skipped++;
+        console.error("minioQuery(): could not process one result item, skipping it - item was:", obj, itemErr);
+      }
+    }
+    if (skipped > 0) {
+      this.createToastr('warning', "Some results could not be displayed", `${skipped} of ${items.length} result(s) had an unexpected shape - see the console for details.`);
+    }
+    this.sendData();
+  }
+
+  private setHasMoreResults(more: boolean): void {
+    if (more !== this.hasMoreResults) {
+      this.hasMoreResults = more;
+      this.hasMoreResultsChange.emit(more);
+    }
   }
 
   /** Advanced search filters as sent to the backend ("Find all" = no filters). */
@@ -474,7 +608,8 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     if (this.mode === "Query GraphQL")
       return this.beopenAPI.buildGraphqlRequest(this.graphqlText, this.visibility);
     const all = (this.mode === "Advanced search" || this.mode === "Simple search") && this.snippetFindAll;
-    return this.beopenAPI.buildQueryRequest(this.mode, this.searchValue(all), this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type);
+    const page = this.mode === "Advanced search" ? { limit: ADVANCED_SEARCH_PAGE_SIZE, skip: 0 } : undefined;
+    return this.beopenAPI.buildQueryRequest(this.mode, this.searchValue(all), this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type, page, this.collectionsFor());
   }
 
   /** Simple search text: none for "Find all" (the backend then returns everything the user may see). */
@@ -611,6 +746,8 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
    * GraphQL returns partial results - so both are shown.
    */
   private showGraphqlResult(res: any): void {
+    this.resultsRequest = undefined;
+    this.setHasMoreResults(false);
     this.generalSharedBucketObjects = [];
     this.pilotSharedBucketObjects = [];
     this.userBucketObjects = [];
@@ -645,7 +782,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
    * or cancelQuery() unsubscribing (which also aborts the HTTP request).
    * Callers keep the subscription in pendingQuery so cancelQuery() can reach it.
    */
-  private track<T>(kind: 'query' | 'all', request: Observable<T>): Observable<T> {
+  private track<T>(kind: 'query' | 'all' | 'more', request: Observable<T>): Observable<T> {
     return defer(() => {
       this.startLoading(kind);
       return request;
@@ -660,12 +797,12 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     this.createToastr('info', "Query cancelled", "Query cancelled");
   }
 
-  private startLoading(kind: 'query' | 'all'): void {
+  private startLoading(kind: 'query' | 'all' | 'more'): void {
     this.loading = kind;
     this.loadingSeconds = 0;
     clearInterval(this.loadingTimer);
     this.loadingTimer = setInterval(() => this.loadingSeconds++, 1000);
-    this.loadingChange.emit(true);
+    if (kind !== 'more') this.loadingChange.emit(true);
   }
 
   private stopLoading(): void {
@@ -673,8 +810,9 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     this.loadingTimer = undefined;
     this.pendingQuery = undefined;
     if (this.loading) {
+      const more = this.loading === 'more';
       this.loading = null;
-      this.loadingChange.emit(false);
+      if (!more) this.loadingChange.emit(false);
     }
   }
 
@@ -704,7 +842,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
    */
   get shownSimpleSearchLimits(): QueryWarning[] {
     const liveSourcesSearched = !this.authEnabled || this.visibility === "public";
-    return this.simpleSearchLimits.filter(w => w.code === "MINIO_DISABLED" || liveSourcesSearched);
+    // only those of the selected collections (a warning without collection: an older Query-Engine, always shown)
+    const selected = this.collectionOptions.length ? this.selectedCollections : undefined;
+    return this.simpleSearchLimits
+      .filter(w => w.code === "MINIO_DISABLED" || liveSourcesSearched)
+      .filter(w => !selected || !w.collection || selected.includes(w.collection));
   }
 
   /** Translated text of a warning ("Simple search warning <CODE>", with {{source}}), else the backend's message. */

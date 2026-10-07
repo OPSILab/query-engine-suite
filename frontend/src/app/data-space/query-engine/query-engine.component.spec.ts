@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, throwError, map } from 'rxjs';
 import { HttpHeaders, HttpResponse } from '@angular/common/http';
 
@@ -10,10 +10,16 @@ import { BeopenAPIService, QueryWarning } from '../../services/be-open.service';
 
 const TOO_MANY = ['Too many suggestions. Type some characters in order to reduce them'];
 
+// the "Search in" choice is remembered in localStorage: every test starts from scratch
+beforeEach(() => localStorage.clear());
+
 interface Backend {
   keys?: any;                                   // GET /api/keys
+  values?: any;                                 // GET /api/values
+  notIndexed?: any;                             // GET /api/keys/notIndexed
+  collections?: any;                            // GET /api/collections
   entries?: (key: string) => any;               // GET /api/entries?key=...
-  query?: (format: string | null) => any[];     // POST /api/query (Advanced search), by format param
+  query?: (format: string | null, body: any) => any; // POST /api/query (Advanced search), by format param and body
   fail?: RegExp;                                // urls that answer with an error
   limits?: QueryWarning[];                      // GET /api/query/simple/limits
   warningsHeader?: string;                      // X-Query-Warnings of the query responses
@@ -26,13 +32,13 @@ function fakeHttp(backend: Backend) {
   const answer = (url: string, value: () => any) => backend.fail?.test(url) ? throwError(() => new Error('HTTP 500')) : of(value());
   return {
     requests,
-    get: (url: string) => answer(url, () => {
+    get: (url: string, options?: any) => answer(url, () => {
+      requests.push({ method: 'GET', url, options });
+      if (url.includes('/api/collections')) return backend.collections ?? [];
+      if (url.includes('/api/keys/notIndexed')) return backend.notIndexed ?? { keys: [] };
       if (url.includes('/api/keys')) return backend.keys ?? [];
-      if (url.includes('/api/values')) return [];
-      if (url.includes('/api/entries')) {
-        const key = decodeURIComponent(url.split('key=')[1].split('&')[0]);
-        return backend.entries?.(key) ?? [];
-      }
+      if (url.includes('/api/values')) return backend.values ?? [];
+      if (url.includes('/api/entries')) return backend.entries?.(options.params.get('key')) ?? [];
       if (url.includes('/api/user')) return { email: 'anna@demetrix.it' };
       if (url.includes('/api/query/simple/limits')) return { warnings: backend.limits ?? [] };
       return [];
@@ -41,7 +47,7 @@ function fakeHttp(backend: Backend) {
       requests.push({ method, url, options });
       const reply = url.endsWith('/graphql')
         ? () => { const r = backend.graphql?.(options.body.query); if (r instanceof Error) throw r; return r ?? { data: null }; }
-        : () => backend.query?.(options.params.get('format')) ?? [];
+        : () => backend.query?.(options.params.get('format'), options.body) ?? [];
       return answer(url, reply).pipe(map(body =>
         new HttpResponse({ body, headers: new HttpHeaders(backend.warningsHeader ? { 'X-Query-Warnings': backend.warningsHeader } : {}) })));
     },
@@ -67,23 +73,31 @@ function create({ backend = {} as Backend, settings = {}, token = null as string
 }
 
 describe('startup', () => {
-  it('loads keys/values/entries and flags the autocompletes ready', async () => {
-    const { comp } = create({ backend: { keys: [{ key: 'city' }, { key: 'city' }, { key: 'n' }] } });
+  const suggestionRequests = (requests: any[]) => requests.filter(r => /\/api\/(keys|values|entries)(\?|$)/.test(r.url))
+    .map(r => [r.url.replace('http://qe/api/', ''), r.options.params.get('skip'), r.options.params.get('limit')]);
+
+  it('preloads the first page of keys and of values, for the autocompletes', async () => {
+    const { comp, http } = create({ backend: { keys: { items: [{ key: 'city' }], hasMore: true }, values: { items: [{ value: 'Rome' }], hasMore: false } } });
     await comp.ngOnInit();
-    expect(comp.keys).toEqual(['city', 'n']);
-    expect(comp.autocompleteDataReady).toBe(true);
+    expect(await comp.preloadedKeys).toEqual({ items: ['city'], hasMore: true });
+    expect(await comp.preloadedValues).toEqual({ items: ['Rome'], hasMore: false });
+    expect(suggestionRequests(http.requests)).toEqual([['keys', '0', '100'], ['values', '0', '100']]);
   });
 
-  it('keeps the backend "too many" message as it is', async () => {
-    const { comp } = create({ backend: { keys: TOO_MANY } });
+  it('the demo uses the preloaded keys', async () => {
+    const { comp, http } = create({ backend: { keys: [{ key: 'city' }], entries: key => [{ key, value: 'Rome' }], query: () => [{}] } });
     await comp.ngOnInit();
-    expect(comp.keys).toEqual(TOO_MANY);
+    await comp.demo();
+    expect(comp.lines[0]).toEqual({ key: 'city', value: 'Rome', type: 'String' });
+    expect(suggestionRequests(http.requests).filter(([url]) => url == 'keys').length).toBe(1);
   });
 
-  it('ready even when a call fails', async () => {
-    const { comp } = create({ backend: { fail: /api\/values/ } });
-    await expect(comp.ngOnInit()).rejects.toThrow();
-    expect(comp.autocompleteDataReady).toBe(true);
+  it('a failed preload is not an error (the autocompletes read the page when needed)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => { });
+    const { comp } = create({ backend: { fail: /api\/(keys|values)/ } });
+    await comp.ngOnInit();
+    await expect(comp.preloadedKeys).rejects.toThrow();
+    await new Promise(resolve => setTimeout(resolve)); // no unhandled rejection
   });
 });
 
@@ -146,6 +160,7 @@ describe('"Generate curl / fetch / axios"', () => {
     comp.refreshSnippet();
     expect(comp.snippetCode).toContain(`curl -X POST 'http://qe/api/query?format=JSON&city=Rome'`);
     expect(comp.snippetCode).toContain('"city": "Rome"');
+    expect(comp.snippetCode).toContain('"limit": 50');   // the first page, like "Apply Query"
     expect(comp.snippetCode).not.toContain('Authorization');
   });
 
@@ -296,7 +311,7 @@ describe('GraphQL examples from the real data', () => {
     comp.setMode('Query GraphQL');
     await new Promise(resolve => setTimeout(resolve));
     expect(comp.graphqlExamples!.map(e => e.label)).toEqual([
-      'Available sources', 'Sources with their data', 'All sources, all fields (find all)', 'Filter: city = Rome', 'Filter: city = Rome, all fields', 'Name contains "Bike"', 'Records of Lanes', 'Datapoints — NAMA_10R_3GDP',
+      'Available sources', 'API data only (Sources)', 'Sources with their data', 'All sources, all fields (find all)', 'Filter: city = Rome', 'Filter: city = Rome, all fields', 'Name contains "Bike"', 'Records of Lanes', 'Datapoints — NAMA_10R_3GDP',
     ]);
     expect(http.requests.every(r => r.options.headers.get('visibility') === 'public')).toBe(true);
   });
@@ -322,5 +337,210 @@ describe('GraphQL examples from the real data', () => {
     const { comp } = create({ backend: { fail: /graphql/ } });
     await comp.loadGraphqlExamples();
     expect(comp.graphqlExamples).toEqual(comp.fallbackGqlExamples);
+  });
+});
+
+describe('Advanced search results, one page at a time', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+  // n results, served in pages ({ results, hasMore }), or all at once without a page (an older Query-Engine)
+  const paged = (n: number, pages = true) => (_format: string | null, body: any) => {
+    const all = Array.from({ length: n }, (_, i) => ({ name: 'r' + i, json: [{ i }] }));
+    if (!pages || !body?.page) return all;
+    const { limit, skip = 0 } = body.page;
+    return { results: all.slice(skip, skip + limit), hasMore: n > skip + limit, skip, limit };
+  };
+  const queries = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query')).map(r => r.options.body);
+
+  it('"Apply Query" asks for the first page; "Load more results" appends the next ones, until there are no more', async () => {
+    const { comp, http } = create({ backend: { query: paged(120) } });
+    const more: boolean[] = [];
+    const loading: boolean[] = [];
+    let shown: any[] = [];
+    comp.hasMoreResultsChange.subscribe(m => more.push(m));
+    comp.loadingChange.subscribe(l => loading.push(l));
+    comp.extractedElementsChange.subscribe(e => shown = e);
+    comp.lines = [{ key: 'city', value: 'Rome', type: 'String' }];
+    comp.minioQuery(false);
+    await flush();
+    expect(shown.length).toBe(50);
+    expect(comp.hasMoreResults).toBe(true);
+
+    comp.lines = [{ key: 'other', value: 'x', type: 'String' }]; // the next pages are of the query on screen
+    comp.loadMoreResults();
+    await flush();
+    comp.loadMoreResults();
+    await flush();
+    expect(shown.map(e => e.name)).toEqual(Array.from({ length: 120 }, (_, i) => 'r' + i));
+    expect(comp.hasMoreResults).toBe(false);
+    comp.loadMoreResults(); // nothing more: no request
+    expect(queries(http.requests)).toEqual([
+      { mongoQuery: { city: 'Rome' }, page: { limit: 50, skip: 0 } },
+      { mongoQuery: { city: 'Rome' }, page: { limit: 50, skip: 50 } },
+      { mongoQuery: { city: 'Rome' }, page: { limit: 50, skip: 100 } },
+    ]);
+    expect(more).toEqual([true, false]);
+    expect(loading).toEqual([true, false]); // "Load more results" does not fade the results on screen
+  });
+
+  it('a new query starts again from the first page', async () => {
+    const { comp } = create({ backend: { query: paged(60) } });
+    comp.minioQuery(true);
+    await flush();
+    comp.loadMoreResults();
+    await flush();
+    expect(comp.extractedElements.length).toBe(60);
+    comp.minioQuery(true);
+    await flush();
+    expect(comp.extractedElements.length).toBe(50);
+    expect(comp.hasMoreResults).toBe(true);
+  });
+
+  it('a Query-Engine without pages answers everything: no "Load more results"', async () => {
+    const { comp } = create({ backend: { query: paged(70, false) } });
+    comp.minioQuery(true);
+    await flush();
+    expect(comp.extractedElements.length).toBe(70);
+    expect(comp.hasMoreResults).toBe(false);
+  });
+
+  it('Simple search and GraphQL have no pages', async () => {
+    const { comp, http } = create({ backend: { query: paged(120), graphql: () => ({ data: { sources: [] } }) } });
+    comp.minioQuery(true);
+    await flush();
+    expect(comp.hasMoreResults).toBe(true);
+    comp.setMode('Simple search');
+    comp.minioQuery(true);
+    await flush();
+    expect(http.requests.at(-1).options.body).toBeUndefined();
+    expect(comp.hasMoreResults).toBe(false);
+    comp.setMode('Advanced search');
+    comp.minioQuery(true);
+    await flush();
+    comp.setMode('Query GraphQL');
+    comp.graphqlText = '{ sources { id } }';
+    comp.minioQuery(false);
+    await flush();
+    expect(comp.hasMoreResults).toBe(false);
+  });
+});
+
+describe('keys whose values are not suggested', () => {
+  it('read at startup: the rows with that key warn (exact key only)', async () => {
+    const { comp } = create({ backend: { notIndexed: { keys: ['value'] } } });
+    await comp.ngOnInit();
+    await new Promise(resolve => setTimeout(resolve));
+    expect(comp.valuesNotSuggested('value')).toBe(true);
+    expect(comp.valuesNotSuggested('Value')).toBe(false);
+    expect(comp.valuesNotSuggested('region')).toBe(false);
+    expect(comp.valuesNotSuggested(undefined)).toBe(false);
+  });
+
+  it('an older Query-Engine without the endpoint: no warnings', async () => {
+    const { comp } = create({ backend: { fail: /keys\/notIndexed/ } });
+    await comp.ngOnInit();
+    await new Promise(resolve => setTimeout(resolve));
+    expect(comp.keysWithValuesNotSuggested.size).toBe(0);
+  });
+});
+
+describe('collections ("Search in")', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+  const COLLECTIONS = { collections: [
+    { id: 'api', advancedSearch: true, simpleSearch: true },
+    { id: 'orion', advancedSearch: true, simpleSearch: false },
+    { id: 'minio', advancedSearch: true, simpleSearch: true },
+  ] };
+  const queries = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query')).map(r => r.options.body);
+
+  it('the collections of the Query-Engine with their labels; all selected the first time', async () => {
+    const { comp } = create({ backend: { collections: COLLECTIONS }, settings: { collectionLabels: { orion: 'Eurostat' } } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.collectionOptions.map(c => [c.id, c.label])).toEqual([['api', 'Sources'], ['orion', 'Eurostat'], ['minio', 'Files']]);
+    expect(comp.collectionsFor('Advanced search')).toEqual(['api', 'orion', 'minio']);
+    expect(comp.collectionsFor('Simple search')).toEqual(['api', 'minio']); // Orion not in the Simple search
+  });
+
+  it('an older Query-Engine: no choice, nothing sent', async () => {
+    const { comp, http } = create({ backend: { query: () => [] } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.collectionOptions).toEqual([]);
+    expect(comp.collectionsFor()).toBeUndefined();
+    comp.minioQuery(true);
+    await flush();
+    expect(queries(http.requests)[0].collections).toBeUndefined();
+  });
+
+  it('the choice: sent with the queries and the suggestions, remembered in the browser', async () => {
+    const { comp, http } = create({ backend: { collections: COLLECTIONS, query: () => ({ results: [], hasMore: false, next: {} }) } });
+    await comp.ngOnInit();
+    await flush();
+    comp.toggleCollection('orion');
+    comp.toggleCollection('minio');
+    expect(JSON.parse(localStorage.getItem('qe.selectedCollections')!)).toEqual(['api']);
+    comp.minioQuery(true);
+    await flush();
+    expect(queries(http.requests).at(-1).collections).toEqual(['api']);
+    const keys = http.requests.filter(r => r.url.endsWith('/api/keys')).at(-1);
+    expect(keys.options.params.get('collections')).toBe('api'); // re-preloaded with the new choice
+    expect(create().comp.selectedCollections).toEqual(['api']); // a new page starts from the remembered choice
+  });
+
+  it('nothing selected for the mode: no query, buttons disabled', async () => {
+    const { comp, http } = create({ backend: { collections: COLLECTIONS } });
+    await comp.ngOnInit();
+    await flush();
+    for (const id of ['api', 'minio']) comp.toggleCollection(id);
+    comp.setMode('Simple search');                 // only Orion selected, not searched by the Simple search
+    expect(comp.noCollectionSelected).toBe(true);
+    comp.minioQuery(true);
+    expect(http.requests.filter(r => r.url.endsWith('/api/query'))).toEqual([]);
+    comp.setMode('Advanced search');
+    expect(comp.noCollectionSelected).toBe(false);
+  });
+
+  it('"Load more results": only the collections with more, from their `next`; each result labelled', async () => {
+    const answers = [
+      { results: [{ name: 'a1', _collection: 'api' }, { name: 'o1', _collection: 'orion' }], hasMore: true, next: { orion: 50 } },
+      { results: [{ name: 'o2', _collection: 'orion' }], hasMore: false, next: {} },
+    ];
+    const { comp, http } = create({ backend: { collections: COLLECTIONS, query: () => answers.shift() } });
+    await comp.ngOnInit();
+    await flush();
+    comp.minioQuery(true);
+    await flush();
+    comp.loadMoreResults();
+    await flush();
+    const [first, second] = queries(http.requests);
+    expect(first.page).toEqual({ limit: 50, skip: 0 });
+    expect([second.page, second.collections]).toEqual([{ limit: 50, skip: { orion: 50 } }, ['orion']]);
+    expect(comp.extractedElements.map(e => [e.name, e.collection])).toEqual([['a1', 'Sources'], ['o1', 'Datapoints'], ['o2', 'Datapoints']]);
+    expect(comp.extractedElements[0].element).toEqual({ name: 'a1' }); // _collection is not shown as data
+    expect(comp.hasMoreResults).toBe(false);
+  });
+
+  it('Simple search limits: only those of the selected collections', async () => {
+    const limits: QueryWarning[] = [
+      { kind: 'config', code: 'ORION_DISABLED', collection: 'orion', message: 'o' },
+      { kind: 'config', code: 'API_EXCLUDED', collection: 'api', source: 'X', message: 'a' },
+    ];
+    const { comp } = create({ backend: { collections: COLLECTIONS, limits } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['ORION_DISABLED', 'API_EXCLUDED']);
+    comp.toggleCollection('orion');
+    expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['API_EXCLUDED']);
+  });
+
+  it('the snippet has the collections', async () => {
+    const { comp } = create({ backend: { collections: COLLECTIONS } });
+    await comp.ngOnInit();
+    await flush();
+    comp.toggleCollection('orion');
+    comp.refreshSnippet();
+    expect(comp.snippetCode).toContain('"collections": [');
+    expect(comp.snippetCode).toContain('"api"');
+    expect(comp.snippetCode).not.toContain('"orion"');
   });
 });

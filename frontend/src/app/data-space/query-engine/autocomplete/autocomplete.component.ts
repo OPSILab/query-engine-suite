@@ -1,15 +1,12 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, OnInit, OnChanges, AfterViewInit, OnDestroy, EventEmitter, Output, Input, SimpleChanges } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { ConfigService } from '../../../services/config.service';
-import { TranslateService } from '@ngx-translate/core';
-import { BeopenAPIService } from '../../../services/be-open.service';
-import { SharedService } from '../../../services/shared.service';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, AfterViewInit, OnDestroy, EventEmitter, Output, Input } from '@angular/core';
+import { BeopenAPIService, SUGGESTIONS_PAGE_SIZE, SuggestionEntry, SuggestionsPage } from '../../../services/be-open.service';
 
-// Direct copy of the dashboard's key/value AutocompleteComponent (used by the
-// "Advanced search" mode) - unrelated to the old vanilla-JS iframe editor
-// that used to sit under assets/autocomplete, which SqlEditorComponent now
-// replaces.
+// Key / value field of the "Advanced search" rows, with suggestions from the Query-Engine's keys / values /
+// entries, read one page at a time ("Load more" at the end of the list): the backend never reads them all.
+//  - the other field of the row is empty: keys (or values) starting with the text;
+//  - the other field is filled: only the pairs that exist (entries), with the other field matched exactly when
+//    its text exists as it is (key "source" chosen: no "sourceId" values), else by prefix.
+// The first page for an empty field can be read in advance by the parent ([preloaded]): a click shows it at once.
 @Component({
   selector: 'autocomplete',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,45 +14,45 @@ import { SharedService } from '../../../services/shared.service';
   styleUrls: ['./autocomplete.component.scss'],
   standalone: false
 })
-export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
+export class AutocompleteComponent implements AfterViewInit, OnDestroy {
 
-  @Input() options;
   @Input() placeholder;
-  @Input() keys;
+  /** Initial text of the field (e.g. set by the "Demo" button). */
   @Input() value;
-  @Input() entries;
-  @ViewChild('autoInput') input;
-  @Output() output = new EventEmitter<any[]>();
-  // Explicitly typed (it used to be a bare untyped field): with `*ngFor` the
-  // implicit `any` flowed through NgForOf unchecked, but `@for` - which the
-  // Angular 21 control-flow migration rewrote this template to - type-checks
-  // properly, and `any | async` makes the AsyncPipe generic resolve to
-  // `unknown`, which is neither indexable (`opts.length`) nor iterable.
-  filteredOptions$: Observable<any[]>;
-  @Input() mode;
+  @Input() mode: 'key' | 'value';
+  /** The row's key, when this is the value field. */
   @Input() key;
+  /** The row's value, when this is the key field. */
   @Input() v;
-  @Output() ver = new EventEmitter<any[]>();
+  /**
+   * First page of keys (or values) read in advance by the parent, shown when the field and the other field are
+   * empty. If it failed, the page is read now.
+   */
+  @Input() preloaded?: Promise<SuggestionsPage<string>>;
+  /** Only the suggestions of these collections (the "Search in" choice); undefined: all of them. */
+  @Input() collections?: string[];
+  /** Value field: the key has values that are not suggested (not indexed), the dropdown says so. */
+  @Input() valuesNotSuggested = false;
+  /** Kept for the parent's bindings; not needed any more (the entries are matched by the backend). */
   @Input() otherVerified;
-  // True once the parent has finished loading keys/values/entries (see
-  // QueryEngineComponent.autocompleteDataReady) - regardless of whether
-  // what it loaded turned out to be empty. See ngOnChanges() below for why
-  // this replaced polling on `options`/`entries` truthiness.
-  @Input() ready = false;
-  page = 0;
-  log = console;
-  cachedOptions: any;
-  cachedEntries;
+  @ViewChild('autoInput') input;
+  /** The text, at every change and at every selection. */
+  @Output() output = new EventEmitter<any>();
+  /** Whether the text is one of the suggestions. */
+  @Output() ver = new EventEmitter<boolean>();
 
-  // Replaces [nbAutocomplete]/<nb-autocomplete>/<nb-option> (part of the same
-  // @nebular/theme CDK-overlay family as NbToastrService and nbPopover - see
-  // app.component.ts's history on NbOverlayContainerAdapter, the bug that
-  // originally prompted removing Nebular's overlay usage entirely). The
-  // dropdown below is plain `position: fixed` markup living in this
-  // component's own template (see the .html file) - no portal/overlay
-  // machinery, so it can't hit the "no <nb-layout> registered as container"
-  // crash. dropdownOpen/panelTop/panelLeft/panelWidth replace what
-  // NbAutocompleteDirective used to manage internally.
+  /** What the dropdown lists. */
+  suggestions: string[] = [];
+  hasMore = false;
+  loadingSuggestions = false;
+  private skip = 0;
+  // stale responses (the text changed meanwhile) are ignored
+  private requestSeq = 0;
+  // other field matched exactly (decided on the first page, kept for "Load more")
+  private exactOther = false;
+
+  // Plain `position: fixed` markup in this component's own template (no CDK overlay, see the history in
+  // app.component.ts). dropdownOpen/panelTop/panelLeft/panelWidth are its state.
   dropdownOpen = false;
   panelTop: number | null = 0;
   panelBottom: number | null = null;
@@ -96,143 +93,110 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, 
     el.title = el.value;
   }
 
-  // filter() (below) can return one of these two strings in place of real
-  // suggestions - "still waiting on data" or "too many results, keep
-  // typing". Nebular's nb-option treated them as regular, clickable options
-  // too, but with our own dropdown it's easy to click one before real data
-  // arrives (a slow real backend, not just this session's mocks) and end up
-  // with that literal placeholder text permanently filling the field -
-  // isPlaceholderOption() below is what keeps them inert.
-  private static readonly LOADING_PLACEHOLDER = 'loading...';
-  private static readonly TOO_MANY_PLACEHOLDER = 'Too much suggestions. Type more characters in order to reduce them';
-
-  // What the backend returns (as a one-element array) in place of keys/values when they are more than 500.
-  private static readonly BACKEND_TOO_MANY_PREFIX = 'Too many suggestions';
-
-  private isBackendTooMany(options): boolean {
-    return Array.isArray(options) && options.length == 1 && typeof options[0] == 'string'
-      && options[0].startsWith(AutocompleteComponent.BACKEND_TOO_MANY_PREFIX);
-  }
-
-  isPlaceholderOption(option: string): boolean {
-    return option === AutocompleteComponent.LOADING_PLACEHOLDER
-      || option === AutocompleteComponent.TOO_MANY_PLACEHOLDER;
-  }
-
   constructor(
-    private configService: ConfigService,
     private beopenAPI: BeopenAPIService,
-    public translation: TranslateService,
-    private sharedService: SharedService,
     private cdr: ChangeDetectorRef,
     private el: ElementRef<HTMLElement>,
   ) {
   }
 
-  ngOnInit() {
-    // Seed with the "loading..." placeholder while we're still waiting on
-    // `ready` (see ngOnChanges below), so there's visible feedback during
-    // the genuine wait instead of an empty dropdown - the old
-    // polling-based version got this "for free" because it called
-    // onChange() as soon as just ONE of its two caches was ready, which
-    // organically produced a "loading..." placeholder even before the
-    // user touched the field. Once `ready` is already true at mount (e.g.
-    // a row added via "+ Add filter" well after the parent's initial load
-    // finished), show the real options right away instead - ngOnChanges()
-    // below still fires once with the initial value and refines this
-    // further (properly filtered/paired), so this is just the best
-    // starting guess before that runs.
-    this.filteredOptions$ = of(this.ready ? (this.options || []) : [AutocompleteComponent.LOADING_PLACEHOLDER]);
-  }
-
-  ngOnChanges(changes: SimpleChanges) {
-    // `ready` used to be inferred by polling this.options/this.entries
-    // every 2s and treating "first element is truthy" as "data has
-    // arrived" - which can never come true when the parent's data has
-    // genuinely loaded but is empty (an empty array's [0] is always
-    // falsy), so the UI got stuck showing "loading..." forever instead of
-    // "no suggestions". It could also under-report readiness the other
-    // way: this.options and this.entries are populated by two independent
-    // parent fetches that resolve at different times, so whichever one
-    // finished first would already look "ready" while the other was still
-    // legitimately loading.
-    //
-    // `ready` is a single explicit flag the parent flips once after both
-    // fetches settle (see QueryEngineComponent.ngOnInit's finally block),
-    // so it can only mean "keys/values/entries have their final values
-    // now, whatever they are" - fixing both problems at once. Angular
-    // calls ngOnChanges with the initial value of every @Input on first
-    // render too, so a row that mounts after the parent is already ready
-    // (e.g. clicking "+ Add filter" later) resolves immediately here
-    // rather than waiting on a fresh poll cycle.
-    if (changes.ready && this.ready && this.cachedOptions === undefined) {
-      this.cachedOptions = JSON.parse(JSON.stringify(this.options || []));
-      this.cachedEntries = JSON.parse(JSON.stringify(this.entries || []));
-      // `this.input` (the #autoInput ViewChild) doesn't exist yet if
-      // `ready` was already true the moment this row was created - e.g. a
-      // row added via "+ Add filter" after the parent finished loading:
-      // Angular runs ngOnChanges before ngAfterViewInit, so on that first
-      // call there's no view yet to read/refresh. ngAfterViewInit() below
-      // does this same refresh once the view exists, so it's safe to just
-      // skip it here in that case rather than throwing on this.input being
-      // undefined.
-      if (this.input) {
-        // Deferred to a fresh macrotask rather than called inline: this
-        // runs from ngOnChanges, i.e. *during* Angular's own change
-        // detection pass over QueryEngineComponent's template. onChange()
-        // -> verified() synchronously emits `ver`, which the parent
-        // handles by mutating keyVerified[i]/valueVerified[i] - a value
-        // this same row's *other* <autocomplete> reads via
-        // [otherVerified] a few bindings later in that same pass. Doing
-        // that mutation synchronously trips Angular's dev-mode
-        // ExpressionChangedAfterItHasBeenCheckedError (NG0100), because a
-        // binding it already checked this pass changes under it. The old
-        // interval-based version never hit this because setInterval
-        // callbacks always run in their own macrotask, safely after CD
-        // has finished - setTimeout(..., 0) here restores that same
-        // boundary without going back to polling.
-        setTimeout(() => this.onChange(), 0);
-      }
-    }
-  }
-
   ngAfterViewInit() {
-    // The visible <input #autoInput> is intentionally uncontrolled (see the
-    // template): it's read via this.input.nativeElement.value rather than
-    // [(ngModel)], because typing shouldn't fight Angular change detection
-    // while suggestions stream in. That means it was never seeded from the
-    // `value` @Input either - a parent setting item.key/item.value (e.g. the
-    // "Demo" button in QueryEngineComponent) updated the model but the
-    // field on screen stayed blank. Set it once here, on the instance this
-    // *ngFor row actually mounts with; don't rebind it continuously or it
-    // would overwrite what the user types afterwards.
+    // The field is uncontrolled (read through input.nativeElement.value, so typing never fights change
+    // detection): the initial value is set once here.
     if (this.value) {
       this.input.nativeElement.value = this.value;
     }
     this.autoResize();
-    // Covers the case ngOnChanges() above had to skip: `ready` (and so
-    // cachedOptions/cachedEntries) was already set before this view -
-    // and this.input - existed. Refresh now that it does, so the dropdown
-    // still resolves instead of waiting on an @Input change that already
-    // happened and won't happen again.
-    if (this.value || this.cachedOptions !== undefined) {
-      // Same reasoning as the setTimeout in ngOnChanges() above -
-      // ngAfterViewInit() also runs as part of Angular's own change
-      // detection pass, so onChange()'s synchronous `ver` emission needs
-      // the same macrotask boundary to avoid NG0100.
-      setTimeout(() => this.onChange(), 0);
-    }
+  }
+
+  get showNotSuggestedNote(): boolean {
+    return this.mode === 'value' && !!this.valuesNotSuggested;
+  }
+
+  private get text(): string {
+    return this.input?.nativeElement?.value ?? '';
   }
 
   onFocus(): void {
-    this.onChange();
+    this.refresh();
     this.openDropdown();
   }
 
   onInputEvent(): void {
     this.autoResize();
-    this.onChange();
+    this.output.emit(this.text);
+    this.refresh();
     this.openDropdown();
+  }
+
+  /** First page of suggestions for the current text (and other field). */
+  refresh(): Promise<void> {
+    this.skip = 0;
+    this.suggestions = [];
+    this.hasMore = false;
+    return this.load(true);
+  }
+
+  /** Next page, appended. */
+  loadMore(event?: Event): Promise<void> {
+    event?.stopPropagation();
+    if (!this.hasMore || this.loadingSuggestions) return Promise.resolve();
+    this.skip += SUGGESTIONS_PAGE_SIZE;
+    return this.load(false);
+  }
+
+  private async load(first: boolean): Promise<void> {
+    const seq = ++this.requestSeq;
+    const text = this.text;
+    this.loadingSuggestions = true;
+    this.cdr.markForCheck();
+    try {
+      const page = await this.fetchPage(text, this.skip, first);
+      if (seq !== this.requestSeq) return; // the text changed meanwhile
+      const seen = new Set(this.suggestions);
+      this.suggestions = this.suggestions.concat(page.options.filter(option => !seen.has(option) && seen.add(option)));
+      this.hasMore = page.hasMore;
+      this.ver.emit(this.suggestions.includes(text));
+    } catch (error) {
+      if (seq === this.requestSeq) {
+        console.error('Suggestions could not be loaded', error);
+        this.hasMore = false;
+      }
+    } finally {
+      if (seq === this.requestSeq) {
+        this.loadingSuggestions = false;
+        this.cdr.markForCheck();
+      }
+    }
+  }
+
+  private async fetchPage(text: string, skip: number, first: boolean): Promise<{ options: string[]; hasMore: boolean }> {
+    const other = String((this.mode === 'key' ? this.v : this.key) ?? '');
+    if (!other) {
+      if (!text && skip === 0 && this.preloaded) {
+        try {
+          const page = await this.preloaded;
+          return { options: page.items.map(String), hasMore: page.hasMore };
+        } catch {
+          // read it now
+        }
+      }
+      const page = this.mode === 'key'
+        ? await this.beopenAPI.getKeys(text, skip, SUGGESTIONS_PAGE_SIZE, this.collections)
+        : await this.beopenAPI.getValues(text, skip, SUGGESTIONS_PAGE_SIZE, this.collections);
+      return { options: page.items.map(String), hasMore: page.hasMore };
+    }
+    // pairs that exist; the other field exactly when its text exists as it is, else by prefix
+    const query = (exact: boolean) => this.mode === 'key'
+      ? this.beopenAPI.getEntries(text, other, skip, SUGGESTIONS_PAGE_SIZE, { value: exact }, this.collections)
+      : this.beopenAPI.getEntries(other, text, skip, SUGGESTIONS_PAGE_SIZE, { key: exact }, this.collections);
+    let page = first || this.exactOther ? await query(true) : await query(false);
+    if (first) {
+      this.exactOther = page.items.length > 0;
+      if (!this.exactOther) page = await query(false);
+    }
+    const pick = (entry: SuggestionEntry) => this.mode === 'key' ? entry.key : entry.value;
+    return { options: page.items.map(pick), hasMore: page.hasMore };
   }
 
   private openDropdown(): void {
@@ -316,243 +280,11 @@ export class AutocompleteComponent implements OnInit, AfterViewInit, OnChanges, 
   }
 
   selectOption(option: string): void {
-    if (this.isPlaceholderOption(option)) {
-      return;
-    }
     this.input.nativeElement.value = option;
     this.autoResize();
-    this.onSelectionChange(option);
+    // the parent gets the chosen value right away (an "Apply Query" right after uses it)
+    this.output.emit(option);
+    this.ver.emit(true);
     this.closeDropdown();
   }
-
-  isPaired(optionValue, entries) {
-    if (this.mode == "key")
-      return this.isKey(optionValue, entries);
-    else if (this.mode == "value")
-      return this.isValue(optionValue, entries);
-    else
-      console.error("Invalid mode");
-  }
-
-  verified(verify) {
-    this.ver.emit(verify);
-  }
-
-  onValueChange(event) {
-    if (this.options.filter(optionValue => optionValue == this.value)[0])
-      this.verified(true);
-    else
-      this.verified(false);
-  }
-
-  otherVerifiedChange(event) {
-  }
-
-  isKey(key, entries) {
-    const loweredKey = key.toLowerCase();
-    const loweredValue = this.v.toLowerCase();
-
-    if (entries[0])
-      for (let entry of entries)
-        try {
-          if (
-            entry.key.toLowerCase().includes(loweredKey) && (
-              (
-                !this.otherVerified &&
-                entry.value.toLowerCase().includes(loweredValue)
-              )
-              || (
-                this.otherVerified &&
-                entry.value.toLowerCase() == loweredValue
-              )
-            )
-          ) {
-            return true;
-          }
-        }
-        catch (error) {
-          if (
-            entry.key.toLowerCase().includes(loweredKey) && (
-              (
-                !this.otherVerified &&
-                entry.value.toString().toLowerCase().includes(loweredValue)
-              )
-              || (
-                this.otherVerified &&
-                entry.value.toString().toLowerCase() == loweredValue
-              )
-            )
-          ) {
-            return true;
-          }
-        }
-  }
-
-  isValue(value, entries) {
-    const loweredValue = value.toLowerCase();
-    const loweredKey = this.key.toLowerCase();
-
-    if (entries[0])
-      for (let entry of entries)
-        try {
-          if (entry.value.toLowerCase().includes(loweredValue) && (
-            (
-              !this.otherVerified &&
-              entry.key.toLowerCase().includes(loweredKey)
-            )
-            || (
-              this.otherVerified &&
-              entry.key.toLowerCase() == loweredKey
-            ))) {
-            return true;
-          }
-        }
-        catch (error) {
-          if (entry.value.toString().toLowerCase().includes(loweredValue) && (
-            (
-              !this.otherVerified &&
-              entry.key.toLowerCase().includes(loweredKey)
-            )
-            || (
-              this.otherVerified &&
-              entry.key.toLowerCase() == loweredKey
-            ))) {
-            return true;
-          }
-        }
-  }
-
-  queryKeyOrValues(keyOrValue) {
-    this.beopenAPI[this.mode == "key" ? "getKeys" : "getValues"](keyOrValue).then(key => this.onChange(key));
-  }
-
-  queryEntries(keyOrValue, keysOrValuesQueriedAgain) {
-    this.beopenAPI.getEntries(this.mode == "key" ? keyOrValue : this.key, this.mode == "value" ? keyOrValue : this.v).then(e => this.onChange(keysOrValuesQueriedAgain, e));
-  }
-
-  private filter(keyOrValue: string, keysOrValuesQueriedAgain?, entitiesQueriedAgain?) {
-    const otherText = this.mode == "key" ? this.v : this.key;
-    if (otherText) {
-      // The other field of the row is filled (e.g. a key already chosen): the suggestions are the
-      // entries crossing both fields (getEntries(key, value)), not the global keys/values list -
-      // which may be the backend's "too many suggestions" answer and would hide everything.
-      if (!entitiesQueriedAgain)
-        this.queryEntries(keyOrValue, true);
-      else {
-        // The backend matches the other field by prefix (typing "a" must show "a", "ab", "ac"...).
-        // If the other field's text exists as-is (e.g. key "source" chosen), keep only the entries
-        // with exactly that key/value, so "sourceId", "source_original"... don't leak in; if it
-        // doesn't exist as-is (e.g. "b" while only "barbecue" exists), keep the prefix matches.
-        const otherField = this.mode == "key" ? "value" : "key";
-        const otherLowered = String(otherText).toLowerCase();
-        const exactMatches = entitiesQueriedAgain.filter(entry =>
-          entry?.[otherField] !== undefined && entry?.[otherField] !== null &&
-          String(entry[otherField]).toLowerCase() == otherLowered);
-        if (exactMatches.length)
-          entitiesQueriedAgain = exactMatches;
-        keysOrValuesQueriedAgain = Array.from(new Set(
-          entitiesQueriedAgain
-            .map(entry => this.mode == "key" ? entry.key : entry.value)
-            .filter(option => option !== undefined && option !== null)
-            .map(option => typeof option == "string" ? option : JSON.stringify(option))
-        ));
-      }
-    }
-    else if (keyOrValue) {
-      if (!keysOrValuesQueriedAgain)
-        this.queryKeyOrValues(keyOrValue);
-      else if (this.isBackendTooMany(keysOrValuesQueriedAgain))
-        return [AutocompleteComponent.TOO_MANY_PLACEHOLDER];
-      else if (keysOrValuesQueriedAgain && !entitiesQueriedAgain)
-        this.queryEntries(keyOrValue, keysOrValuesQueriedAgain);
-    }
-    else {
-      keysOrValuesQueriedAgain = this.cachedOptions;
-      entitiesQueriedAgain = this.cachedEntries;
-    }
-
-    if (keysOrValuesQueriedAgain && entitiesQueriedAgain) {
-      this.options = keysOrValuesQueriedAgain;
-      this.entries = entitiesQueriedAgain;
-
-      // Also covers the empty field: the cached keys/values loaded at startup can be the backend's
-      // "too many" answer, which would otherwise be filtered out and leave the dropdown empty.
-      if (this.isBackendTooMany(this.options))
-        return [AutocompleteComponent.TOO_MANY_PLACEHOLDER];
-
-      if (this.options.length > 500 && this.entries.length > 500)
-        return [AutocompleteComponent.TOO_MANY_PLACEHOLDER];
-
-      const filterValue = keyOrValue?.toLowerCase();
-      try {
-        let options = this.options[0] && (this.options[0].key || this.options[0].value) ? this.options.map(o => (o.key || o.value)) : this.options;
-        let entries = this.entries;
-
-        let filteredValues = options.filter(optionValue => optionValue?.toLowerCase().includes(filterValue));
-        let pairedValues = filteredValues.filter(filtered => this.isPaired(filtered, entries));
-        return pairedValues;
-      }
-      catch (error) {
-        console.error(error, filterValue);
-      }
-    }
-    return [AutocompleteComponent.LOADING_PLACEHOLDER];
-  }
-
-  getFilteredOptions(value: string, queried?, ready?) {
-    return of(value).pipe(
-      map(filterString => this.filter(filterString, queried, ready)),
-    );
-  }
-
-  onChange(queried?, ready?) {
-    this.filteredOptions$ = this.getFilteredOptions(this.input.nativeElement.value, queried, ready);
-    // Required because this component is OnPush: onChange() is also invoked
-    // from a setTimeout() macrotask (ngOnChanges/ngAfterViewInit, see their
-    // comments) that runs outside any CD pass already checking this
-    // component, so reassigning filteredOptions$ there is otherwise invisible
-    // until an unrelated DOM event in this component happens to force a
-    // check (e.g. the user typing) - markForCheck() makes the update show up
-    // on its own instead.
-    this.cdr.markForCheck();
-    this.output.emit(this.input.nativeElement.value);
-    if (this.options.filter(optionValue => optionValue == this.input.nativeElement.value)[0])
-      this.verified(true);
-    else
-      this.verified(false);
-  }
-
-  onInputChange(event: any) {
-    this.output.emit(this.input.nativeElement.value);
-    if (this.options.filter(optionValue => optionValue == this.input.nativeElement.value)[0])
-      this.verified(true);
-    else
-      this.verified(false);
-  }
-
-  onSelectionChange($event) {
-    // Propagate the chosen option to the parent right away (lines[i].key / lines[i].value).
-    // Before, the parent only received it from onChange(), i.e. after the getKeys/getValues/getEntries
-    // round-trip triggered by the new filteredOptions$ - so an "Apply Query" clicked in the meantime
-    // used the old (partial) text.
-    this.output.emit(this.input.nativeElement.value);
-    this.filteredOptions$ = this.getFilteredOptions($event);
-    if (this.options.filter(optionValue => optionValue == this.input.nativeElement.value)[0])
-      this.verified(true);
-    else
-      this.verified(false);
-  }
-
-  loadPreviousSuggestions() {
-    if (this.page > 99) {
-      this.page -= 100;
-      this.onChange();
-    }
-  }
-
-  loadNextSuggestions() {
-    this.page += 100;
-    this.onChange();
-  }
-
 }

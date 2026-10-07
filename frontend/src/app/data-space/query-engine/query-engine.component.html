@@ -33,6 +33,45 @@
 
   <div class="ds-panel__body">
 
+    <!-- Collections searched (Sources = API data, Datapoints = Orion, Files = MinIO): remembered per browser.
+         Shown only when the Query-Engine has them (GET /api/collections). -->
+    @if ((mode == 'Simple search' || mode == 'Advanced search') && collectionOptions.length) {
+      <div class="ds-collections">
+        <div class="ds-field-row">
+          <label class="ds-field-label" id="ds-collections-label">{{ 'Search in' | translate }}</label>
+          <button
+            type="button"
+            [dsTooltip]="'Search in info' | translate"
+            class="ds-icon-button"
+            aria-label="Info"
+            >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
+          </button>
+        </div>
+        <div class="ds-pills" role="group" aria-labelledby="ds-collections-label">
+          @for (c of collectionOptions; track c.id) {
+            <button
+              type="button"
+              class="ds-pill ds-pill--check"
+              [class.ds-pill--active]="isCollectionSelected(c.id) && collectionAvailable(c)"
+              [attr.aria-pressed]="isCollectionSelected(c.id) && collectionAvailable(c)"
+              [disabled]="!collectionAvailable(c)"
+              [title]="collectionAvailable(c) ? '' : ('Not searched by this mode' | translate)"
+              (click)="toggleCollection(c.id)"
+            >
+              @if (isCollectionSelected(c.id) && collectionAvailable(c)) {
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
+              }
+              {{ c.label }}
+            </button>
+          }
+        </div>
+        @if (noCollectionSelected) {
+          <p class="ds-collections__hint" role="alert">{{ 'Select at least one source' | translate }}</p>
+        }
+      </div>
+    }
+
     @if (mode == 'Simple search') {
       <div class="ds-mode-panel">
         <label class="ds-field-label">{{ 'Type the search key here' | translate }}</label>
@@ -147,7 +186,7 @@
         type="button"
         class="ds-primary-button"
         [class.ds-primary-button--loading]="loading === 'query'"
-        [disabled]="!!loading || (mode == 'Query GraphQL' && graphqlBlocked)"
+        [disabled]="!!loading || noCollectionSelected || (mode == 'Query GraphQL' && graphqlBlocked)"
         (click)="minioQuery(false)"
       >
         @if (loading === 'query') {
@@ -161,7 +200,7 @@
         type="button"
         class="ds-primary-button ds-primary-button--secondary"
         [class.ds-primary-button--loading]="loading === 'all'"
-        [disabled]="!!loading || (mode == 'Query GraphQL' && graphqlBlocked)"
+        [disabled]="!!loading || noCollectionSelected || (mode == 'Query GraphQL' && graphqlBlocked)"
         (click)="minioQuery(true)"
       >
         @if (loading === 'all') {
@@ -295,14 +334,15 @@
   </div>
   <div class="ds-kv-row">
     <div class="ds-kv-field">
-      <autocomplete [otherVerified]="valueVerified[i]" [mode]="'key'" [options]="keys" [entries]="entries"
-        [ready]="autocompleteDataReady" [v]="item.value" [value]="item.key" [placeholder]="'Key (E.g. name)'"
+      <autocomplete [otherVerified]="valueVerified[i]" [mode]="'key'" [preloaded]="preloadedKeys" [collections]="suggestionCollections"
+        [v]="item.value" [value]="item.key" [placeholder]="'Key (E.g. name)'"
       (output)="onKeysChange($event, i)" (ver)="keyVerifiedChange($event, i)"></autocomplete>
     </div>
     @if (item.type != 'Date') {
       <div class="ds-kv-field">
-        <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [options]="values" [entries]="entries"
-          [ready]="autocompleteDataReady" [key]="item.key" [value]="item.value" [placeholder]="'Value (E.g. Geo data)'"
+        <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [preloaded]="preloadedValues" [collections]="suggestionCollections"
+          [key]="item.key" [value]="item.value" [placeholder]="'Value (E.g. Geo data)'"
+          [valuesNotSuggested]="valuesNotSuggested(item.key)"
           (output)="onValuesChange($event, i)" (ver)="valueVerifiedChange($event, i)">
         </autocomplete>
       </div>
@@ -333,6 +373,12 @@
       </button>
     }
   </div>
+  @if (item.type != 'Date' && valuesNotSuggested(item.key)) {
+    <div class="ds-search-limits ds-search-limits--row" role="note">
+      <svg class="ds-search-limits__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg>
+      <div>{{ 'Values not suggested' | translate: { key: item.key } }}</div>
+    </div>
+  }
 
   @if (!lines[i + 1]) {
     <button

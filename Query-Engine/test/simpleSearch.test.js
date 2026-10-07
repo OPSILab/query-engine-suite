@@ -31,7 +31,7 @@ const codes = warnings => warnings.map(w => w.code)
 describe("limits (configuration)", () => {
     test("default: Orion is not searched", () => {
         useApis({ name: "A", url: "x" })
-        assert.deepEqual(simpleSearch.limits(), [{ kind: "config", code: "ORION_DISABLED", message: "Orion sources are not searched (simpleSearchOptions.orion = false)" }])
+        assert.deepEqual(simpleSearch.limits(), [{ kind: "config", code: "ORION_DISABLED", message: "Orion sources are not searched (simpleSearchOptions.orion = false)", collection: "orion" }])
     })
 
     test("APIs excluded one by one or all together, MinIO off", () => {
@@ -39,6 +39,7 @@ describe("limits (configuration)", () => {
         assert.deepEqual(simpleSearch.limits().map(w => [w.code, w.source]), [["API_EXCLUDED", "B"], ["ORION_DISABLED", undefined]])
         config.simpleSearchOptions = { api: false, minio: false, orion: true }
         assert.deepEqual(codes(simpleSearch.limits()), ["MINIO_DISABLED", "API_DISABLED"])
+        assert.deepEqual(simpleSearch.limits().map(w => w.collection), ["minio", "api"]) // the frontend shows those of the selected collections
     })
 
     test("no API configured: nothing to warn about the APIs", () => {

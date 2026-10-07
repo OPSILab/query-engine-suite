@@ -1,18 +1,28 @@
-const Source = require("../models/Source");
-const Datapoint = require("../models/Datapoint");
+// One collection per connector (services/collections.js). Datapoints are in the Orion collection ("datapoints"),
+// with the Orion records that are not datapoints: DATAPOINT_FILTER keeps the datapoints only.
+const { collectionModel, storedCollections } = require("../services/collections")
+const DATAPOINT_FILTER = { survey: { $exists: true }, dimensions: { $exists: true } }
 const Dimensions = require("../models/Dimensions");
 const QueryCache = require("../models/QueryCache")
 const QueriesMap = require("../models/QueriesMap")
 const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
 const logger = require("percocologger")
-const { objectFilter } = require("../services/visibility")
-const { sourcesQuery, limits } = require("./sourcesQuery")
+const { visibleIn } = require("../services/visibility")
+const { sourcesQuery, sourcesCollections, limits } = require("./sourcesQuery")
 
 // Same scoping as the REST queries: everything with disableAuth, otherwise only the documents the user may see
 // for the visibility header (prefix and bucket are set on req.body by the auth middleware, see index.js).
-function visibleTo(req, doc) {
-  return objectFilter(plain(doc), req?.body?.prefix, req?.body?.bucketName, req?.headers?.visibility)
+function visibleTo(req, doc, connector) {
+  return visibleIn(connector, plain(doc), req?.body?.prefix, req?.body?.bucketName, req?.headers?.visibility)
+}
+
+// The collection a document was read from, for Source.collection
+const collectionOf = new WeakMap()
+function tagged(doc, connector) {
+  if (doc && typeof doc === "object")
+    collectionOf.set(doc, connector)
+  return doc
 }
 
 function buildCachePrefix(args) {
@@ -46,12 +56,17 @@ const resolvers = {
   Query: {
     // filter / name / source / limit / skip: see sourcesQuery.js. The visibility is part of the MongoDB query
     // (limit and skip apply to what the user may see) and every document is checked again with objectFilter.
+    // collections: see sourcesQuery.js (default api + minio); limit / skip apply to each collection
     sources: async (parent, args, { req }) => {
       const { limit, skip } = limits(args)
-      return (await Source.find(sourcesQuery(args, req)).skip(skip).limit(limit)).filter(doc => visibleTo(req, doc));
+      const lists = await Promise.all(sourcesCollections(args).map(async c =>
+        (await collectionModel(c).find(sourcesQuery(args, req, c)).sort({ _id: 1 }).skip(skip).limit(limit))
+          .filter(doc => visibleTo(req, doc, c)).map(doc => tagged(doc, c))))
+      return lists.flat();
     },
     sourcesCount: async (parent, args, { req }) => {
-      return await Source.countDocuments(sourcesQuery(args, req));
+      const counts = await Promise.all(sourcesCollections(args).map(c => collectionModel(c).countDocuments(sourcesQuery(args, req, c))))
+      return counts.reduce((a, b) => a + b, 0);
     },
     // One document per survey in `dimensions` (written by the Source-Connector with the datapoints): cheap,
     // unlike a distinct on the datapoints collection.
@@ -59,9 +74,20 @@ const resolvers = {
       const { limit } = limits(args)
       return (await Dimensions.find({ survey: { $type: "string" } }, { survey: 1, _id: 0 }).sort({ survey: 1 }).limit(limit).lean()).map(d => d.survey);
     },
+    // the document with this id, in whichever collection
     source: async (parent, { id }, { req }) => {
-      const doc = await Source.findById(id);
-      return doc && visibleTo(req, doc) ? doc : null;
+      for (const c of storedCollections()) {
+        let doc
+        try {
+          doc = await collectionModel(c).findById(id);
+        }
+        catch {
+          return null // not a valid id
+        }
+        if (doc)
+          return visibleTo(req, doc, c) ? tagged(doc, c) : null;
+      }
+      return null;
     },
 
     datapoints: async (_, args, { db }) => {
@@ -78,7 +104,7 @@ const resolvers = {
         return cacheFound
       }
       try {
-        const matchStage = {};
+        const matchStage = { ...DATAPOINT_FILTER };
 
         if (source) {
           matchStage.source = source;
@@ -163,7 +189,7 @@ const resolvers = {
 
         logger.info("Pipeline built")
         logger.info(util.inspect(pipeline, { depth: null }))
-        const datapoints = await Datapoint.aggregate(pipeline);
+        const datapoints = await collectionModel("orion").aggregate(pipeline);
         logger.info("Datapoints fetched: ", datapoints.length)
 
         // Convert timestamp to datetime format
@@ -189,6 +215,7 @@ const resolvers = {
   },
 
   Source: {
+    collection: (s) => collectionOf.get(s) ?? null,
     name: (s) => scalarOrNull(plain(s)?.name),
     source: (s) => scalarOrNull(plain(s)?.source),
     sourceId: (s) => scalarOrNull(plain(s)?.sourceId),

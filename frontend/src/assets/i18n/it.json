@@ -105,5 +105,15 @@
   "Simple search warning ORION_ERROR": "Non è stato possibile cercare in Orion ({{source}})",
   "Simple search warning ORION_TRUNCATED": "Cercate solo le prime entità di Orion",
   "Simple search warning MAX_RESULTS": "Troppi risultati da API / Orion: mostrati solo i primi",
-  "Find all (ignore the search text)": "Trova tutto (ignora il testo cercato)"
+  "Find all (ignore the search text)": "Trova tutto (ignora il testo cercato)",
+  "Load more suggestions": "Carica altri suggerimenti",
+  "Load more results": "Carica altri risultati",
+  "Search in": "Cerca in",
+  "Search in info": "Le collezioni in cui cercare: Sources (i dati delle API), Datapoints (Orion) e Files (MinIO). La scelta è ricordata in questo browser; anche Find all trova tutto solo nelle collezioni scelte. I suggerimenti seguono la scelta.",
+  "Not searched by this mode": "Non cercata da questa modalità",
+  "Select at least one source": "Seleziona almeno una collezione in cui cercare.",
+  "Loading more results": "Caricamento di altri risultati...",
+  "Values not suggested": "Alcuni valori di \"{{key}}\" non sono suggeriti (ad es. le misure dei datapoints: troppi valori distinti). Scrivi il valore esatto: la ricerca li trova comunque.",
+  "Values not suggested short": "Alcuni valori di questa chiave non sono suggeriti: scrivi il valore esatto.",
+  "loading...": "caricamento..."
 }

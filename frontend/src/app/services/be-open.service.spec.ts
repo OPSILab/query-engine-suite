@@ -60,6 +60,11 @@ describe('buildQueryRequest', () => {
     });
   });
 
+  it('Advanced search with a page: { mongoQuery, page } in the body', () => {
+    expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', { limit: 50, skip: 100 })!.body)
+      .toEqual({ mongoQuery: { city: 'Rome' }, page: { limit: 50, skip: 100 } });
+  });
+
   it('Advanced search without a format: no format param', () => {
     expect(api.buildQueryRequest('Advanced search', '', {}, '', 'private', undefined)!.params).toEqual({});
   });
@@ -110,16 +115,39 @@ describe('sending', () => {
 });
 
 describe('suggestions', () => {
-  it('getKeys / getValues / getEntries urls, a leading "[" escaped for the backend regex', async () => {
-    const { http, api } = service(undefined, [{ key: 'k' }]);
-    expect(await api.getKeys('[a')).toEqual([{ key: 'k' }]);
-    await api.getValues();
-    await api.getEntries('[k', '[v');
-    expect(http.calls.map(c => c.url)).toEqual([
-      'http://qe/api/keys?key=\\[a',
-      'http://qe/api/values?value=',
-      'http://qe/api/entries?key=\\[k&value=\\[v',
-    ]);
+  // records the params of every GET; answers `answer(url, params)`
+  function suggestionsService(answer: (url: string, params: any) => any) {
+    const gets: { url: string; params: Record<string, string | null> }[] = [];
+    const http = {
+      get: (url: string, options: any) => {
+        const params = Object.fromEntries((options?.params?.keys() ?? []).map((k: string) => [k, options.params.get(k)]));
+        gets.push({ url, params });
+        return of(answer(url, params));
+      },
+    };
+    return { gets, api: new BeopenAPIService(http as any, fakeConfig({ beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }) as any) };
+  }
+
+  it('one page: prefix, limit and skip as params (the text is sent as it is, the backend escapes it)', async () => {
+    const { gets, api } = suggestionsService(() => ({ items: [{ key: 'a[b' }, { key: 'a[c' }], hasMore: true }));
+    expect(await api.getKeys('a[', 200)).toEqual({ items: ['a[b', 'a[c'], hasMore: true });
+    expect(gets[0]).toEqual({ url: 'http://qe/api/keys', params: { key: 'a[', limit: '100', skip: '200' } });
+  });
+
+  it('values and entries; exact key / value', async () => {
+    const { gets, api } = suggestionsService(url => url.endsWith('/values')
+      ? { items: [{ value: 'Rome' }], hasMore: false }
+      : { items: [{ key: 'source', value: 'https://a' }], hasMore: false });
+    expect(await api.getValues('Ro')).toEqual({ items: ['Rome'], hasMore: false });
+    expect(await api.getEntries('source', 'h', 0, 50, { key: true })).toEqual({ items: [{ key: 'source', value: 'https://a' }], hasMore: false });
+    expect(gets[1].params).toEqual({ key: 'source', value: 'h', exactKey: 'true', limit: '50', skip: '0' });
+  });
+
+  it('a Query-Engine without pages: the list, and the "too many" message as hasMore', async () => {
+    const old = suggestionsService(() => [{ key: 'a' }, { key: 'b' }]);
+    expect(await old.api.getKeys()).toEqual({ items: ['a', 'b'], hasMore: false });
+    const tooMany = suggestionsService(() => ['Too many suggestions. Type some characters in order to reduce them']);
+    expect(await tooMany.api.getKeys()).toEqual({ items: [], hasMore: true });
   });
 });
 
@@ -160,5 +188,54 @@ describe('query warnings (Simple search)', () => {
     expect(await missing.api.getSimpleSearchLimits()).toEqual([]);
     const odd = service(undefined, () => of({}));
     expect(await odd.api.getSimpleSearchLimits()).toEqual([]);
+  });
+});
+
+describe('getKeysWithValuesNotIndexed', () => {
+  it('the keys of /api/keys/notIndexed; [] when unavailable or odd', async () => {
+    const ok = service(undefined, () => of({ keys: ['value', 3] }));
+    expect(await ok.api.getKeysWithValuesNotIndexed()).toEqual(['value']);
+    expect(ok.http.calls[0].url).toBe('http://qe/api/keys/notIndexed');
+    expect(await service(undefined, () => throwError(() => new Error('404'))).api.getKeysWithValuesNotIndexed()).toEqual([]);
+    expect(await service(undefined, () => of([])).api.getKeysWithValuesNotIndexed()).toEqual([]);
+  });
+});
+
+describe('collections', () => {
+  it('Advanced search: collections in the body; Simple search: as a comma separated param; none when undefined', () => {
+    const { api } = service();
+    expect(api.buildQueryRequest('Advanced search', '', { k: 'v' }, '', 'public', undefined, { limit: 50, skip: { api: 50 } }, ['api'])!.body)
+      .toEqual({ mongoQuery: { k: 'v' }, page: { limit: 50, skip: { api: 50 } }, collections: ['api'] });
+    expect(api.buildQueryRequest('Simple search', 'Rome', {}, '', 'public', undefined, undefined, ['api', 'minio'])!.params)
+      .toEqual({ value: 'Rome', collections: 'api,minio' });
+    expect(api.buildQueryRequest('Simple search', 'Rome', {}, '', 'public', undefined)!.params).toEqual({ value: 'Rome' });
+  });
+
+  it('suggestions and notIndexed with ?collections=', async () => {
+    const gets: any[] = [];
+    const http = {
+      get: (url: string, options: any) => {
+        gets.push({ url, params: Object.fromEntries((options?.params?.keys() ?? []).map((k: string) => [k, options.params.get(k)])) });
+        return of(url.endsWith('/notIndexed') ? { keys: [] } : { items: [], hasMore: false });
+      },
+    };
+    const api = new BeopenAPIService(http as any, fakeConfig({ beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }) as any);
+    await api.getKeys('a', 0, 100, ['orion']);
+    await api.getEntries('k', '', 0, 100, {}, ['api', 'minio']);
+    await api.getKeysWithValuesNotIndexed(['orion']);
+    expect(gets.map(g => g.params.collections)).toEqual(['orion', 'api,minio', 'orion']);
+  });
+
+  it('getCollections: the list of /api/collections, [] for an older Query-Engine', async () => {
+    const ok = service(undefined, () => of({ collections: [{ id: 'api', advancedSearch: true, simpleSearch: true }, { id: 'orion', advancedSearch: true, simpleSearch: false }, { nope: 1 }] }));
+    expect(await ok.api.getCollections()).toEqual([{ id: 'api', advancedSearch: true, simpleSearch: true }, { id: 'orion', advancedSearch: true, simpleSearch: false }]);
+    expect(await service(undefined, () => throwError(() => new Error('404'))).api.getCollections()).toEqual([]);
+  });
+
+  it('collectionLabel: config.json collectionLabels, else the defaults, else the id', () => {
+    expect(service().api.collectionLabel('api')).toBe('Sources');
+    expect(service().api.collectionLabel('orion')).toBe('Datapoints');
+    expect(service({ beopenApiBaseUrl: 'http://be', collectionLabels: { orion: 'Eurostat' } }).api.collectionLabel('orion')).toBe('Eurostat');
+    expect(service().api.collectionLabel('other')).toBe('other');
   });
 });

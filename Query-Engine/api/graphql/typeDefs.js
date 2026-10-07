@@ -14,6 +14,8 @@ const typeDefs = gql`
 
   type Source {
     id: ID
+    # The collection the document comes from: api (apiConnector), orion (Orion datasets), minio (MinIO files)
+    collection: String
     name: String
     # Set by the Source-Connector's apiConnector (the polled API's URL and the
     # item's original id); absent on documents coming from MinIO.
@@ -62,11 +64,13 @@ const typeDefs = gql`
     #           $exists $type $regex $options $not $and $or $nor $elemMatch $all $size $mod
     #   name:   "contains", case insensitive
     #   source: exact origin url of API / Orion records
-    #   limit:  default queryOptions.graphQLDefaultLimit (100), at most queryOptions.graphQLMaxLimit (1000)
+    #   collections: api, orion, minio - default ["api", "minio"] (the Orion datapoints: datapoints(...))
+    #   limit:  default queryOptions.graphQLDefaultLimit (100), at most queryOptions.graphQLMaxLimit (1000);
+    #           limit and skip apply to each collection
     # To read the stored data use doc (whole document) or doc(fields: [...]).
-    sources(filter: JSON, name: String, source: String, limit: Int, skip: Int): [Source]
+    sources(filter: JSON, name: String, source: String, collections: [String], limit: Int, skip: Int): [Source]
     # How many documents sources would return without limit / skip
-    sourcesCount(filter: JSON, name: String, source: String): Int
+    sourcesCount(filter: JSON, name: String, source: String, collections: [String]): Int
     # Surveys that have datapoints (from the dimensions collection), to use in datapoints(survey: ...).
     # limit: same default / maximum as sources.
     surveys(limit: Int): [String]

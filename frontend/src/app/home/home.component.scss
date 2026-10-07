@@ -388,3 +388,26 @@
     animation: none;
   }
 }
+
+// "Load more results" under the Advanced search results
+.ds-load-more {
+  display: block;
+  margin: 16px auto 0;
+  min-width: 180px;
+}
+
+.ds-load-more:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+// the collection a result comes from (Advanced search)
+.ds-element-card__collection {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  color: var(--ds-text-muted);
+  font-size: calc(11px * var(--ds-font-scale));
+  font-weight: 500;
+}
