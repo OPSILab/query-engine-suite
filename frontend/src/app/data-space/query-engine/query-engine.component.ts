@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
@@ -13,6 +13,7 @@ import { DataSpaceService } from '../data-space.service';
 import { NbAuthService } from '@nebular/auth';
 import { ConfigService } from '../../services/config.service';
 import { QueryRequest, SNIPPET_LANGS, SnippetLang, toSnippet } from './request-snippets';
+import { FALLBACK_GQL_EXAMPLES, GqlExample, SOURCES_DISCOVERY_QUERY, SURVEYS_DISCOVERY_QUERY, buildGqlExamples } from './graphql-editor/graphql-examples';
 
 /**
  * Ported from the main dashboard's QueryEngineComponent
@@ -45,7 +46,7 @@ import { QueryRequest, SNIPPET_LANGS, SnippetLang, toSnippet } from './request-s
   styleUrls: ['./query-engine.component.scss'],
   standalone: false
 })
-export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
+export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
 
   form: UntypedFormGroup;
   modes: string[] = ["Simple search", "Advanced search", "Query SQL", "Query GraphQL"];
@@ -213,6 +214,7 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
   // nb-select's [(ngModel)].
   setMode(m: string): void {
     this.form.get('mode').setValue(m);
+    if (m === "Query GraphQL") this.loadGraphqlExamples();
   }
 
   setType(t: string): void {
@@ -317,7 +319,7 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const mongoQuery = this.buildMongoQuery(all);
-    this.pendingQuery = this.track(all ? 'all' : 'query', this.beopenAPI.minioQuery(this.mode, this.value, mongoQuery, this.sqlQuery, this.visibility, this.type)).subscribe(queryResult => {
+    this.pendingQuery = this.track(all ? 'all' : 'query', this.beopenAPI.minioQuery(this.mode, this.searchValue(all), mongoQuery, this.sqlQuery, this.visibility, this.type)).subscribe(queryResult => {
       this.generalSharedBucketObjects = [];
       this.pilotSharedBucketObjects = [];
       this.userBucketObjects = [];
@@ -471,8 +473,54 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
   private currentRequest(): QueryRequest | undefined {
     if (this.mode === "Query GraphQL")
       return this.beopenAPI.buildGraphqlRequest(this.graphqlText, this.visibility);
-    const all = this.mode === "Advanced search" && this.snippetFindAll;
-    return this.beopenAPI.buildQueryRequest(this.mode, this.value, this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type);
+    const all = (this.mode === "Advanced search" || this.mode === "Simple search") && this.snippetFindAll;
+    return this.beopenAPI.buildQueryRequest(this.mode, this.searchValue(all), this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type);
+  }
+
+  /** Simple search text: none for "Find all" (the backend then returns everything the user may see). */
+  private searchValue(all: Boolean): string {
+    return all && this.mode === "Simple search" ? "" : this.value;
+  }
+
+  // ---- GraphQL example queries, built from the data the user can see (see graphql-examples.ts)
+
+  // undefined until loaded: the editor keeps its hardcoded fallback examples
+  graphqlExamples?: GqlExample[];
+  readonly fallbackGqlExamples = FALLBACK_GQL_EXAMPLES;
+  private graphqlExamplesByVisibility = new Map<string, Promise<GqlExample[]>>();
+
+  async loadGraphqlExamples(): Promise<void> {
+    const key = this.visibility ?? "";
+    let examples = this.graphqlExamplesByVisibility.get(key);
+    if (!examples) {
+      examples = this.fetchGraphqlExamples();
+      this.graphqlExamplesByVisibility.set(key, examples);
+    }
+    const built = await examples;
+    if ((this.visibility ?? "") === key) // not changed in the meantime
+      this.graphqlExamples = built;
+  }
+
+  private async fetchGraphqlExamples(): Promise<GqlExample[]> {
+    // null = couldn't be read (unreachable, older backend without the field...): fallback examples for that part
+    const read = async (query: string) => {
+      try {
+        return (await firstValueFrom(this.beopenAPI.graphqlQuery(query, this.visibility)))?.data ?? null;
+      } catch {
+        return null;
+      }
+    };
+    const [sources, surveys] = await Promise.all([read(SOURCES_DISCOVERY_QUERY), read(SURVEYS_DISCOVERY_QUERY)]);
+    return buildGqlExamples({
+      sources: sources ? { sample: sources.sample?.[0], api: sources.api?.[0] } : null,
+      surveys: Array.isArray(surveys?.surveys) ? surveys.surveys : null,
+    });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // other visibility, other visible data
+    if (changes['visibility'] && !changes['visibility'].firstChange && this.mode === "Query GraphQL")
+      this.loadGraphqlExamples();
   }
 
   private snippetAuthHeader(): string | null {

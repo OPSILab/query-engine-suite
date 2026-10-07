@@ -53,6 +53,12 @@ const resolvers = {
     sourcesCount: async (parent, args, { req }) => {
       return await Source.countDocuments(sourcesQuery(args, req));
     },
+    // One document per survey in `dimensions` (written by the Source-Connector with the datapoints): cheap,
+    // unlike a distinct on the datapoints collection.
+    surveys: async (parent, args) => {
+      const { limit } = limits(args)
+      return (await Dimensions.find({ survey: { $type: "string" } }, { survey: 1, _id: 0 }).sort({ survey: 1 }).limit(limit).lean()).map(d => d.survey);
+    },
     source: async (parent, { id }, { req }) => {
       const doc = await Source.findById(id);
       return doc && visibleTo(req, doc) ? doc : null;

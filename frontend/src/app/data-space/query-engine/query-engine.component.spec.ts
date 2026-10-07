@@ -17,6 +17,7 @@ interface Backend {
   fail?: RegExp;                                // urls that answer with an error
   limits?: QueryWarning[];                      // GET /api/query/simple/limits
   warningsHeader?: string;                      // X-Query-Warnings of the query responses
+  graphql?: (query: string) => any;             // POST /graphql, by document
 }
 
 // Real BeopenAPIService on a fake HttpClient: the component's requests go through the real request builders.
@@ -38,7 +39,10 @@ function fakeHttp(backend: Backend) {
     }),
     request: (method: string, url: string, options: any) => {
       requests.push({ method, url, options });
-      return answer(url, () => backend.query?.(options.params.get('format')) ?? []).pipe(map(body =>
+      const reply = url.endsWith('/graphql')
+        ? () => { const r = backend.graphql?.(options.body.query); if (r instanceof Error) throw r; return r ?? { data: null }; }
+        : () => backend.query?.(options.params.get('format')) ?? [];
+      return answer(url, reply).pipe(map(body =>
         new HttpResponse({ body, headers: new HttpHeaders(backend.warningsHeader ? { 'X-Query-Warnings': backend.warningsHeader } : {}) })));
     },
   };
@@ -252,5 +256,71 @@ describe('Simple search warnings', () => {
     expect(status).toBe('warning');
     expect(text).toBe('API "Weather" could not be searched (HTTP 500)');
     comp.ngOnDestroy();
+  });
+});
+
+describe('"Find all" in Simple search', () => {
+  it('sends no search text, whatever is typed; "Apply Query" sends it', () => {
+    const { comp, http } = create();
+    comp.setMode('Simple search');
+    comp.value = 'Rome';
+    comp.minioQuery(true);
+    expect(http.requests[0].options.params.get('value')).toBe('');
+    comp.loading = null;
+    comp.minioQuery(false);
+    expect(http.requests[1].options.params.get('value')).toBe('Rome');
+  });
+
+  it('the snippet follows the "Find all" option', () => {
+    const { comp } = create();
+    comp.setMode('Simple search');
+    comp.value = 'Rome';
+    comp.refreshSnippet();
+    expect(comp.snippetCode).toContain('/api/query?value=Rome');
+    comp.snippetFindAll = true;
+    comp.refreshSnippet();
+    expect(comp.snippetCode).toContain(`/api/query?value='`);
+  });
+});
+
+describe('GraphQL examples from the real data', () => {
+  const backend = (overrides: Partial<Record<'sources' | 'surveys', any>> = {}) => ({
+    graphql: (query: string) => query.includes('DataSpaceExampleSources')
+      ? overrides.sources ?? { data: { sample: [{ name: 'Bike lanes', doc: { city: 'Rome' } }], api: [{ name: 'Lanes', source: 'https://api/lanes' }] } }
+      : overrides.surveys ?? { data: { surveys: ['NAMA_10R_3GDP'] } },
+  });
+
+  it('built when the GraphQL mode is opened, with the current visibility', async () => {
+    const { comp, http } = create({ backend: backend() });
+    expect(comp.graphqlExamples).toBeUndefined();
+    comp.setMode('Query GraphQL');
+    await new Promise(resolve => setTimeout(resolve));
+    expect(comp.graphqlExamples!.map(e => e.label)).toEqual([
+      'Available sources', 'Sources with their data', 'Filter: city = Rome', 'Name contains "Bike"', 'Records of Lanes', 'Datapoints — NAMA_10R_3GDP',
+    ]);
+    expect(http.requests.every(r => r.options.headers.get('visibility') === 'public')).toBe(true);
+  });
+
+  it('read once per visibility', async () => {
+    const { comp, http } = create({ backend: backend() });
+    await comp.loadGraphqlExamples();
+    await comp.loadGraphqlExamples();
+    expect(http.requests.length).toBe(2); // sources + surveys
+    comp.visibility = 'private';
+    await comp.loadGraphqlExamples();
+    expect(http.requests.length).toBe(4);
+  });
+
+  it('an older backend without `surveys` (HTTP 400): hardcoded datapoints examples', async () => {
+    const { comp } = create({ backend: { ...backend({ surveys: new Error('HTTP 400') }) } });
+    await comp.loadGraphqlExamples();
+    expect(comp.graphqlExamples!.map(e => e.label)).toContain('PIL per inhabitant — Lovech');
+    expect(comp.graphqlExamples!.map(e => e.label)).toContain('Filter: city = Rome');
+  });
+
+  it('backend unreachable: all the hardcoded examples', async () => {
+    const { comp } = create({ backend: { fail: /graphql/ } });
+    await comp.loadGraphqlExamples();
+    expect(comp.graphqlExamples).toEqual(comp.fallbackGqlExamples);
   });
 });

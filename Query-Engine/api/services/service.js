@@ -488,7 +488,12 @@ module.exports = {
         }
         if (options.minio === false)
             warnings.unshift(...simpleSearch.limits().filter(w => w.code == "MINIO_DISABLED"))
-        return objects.filter(obj => typeof obj.raw == "string" ? objectFilter(obj, prefix, bucket, visibility) && (!query.value || obj.raw.includes(query.value)) : objectFilter(obj, prefix, bucket, visibility) && (!query.value || JSON.stringify(obj.raw).includes(query.value)))
+        // no value ("Find all"): no text filter at all, only the visibility
+        const value = query.value
+        const contains = value
+            ? obj => (typeof obj.raw == "string" ? obj.raw : JSON.stringify(obj.raw) ?? "").includes(value)
+            : () => true
+        return objects.filter(obj => objectFilter(obj, prefix, bucket, visibility) && contains(obj))
 
     },
 

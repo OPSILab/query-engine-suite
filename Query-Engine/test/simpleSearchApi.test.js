@@ -57,13 +57,19 @@ describe("GET /api/query (simple search)", () => {
         assert.deepEqual(warnings.map(w => [w.kind, w.code]), [["config", "ORION_DISABLED"], ["runtime", "API_ERROR"]])
     })
 
+    test("no value (Find all): every visible MinIO file and every API record, no text filter", async () => {
+        config.apiConnectorConfig.apiUrls = [{ name: "Single", url: fake.url + "/single" }, { name: "Paged", url: fake.url + "/paged", pagination: { offsetParam: "offset", limitParam: "limit", limit: 2 } }]
+        const { body } = await simpleSearch("")
+        assert.deepEqual(body.map(r => r.name).sort(), ["Paged", "Paged", "Paged", "Paged", "Paged", "Single", "oslo.json", "rome.json"])
+    })
+
     test("with authentication: private searches the user's MinIO files only, no live sources", async () => {
         config.authConfig.disableAuth = false
         const token = makeToken({ azp: "query-engine", email: "anna@demetrix.it/data model mapper" })
         const { body, warnings } = await simpleSearch("Rome", { visibility: "private", token })
         assert.deepEqual(body.map(r => r.name), ["anna@demetrix.it/data model mapper/mine.json"])
         assert.deepEqual(warnings, [])
-        assert.equal(fake.callsTo("/single").length, 1) // only the previous test's call
+        assert.equal(fake.callsTo("/single").length, 2) // only the previous tests' calls
     })
 
     test("with authentication: public includes the live sources", async () => {

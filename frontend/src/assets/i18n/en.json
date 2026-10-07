@@ -104,5 +104,6 @@
   "Simple search warning API_TRUNCATED": "API \"{{source}}\": only its first pages were searched",
   "Simple search warning ORION_ERROR": "Orion ({{source}}) could not be searched",
   "Simple search warning ORION_TRUNCATED": "Only the first Orion entities were searched",
-  "Simple search warning MAX_RESULTS": "Too many results from the APIs / Orion: only the first ones are shown"
+  "Simple search warning MAX_RESULTS": "Too many results from the APIs / Orion: only the first ones are shown",
+  "Find all (ignore the search text)": "Find all (ignore the search text)"
 }

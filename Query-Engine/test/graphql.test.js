@@ -34,6 +34,11 @@ before(async () => {
     server = new ApolloServer({ typeDefs, resolvers, context: ({ req }) => ({ req }) })
     await server.start()
     await Source.collection.insertMany(DOCS.map(d => ({ ...d })))
+    await load("api/models/Dimensions.js").collection.insertMany([
+        { survey: "NAMA_10R_3GDP", dimensions: { geo: true } },
+        { survey: "DEMO_R_GIND3", dimensions: { geo: true } },
+        { dimensions: { broken: true } }
+    ])
 })
 after(db.teardown)
 beforeEach(() => resetConfig())
@@ -151,5 +156,12 @@ describe("Source fields", () => {
     test("doc without fields returns the whole document", async () => {
         const result = await exec('{ sources(name: "own.json") { doc } }')
         assert.deepEqual(result.data.sources[0].doc.json, [{ a: 1 }])
+    })
+})
+
+describe("surveys", () => {
+    test("surveys of the dimensions collection, sorted, limited", async () => {
+        assert.deepEqual((await exec("{ surveys }", userReq("private"))).data.surveys, ["DEMO_R_GIND3", "NAMA_10R_3GDP"])
+        assert.deepEqual((await exec("{ surveys(limit: 1) }")).data.surveys, ["DEMO_R_GIND3"])
     })
 })

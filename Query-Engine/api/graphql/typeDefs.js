@@ -67,6 +67,9 @@ const typeDefs = gql`
     sources(filter: JSON, name: String, source: String, limit: Int, skip: Int): [Source]
     # How many documents sources would return without limit / skip
     sourcesCount(filter: JSON, name: String, source: String): Int
+    # Surveys that have datapoints (from the dimensions collection), to use in datapoints(survey: ...).
+    # limit: same default / maximum as sources.
+    surveys(limit: Int): [String]
     source(id: ID!): Source
     datapoints(
       survey: String

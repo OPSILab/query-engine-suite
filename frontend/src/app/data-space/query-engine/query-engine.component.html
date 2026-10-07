@@ -136,6 +136,7 @@
         <bx-graphql-editor
           [endpoint]="graphqlEndpoint"
           [(value)]="graphqlText"
+          [examples]="graphqlExamples ?? fallbackGqlExamples"
           (blockedChange)="graphqlBlocked = $event"
         ></bx-graphql-editor>
       </div>
@@ -218,10 +219,10 @@
           }
         </div>
         <div class="ds-modal__options">
-          @if (mode == 'Advanced search') {
+          @if (mode == 'Advanced search' || mode == 'Simple search') {
             <label class="ds-check">
               <input type="checkbox" [(ngModel)]="snippetFindAll" (ngModelChange)="refreshSnippet()" />
-              {{ 'Find all (ignore the filters)' | translate }}
+              {{ (mode == 'Simple search' ? 'Find all (ignore the search text)' : 'Find all (ignore the filters)') | translate }}
             </label>
           }
           @if (authEnabled) {

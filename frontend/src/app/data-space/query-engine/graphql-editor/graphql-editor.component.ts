@@ -2,11 +2,8 @@ import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild }
 import { GqlSchema } from './graphql-schema';
 import { GraphqlSchemaService } from './graphql-schema.service';
 import { Analysis, GqlToken, SuggestionItem, Suggestions, UnknownName, analyze, suggestAt } from './graphql-analyzer';
+import { FALLBACK_GQL_EXAMPLES, GqlExample } from './graphql-examples';
 
-interface GqlExample {
-  label: string;
-  query: string;
-}
 
 interface RenderedToken {
   text: string;
@@ -55,91 +52,8 @@ export class GraphqlEditorComponent implements OnInit {
   }
 }`;
 
-  // Taken from Query-Engine/examples/GraphQL (ExampleQuery1, 2 and 5), the
-  // last one with its $pilot_nuts3 variable inlined - this editor has no
-  // variables panel yet. Every datapoints example passes `survey`: see the
-  // note in the backend's buildCachePrefix() for why a datapoints query with
-  // neither `source` nor `survey` (nor `dimensions`) currently fails there.
-  @Input() examples: GqlExample[] = [
-    // sources: filter (MongoDB filter as JSON, a """block string""" needs no escaping), name, source,
-    // limit (default 100), skip; doc returns the stored document - see the Query-Engine's typeDefs.js.
-    { label: 'Available sources', query: `query {
-  sourcesCount
-  sources(limit: 20) {
-    id
-    name
-    source
-  }
-}` },
-    { label: 'Sources with their data', query: `query {
-  sources(limit: 5) {
-    name
-    doc
-  }
-}` },
-    { label: 'Public files, filtered', query: `query {
-  sources(
-    filter: """{"record.bucketName": "public-data"}"""
-    limit: 10
-  ) {
-    name
-    doc(fields: ["json", "csv"])
-  }
-}` },
-    { label: 'API records by name', query: `query {
-  sources(name: "rome", limit: 10) {
-    name
-    source
-    doc
-  }
-}` },
-    { label: 'Online purchase — Severozapaden', query: `query {
-  datapoints(
-    survey: "ISOC_R_BLT12_I"
-    sortBy: ["year"]
-    sortOrder: "desc"
-    dimensions: [
-      "Severozapaden"
-      "Last online purchase: in the last 3 months"
-      "Percentage of individuals"
-    ]
-    limit: 1
-  ) {
-    region
-    source
-    timestamp
-    survey
-    dimensions
-    value
-  }
-}` },
-    { label: 'PIL per inhabitant — Lovech', query: `query {
-  datapoints(
-    survey: "nama_10r_3gdp"
-    sortBy: "year"
-    sortOrder: "asc"
-    dimensions: ["Lovech", "Euro per inhabitant"]
-  ) {
-    region
-    survey
-    dimensions
-    value
-  }
-}` },
-    { label: 'Population change — Trento', query: `query {
-  datapoints(
-    survey: "demo_r_gind3"
-    sortBy: "year"
-    sortOrder: "asc"
-    dimensions: ["Trento", "Total population change"]
-  ) {
-    region
-    survey
-    dimensions
-    value
-  }
-}` },
-  ];
+  // Built from the backend's data by the parent (graphql-examples.ts); the hardcoded ones until then.
+  @Input() examples: GqlExample[] | null = FALLBACK_GQL_EXAMPLES;
 
   @Output() valueChange = new EventEmitter<string>();
   /** Emitted from user edits only, so the parent never changes state mid change-detection. */
