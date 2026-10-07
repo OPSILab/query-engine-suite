@@ -35,16 +35,20 @@ module.exports = {
 
         console.debug({ headers: req.headers })
 
+        if (!req.body)
+            req.body = {}
+
         if (req.body.file)
             req.body = JSON.parse(req.body.file)
 
         if (!req.headers.visibility)
             req.headers.visibility = "private"
 
-        if (req.headers.visibility == "public" && req?.body?.query && !req?.body?.query?.toLowerCase().includes("public-data"))
+        // req.isGraphql (set in index.js): body.query is a GraphQL document there, not SQL - the SQL checks don't apply
+        if (!req.isGraphql && req.headers.visibility == "public" && req?.body?.query && !req?.body?.query?.toLowerCase().includes("public-data"))
             return res.status(400).send("If you are requesting for public files you must search in public-data bucket");
 
-        if (req?.body?.query?.toLowerCase().includes("select * from public-data"))
+        if (!req.isGraphql && req?.body?.query?.toLowerCase().includes("select * from public-data"))
             req.body.query = req.body.query.replace("SELECT * FROM public-data", "SELECT * FROM publicdata")
 
         if (authConfig.disableAuth) {
@@ -162,7 +166,7 @@ module.exports = {
                             config.group = decodedToken.email
                         }
 
-                        if (config.enableQueryControl)
+                        if (config.enableQueryControl && !req.isGraphql)
                             if (!deniedQuery(req.body.query, req.body.bucketName, req.body.prefix))
                                 next()
                             else

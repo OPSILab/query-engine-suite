@@ -388,7 +388,7 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
   /** The request "Apply Query" (or "Find all", see snippetFindAll) would send right now. */
   private currentRequest(): QueryRequest | undefined {
     if (this.mode === "Query GraphQL")
-      return this.beopenAPI.buildGraphqlRequest(this.graphqlText);
+      return this.beopenAPI.buildGraphqlRequest(this.graphqlText, this.visibility);
     const all = this.mode === "Advanced search" && this.snippetFindAll;
     return this.beopenAPI.buildQueryRequest(this.mode, this.value, this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type);
   }
@@ -457,7 +457,7 @@ export class QueryEngineComponent implements OnInit, AfterViewInit, OnDestroy {
       this.createToastr('warning', "Empty query", "GraphQL empty query");
       return;
     }
-    this.pendingQuery = this.track(kind, this.beopenAPI.graphqlQuery(this.graphqlText)).subscribe({
+    this.pendingQuery = this.track(kind, this.beopenAPI.graphqlQuery(this.graphqlText, this.visibility)).subscribe({
       next: res => this.showGraphqlResult(res),
       error: err => {
         // Apollo answers syntax/validation errors (unknown field, wrong

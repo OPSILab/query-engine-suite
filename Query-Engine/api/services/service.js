@@ -33,21 +33,8 @@ function suggestionsVisibilityFilter(prefix, bucketName, visibility) {
     return { visibility: "public-data" }
 }
 
-function bucketIs(record, bucket) {
-    return (record?.s3?.bucket?.name == bucket || record?.bucketName == bucket)
-}
-
-function objectFilter(obj, prefix, bucket, visibility) {
-    return true
-    if (visibility == "private" && (obj.record?.name?.includes(prefix) || obj?.name?.includes(prefix)))
-        return true
-    if (visibility == "shared" && bucketIs(obj?.record, bucket) && obj?.name?.includes(bucket?.toUpperCase() + " SHARED Data/"))
-        return true
-    if (visibility == "public" && bucketIs(obj?.record, "public-data"))
-        return true
-    return false
-
-}
+// Everything with disableAuth, otherwise only what the user may see for the selected visibility (see visibility.js).
+const { objectFilter } = require('./visibility')
 
 /*async function resetCache(queriesMapfilter, cacheFilter) {
     const { collections, queriesMap } = await filterCollections(queriesMapfilter, cacheFilter, QueriesMap)

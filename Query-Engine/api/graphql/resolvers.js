@@ -6,6 +6,13 @@ const QueriesMap = require("../models/QueriesMap")
 const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
 const logger = require("percocologger")
+const { objectFilter } = require("../services/visibility")
+
+// Same scoping as the REST queries: everything with disableAuth, otherwise only the documents the user may see
+// for the visibility header (prefix and bucket are set on req.body by the auth middleware, see index.js).
+function visibleTo(req, doc) {
+  return objectFilter(plain(doc), req?.body?.prefix, req?.body?.bucketName, req?.headers?.visibility)
+}
 
 function buildCachePrefix(args) {
   const { source, survey, dimensions, region, sortBy, sortOrder, limit, exclude, filterBy, filter, lang } = args
@@ -36,11 +43,12 @@ function scalarOrNull(value) {
 
 const resolvers = {
   Query: {
-    sources: async () => {
-      return await Source.find();
+    sources: async (parent, args, { req }) => {
+      return (await Source.find()).filter(doc => visibleTo(req, doc));
     },
-    source: async (parent, { id }) => {
-      return await Source.findById(id);
+    source: async (parent, { id }, { req }) => {
+      const doc = await Source.findById(id);
+      return doc && visibleTo(req, doc) ? doc : null;
     },
 
     datapoints: async (_, args, { db }) => {
@@ -175,30 +183,6 @@ const resolvers = {
       const d = plain(s)
       if (!d || !Array.isArray(fields) || fields.length === 0) return d
       return Object.fromEntries(fields.filter(f => Object.prototype.hasOwnProperty.call(d, f)).map(f => [f, d[f]]))
-    },
-  },
-
-  Mutation: {
-    createSource: async (parent, { json, record, name }) => {
-      const newSource = new Source({ json, record, name });
-      return await newSource.save();
-    },
-
-    updateSource: async (parent, { id, json, record, name }) => {
-      return await Source.findByIdAndUpdate(
-        id,
-        { json, record, name },
-        { new: true }
-      );
-    },
-
-    deleteSource: async (parent, { id }) => {
-      try {
-        await Source.findByIdAndDelete(id);
-        return true;
-      } catch (err) {
-        return false;
-      }
     },
   },
 };

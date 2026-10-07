@@ -89,11 +89,7 @@ const typeDefs = gql`
     frequency: String
   }
 
-  type Mutation {
-    createSource(name: String!): Source #, record: RecordInput): Source
-    updateSource(id: ID!, name: String): Source
-    deleteSource(id: ID!): Boolean
-  }
+  # No Mutation type: the GraphQL API is read-only (createSource / updateSource / deleteSource were removed).
 `
 
 module.exports = typeDefs

@@ -43,16 +43,15 @@ export class BeopenAPIService {
   }
 
   /**
-   * Sends a GraphQL document as-is. No `visibility` header: the GraphQL
-   * resolvers don't read it (the Private/Shared/Public switch applies to the
-   * REST modes only).
+   * Sends a GraphQL document as-is, with the `visibility` header: with authentication
+   * on, the resolvers scope the results like the REST modes (Private/Shared/Public).
    */
-  public graphqlQuery(query: string): Observable<any> {
-    return this.send(this.buildGraphqlRequest(query));
+  public graphqlQuery(query: string, visibility?: string): Observable<any> {
+    return this.send(this.buildGraphqlRequest(query, visibility));
   }
 
-  public buildGraphqlRequest(query: string): QueryRequest {
-    return { method: "POST", url: this.graphqlEndpoint, params: {}, headers: {}, body: { query } };
+  public buildGraphqlRequest(query: string, visibility?: string): QueryRequest {
+    return { method: "POST", url: this.graphqlEndpoint, params: {}, headers: { visibility }, body: { query } };
   }
 
   public getUser(): Observable<BeopenUser> {
