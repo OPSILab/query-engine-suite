@@ -220,6 +220,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     return this.selectedCollections.includes(id);
   }
 
+  /** Labels of the collections not copied to PostgreSQL: the SQL queries don't find their data (warned in that mode). */
+  get collectionsNotInSql(): string[] {
+    return this.collectionOptions.filter(c => c.sql === false).map(c => c.label);
+  }
+
   /** The collection is searched by the current mode (e.g. Orion is not in the Simple search unless configured). */
   collectionAvailable(c: CollectionInfo, mode = this.mode): boolean {
     return mode === 'Simple search' ? c.simpleSearch : c.advancedSearch;

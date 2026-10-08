@@ -239,8 +239,8 @@ describe('collections', () => {
   });
 
   it('getCollections: the list of /api/collections, [] for an older Query-Engine', async () => {
-    const ok = service(undefined, () => of({ collections: [{ id: 'api', advancedSearch: true, simpleSearch: true, default: true }, { id: 'orion', advancedSearch: true, simpleSearch: false }, { nope: 1 }] }));
-    expect(await ok.api.getCollections()).toEqual([{ id: 'api', advancedSearch: true, simpleSearch: true, default: true }, { id: 'orion', advancedSearch: true, simpleSearch: false }]);
+    const ok = service(undefined, () => of({ collections: [{ id: 'api', advancedSearch: true, simpleSearch: true, default: true, sql: true }, { id: 'orion', advancedSearch: true, simpleSearch: false, sql: false }, { nope: 1 }] }));
+    expect(await ok.api.getCollections()).toEqual([{ id: 'api', advancedSearch: true, simpleSearch: true, default: true, sql: true }, { id: 'orion', advancedSearch: true, simpleSearch: false, sql: false }]);
     expect(await service(undefined, () => throwError(() => new Error('404'))).api.getCollections()).toEqual([]);
   });
 

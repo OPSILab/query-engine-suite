@@ -133,7 +133,9 @@ module.exports = {
                 id,
                 default: byDefault.includes(id),
                 advancedSearch: collectionSettings(id).toMongo,
-                simpleSearch: id == "orion" ? live.orion === true : live[id] !== false
+                simpleSearch: id == "orion" ? live.orion === true : live[id] !== false,
+                // in PostgreSQL (collections.<id>.toPostgres): found by the SQL queries
+                sql: collectionSettings(id).toPostgres
             })),
             // highest page sizes accepted: the frontend never asks for more (its config.json may say more)
             limits: { advancedSearch: service.ADVANCED_SEARCH_MAX(), suggestions: service.SUGGESTIONS_MAX() }

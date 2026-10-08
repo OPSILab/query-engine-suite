@@ -126,9 +126,9 @@ describe("collections", () => {
         config.simpleSearchOptions = { orion: true, api: false }
         const res = await fetch(baseUrl + "/collections")
         assert.deepEqual(await res.json(), { collections: [
-            { id: "api", default: true, advancedSearch: true, simpleSearch: false },
-            { id: "orion", default: false, advancedSearch: false, simpleSearch: true },
-            { id: "minio", default: true, advancedSearch: true, simpleSearch: true }
+            { id: "api", default: true, advancedSearch: true, simpleSearch: false, sql: true },
+            { id: "orion", default: false, advancedSearch: false, simpleSearch: true, sql: false },
+            { id: "minio", default: true, advancedSearch: true, simpleSearch: true, sql: true }
         ], limits: { advancedSearch: 1000, suggestions: 500 } })
         config.queryOptions.defaultCollections = ["orion"]
         config.queryOptions.advancedSearchMaxResults = 5000
@@ -136,5 +136,11 @@ describe("collections", () => {
         const custom = await (await fetch(baseUrl + "/collections")).json()
         assert.deepEqual(custom.collections.map(c => [c.id, c.default]), [["api", false], ["orion", true], ["minio", false]])
         assert.deepEqual(custom.limits, { advancedSearch: 5000, suggestions: 200 })
+        config.collections.orion.toPostgres = true
+        config.collections.api.toPostgres = false
+        const sql = await (await fetch(baseUrl + "/collections")).json()
+        assert.deepEqual(sql.collections.map(c => [c.id, c.sql]), [["api", false], ["orion", true], ["minio", true]])
+        config.queryOptions.SQLQuery = false // no SQL at all
+        assert.ok((await (await fetch(baseUrl + "/collections")).json()).collections.every(c => c.sql === false))
     })
 })

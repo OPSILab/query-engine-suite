@@ -59,6 +59,8 @@ export interface CollectionInfo {
   simpleSearch: boolean;
   /** Selected for a user who has not chosen yet (the Query-Engine's queryOptions.defaultCollections). */
   default?: boolean;
+  /** Copied to PostgreSQL (collections.<id>.toPostgres): found by the SQL queries. undefined: an older Query-Engine. */
+  sql?: boolean;
 }
 
 /** Names shown for the collections, unless config.json has "collectionLabels". */
@@ -253,7 +255,7 @@ export class BeopenAPIService {
       })
       .then(res => (Array.isArray(res?.collections) ? res.collections : [])
         .filter((c: any) => typeof c?.id === "string")
-        .map((c: any) => ({ id: c.id, advancedSearch: c.advancedSearch !== false, simpleSearch: c.simpleSearch !== false, ...(typeof c.default === "boolean" ? { default: c.default } : {}) })))
+        .map((c: any) => ({ id: c.id, advancedSearch: c.advancedSearch !== false, simpleSearch: c.simpleSearch !== false, ...(typeof c.default === "boolean" ? { default: c.default } : {}), ...(typeof c.sql === "boolean" ? { sql: c.sql } : {}) })))
       .catch(() => []);
   }
 

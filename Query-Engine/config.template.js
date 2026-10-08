@@ -104,8 +104,9 @@ module.exports = {
     collection: "querycache",
     keepVersions: 3
   },
-  // The MongoDB collections of the Source-Connector, one per connector: same names as in its config (only mongo /
-  // toMongo are used here). The frontend lets the user choose which ones to search (GET /api/collections).
+  // The MongoDB collections of the Source-Connector, one per connector: same values as in its config (only mongo /
+  // toMongo / toPostgres are used here). The frontend lets the user choose which ones to search, and warns that the
+  // SQL queries don't find the ones with toPostgres false (GET /api/collections).
   collections: {
     api: { mongo: "sources", toMongo: true, postgres: "sources", toPostgres: true },
     orion: { mongo: "datapoints", toMongo: true, postgres: "datapoints", toPostgres: false },

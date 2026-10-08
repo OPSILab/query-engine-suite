@@ -111,6 +111,7 @@
   "Search in": "Cerca in",
   "Search in info": "Le collezioni in cui cercare: Sources (i dati delle API), Datapoints (Orion) e Files (MinIO). La scelta è ricordata in questo browser; anche Find all trova tutto solo nelle collezioni scelte. I suggerimenti seguono la scelta.",
   "Not searched by this mode": "Non cercata da questa modalità",
+  "Not in SQL": "{{collections}}: non copiati in PostgreSQL, le query SQL non trovano questi dati (usa la Advanced search o GraphQL).",
   "Select at least one source": "Seleziona almeno una collezione in cui cercare.",
   "Loading more results": "Caricamento di altri risultati...",
   "Values not suggested": "Alcuni valori di \"{{key}}\" non sono suggeriti (ad es. le misure dei datapoints: troppi valori distinti). Scrivi il valore esatto: la ricerca li trova comunque.",

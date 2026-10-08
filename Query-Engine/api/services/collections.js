@@ -1,5 +1,6 @@
 // The MongoDB collections of the Source-Connector, one per connector (config.collections, same names as in the
-// Source-Connector config; only mongo / toMongo are used here):
+// Source-Connector config; only mongo / toMongo / toPostgres are used here - toPostgres only to tell the frontend
+// which data the SQL queries can find):
 //
 //   api    apiConnector records ("sources")     public data
 //   orion  Orion datasets, datapoints ("datapoints")   public data
@@ -31,10 +32,11 @@ function defaultCollections() {
     }
     return DEFAULT_COLLECTIONS
 }
+// same defaults as the Source-Connector's
 const DEFAULTS = {
-    api: { mongo: "sources", toMongo: true },
-    orion: { mongo: "datapoints", toMongo: true },
-    minio: { mongo: "minio", toMongo: true }
+    api: { mongo: "sources", toMongo: true, toPostgres: true },
+    orion: { mongo: "datapoints", toMongo: true, toPostgres: false },
+    minio: { mongo: "minio", toMongo: true, toPostgres: true }
 }
 // the field holding the origin url of a record (GraphQL sources(source: ...))
 const ORIGIN_FIELD = { api: "source", orion: "fromUrl", minio: "source" }
@@ -43,7 +45,14 @@ function collectionSettings(connector) {
     if (!CONNECTORS.includes(connector))
         throw new Error(`Unknown collection "${connector}" (${CONNECTORS.join(" | ")})`)
     const s = { ...DEFAULTS[connector], ...(config.collections?.[connector] || {}) }
-    return { connector, mongo: s.mongo, toMongo: s.toMongo !== false, originField: ORIGIN_FIELD[connector] }
+    return {
+        connector,
+        mongo: s.mongo,
+        toMongo: s.toMongo !== false,
+        // copied to PostgreSQL by the Source-Connector (queryOptions.SQLQuery false: no SQL at all)
+        toPostgres: s.toPostgres === true && config.queryOptions?.SQLQuery !== false,
+        originField: ORIGIN_FIELD[connector]
+    }
 }
 
 const storedCollections = () => CONNECTORS.filter(c => collectionSettings(c).toMongo)

@@ -479,6 +479,16 @@ describe('collections ("Search in")', () => {
   ] };
   const queries = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query')).map(r => r.options.body);
 
+  it('Query SQL: the collections not copied to PostgreSQL are named (none with an older Query-Engine)', async () => {
+    const withSql = { collections: COLLECTIONS.collections.map(c => ({ ...c, sql: c.id !== 'orion' })) };
+    const { comp } = create({ backend: { collections: withSql }, settings: { collectionLabels: { orion: 'Eurostat' } } });
+    await comp.ngOnInit();
+    expect(comp.collectionsNotInSql).toEqual(['Eurostat']);
+    const older = create({ backend: { collections: COLLECTIONS } });
+    await older.comp.ngOnInit();
+    expect(older.comp.collectionsNotInSql).toEqual([]);
+  });
+
   it('the collections of the Query-Engine with their labels; all selected the first time', async () => {
     const { comp } = create({ backend: { collections: COLLECTIONS }, settings: { collectionLabels: { orion: 'Eurostat' } } });
     await comp.ngOnInit();
