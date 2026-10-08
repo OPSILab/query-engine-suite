@@ -14,6 +14,7 @@ import { NbAuthService } from '@nebular/auth';
 import { ConfigService } from '../../services/config.service';
 import { QueryRequest, SNIPPET_LANGS, SnippetLang, toSnippet } from './request-snippets';
 import { FALLBACK_GQL_EXAMPLES, GqlExample, SOURCES_DISCOVERY_QUERY, SURVEYS_DISCOVERY_QUERY, buildGqlExamples } from './graphql-editor/graphql-examples';
+import { DEFAULT_SQL_EXAMPLES, SqlExample } from './sql-editor/sql-editor.component';
 
 /**
  * Ported from the main dashboard's QueryEngineComponent
@@ -177,6 +178,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
 
   async ngOnInit(): Promise<void> {
     this.getUser();
+    this.loadQueryExamples();
     const collections = this.beopenAPI.getCollections().then(list => {
       this.collectionOptions = list.map(c => ({ ...c, label: this.beopenAPI.collectionLabel(c.id) }));
       this.collectionsLoaded = true;
@@ -680,7 +682,20 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
 
   // undefined until loaded: the editor keeps its hardcoded fallback examples
   graphqlExamples?: GqlExample[];
-  readonly fallbackGqlExamples = FALLBACK_GQL_EXAMPLES;
+  fallbackGqlExamples = FALLBACK_GQL_EXAMPLES;
+  // from assets/query-examples.json: the SQL examples (replacing the built-in ones), GraphQL ones added at the end
+  sqlExamples: SqlExample[] = DEFAULT_SQL_EXAMPLES;
+  private extraGqlExamples: GqlExample[] = [];
+
+  private async loadQueryExamples(): Promise<void> {
+    const file = await this.beopenAPI.getQueryExamples();
+    if (file.sql) this.sqlExamples = file.sql;
+    if (file.graphql?.length) {
+      this.extraGqlExamples = file.graphql;
+      this.fallbackGqlExamples = [...FALLBACK_GQL_EXAMPLES, ...file.graphql];
+      if (this.graphqlExamples) this.graphqlExamples = [...this.graphqlExamples, ...file.graphql];
+    }
+  }
   private graphqlExamplesByVisibility = new Map<string, Promise<GqlExample[]>>();
 
   async loadGraphqlExamples(): Promise<void> {
@@ -692,7 +707,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     }
     const built = await examples;
     if ((this.visibility ?? "") === key) // not changed in the meantime
-      this.graphqlExamples = built;
+      this.graphqlExamples = [...built, ...this.extraGqlExamples];
   }
 
   private async fetchGraphqlExamples(): Promise<GqlExample[]> {

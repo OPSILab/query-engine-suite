@@ -63,6 +63,15 @@ export interface CollectionInfo {
   sql?: boolean;
 }
 
+/**
+ * assets/query-examples.json (optional, can be mounted with a volume): "sql" replaces the built-in SQL examples,
+ * "graphql" is added after the GraphQL examples built from the data. A query is a string or a list of lines.
+ */
+export interface QueryExamples {
+  sql?: { label: string; sql: string }[];
+  graphql?: { label: string; query: string }[];
+}
+
 /** Names shown for the collections, unless config.json has "collectionLabels". */
 export const DEFAULT_COLLECTION_LABELS: Record<string, string> = { api: "Sources", orion: "Datapoints", minio: "MinIO" };
 
@@ -276,6 +285,28 @@ export class BeopenAPIService {
     const configured = Number(this.configService.getSettings(setting, null));
     const size = Number.isInteger(configured) && configured > 0 ? configured : fallback;
     return max ? Math.min(size, max) : size;
+  }
+
+  private queryExamples?: Promise<QueryExamples>;
+
+  /** assets/query-examples.json, read once; {} when missing or invalid (the built-in examples are used). */
+  getQueryExamples(): Promise<QueryExamples> {
+    const text = (q: any) => typeof q === "string" ? q : Array.isArray(q) && q.every(l => typeof l === "string") ? q.join("\n") : undefined;
+    const list = (items: any, field: "sql" | "query") => Array.isArray(items)
+      ? items.map(e => ({ label: typeof e?.label === "string" ? e.label : undefined, [field]: text(e?.[field]) }))
+        .filter((e: any) => e.label && e[field])
+      : undefined;
+    this.queryExamples ??= firstValueFrom(this.http.get<any>("./assets/query-examples.json"))
+      .then(file => {
+        const examples: QueryExamples = {};
+        const sql = list(file?.sql, "sql");
+        const graphql = list(file?.graphql, "query");
+        if (sql) examples.sql = sql as QueryExamples["sql"];
+        if (graphql) examples.graphql = graphql as QueryExamples["graphql"];
+        return examples;
+      })
+      .catch(() => ({}));
+    return this.queryExamples;
   }
 
   /** Label of a collection: config.json "collectionLabels", else DEFAULT_COLLECTION_LABELS, else its id. */

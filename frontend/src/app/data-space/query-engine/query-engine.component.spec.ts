@@ -24,6 +24,7 @@ interface Backend {
   limits?: QueryWarning[];                      // GET /api/query/simple/limits
   warningsHeader?: string;                      // X-Query-Warnings of the query responses
   graphql?: (query: string) => any;             // POST /graphql, by document
+  examples?: any;                               // GET assets/query-examples.json
 }
 
 // Real BeopenAPIService on a fake HttpClient: the component's requests go through the real request builders.
@@ -34,6 +35,7 @@ function fakeHttp(backend: Backend) {
     requests,
     get: (url: string, options?: any) => answer(url, () => {
       requests.push({ method: 'GET', url, options });
+      if (url.includes('query-examples.json')) return backend.examples ?? {};
       if (url.includes('/api/collections')) return backend.collections ?? [];
       if (url.includes('/api/keys/notIndexed')) return backend.notIndexed ?? { keys: [] };
       if (url.includes('/api/keys')) return backend.keys ?? [];
@@ -285,6 +287,32 @@ describe('Simple search warnings', () => {
     expect(status).toBe('warning');
     expect(text).toBe('API "Weather" could not be searched (HTTP 500)');
     comp.ngOnDestroy();
+  });
+});
+
+describe('example queries of assets/query-examples.json', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+
+  it('"sql" replaces the built-in SQL examples (a query can be a list of lines); "graphql" is added at the end', async () => {
+    const examples = {
+      sql: [{ label: 'Mine', sql: ['SELECT *', 'FROM mine'] }, { label: 'no query' }, { sql: 'no label' }],
+      graphql: [{ label: 'Extra', query: 'query { surveys }' }],
+    };
+    const { comp } = create({ backend: { examples } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.sqlExamples).toEqual([{ label: 'Mine', sql: 'SELECT *\nFROM mine' }]);
+    expect(comp.fallbackGqlExamples.at(-1)).toEqual({ label: 'Extra', query: 'query { surveys }' });
+    await comp.loadGraphqlExamples();
+    expect(comp.graphqlExamples!.at(-1)!.label).toBe('Extra');
+  });
+
+  it('no file (or no list): the built-in examples', async () => {
+    const { comp } = create({ backend: { fail: /query-examples/ } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.sqlExamples.map(e => e.label)).toEqual(['All records - sources', 'A field of the records', 'A field at any depth (jsonpath)']);
+    expect(comp.sqlExamples.some(e => e.sql.includes('jsonb_array_elements'))).toBe(false);
   });
 });
 

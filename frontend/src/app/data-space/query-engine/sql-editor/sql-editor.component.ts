@@ -1,9 +1,25 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
-interface SqlExample {
+export interface SqlExample {
   label: string;
   sql: string;
 }
+
+/**
+ * Built-in example queries: used when assets/query-examples.json has no "sql" list (see
+ * BeopenAPIService.getQueryExamples - the file can be mounted with a volume to change them without a build).
+ * jsonpath (@?) does not fail on the rows whose `data` has another shape (object / array): the lateral
+ * jsonb_array_elements / jsonb_each did, as soon as one row was not an array.
+ */
+export const DEFAULT_SQL_EXAMPLES: SqlExample[] = [
+  { label: 'All records - sources', sql: 'SELECT * FROM sources' },
+  { label: 'A field of the records', sql: `SELECT *
+FROM sources
+WHERE data->>'language' = 'IT'` },
+  { label: 'A field at any depth (jsonpath)', sql: `SELECT *
+FROM sources
+WHERE data @? '$.** ? (@.language == "IT")'` },
+];
 
 interface SqlToken {
   text: string;
@@ -71,29 +87,7 @@ export class SqlEditorComponent {
 
   @Input() placeholder = "SELECT * FROM bucketName WHERE name = 'email/Data model mapper/file.json'";
 
-  @Input() examples: SqlExample[] = [
-    { label: 'All records - sources', sql: 'SELECT * FROM sources' },
-    /*{ label: 'nested elements for id_amat', sql: `SELECT *
-FROM cartagena,
-    LATERAL (
-      SELECT jsonb_array_elements(data) AS element
-      WHERE jsonb_typeof(data) = 'array'
-      UNION ALL SELECT data AS element
-      WHERE jsonb_typeof(data) = 'object'
-    ) AS subquery
-WHERE subquery.element->>'id_amat' = '9001'` },*/
-    { label: 'Nested key/values couples', sql: `SELECT *
-FROM sources, jsonb_array_elements(data) AS array_element,
- jsonb_each(array_element) AS nested_object
-WHERE nested_object.value->>'language' = 'IT'` },
-    /*{ label: 'Feature GeoJSON per fid', sql: `SELECT *
-FROM cartagena,
-     LATERAL (
-         SELECT jsonb_array_elements(data->'features') AS element
-         WHERE jsonb_typeof(data->'features') = 'array'
-     ) AS subquery
-WHERE subquery.element->'properties'->>'fid' = '11';` },*/
-  ];
+  @Input() examples: SqlExample[] = DEFAULT_SQL_EXAMPLES;
 
   onInput(text: string): void {
     this.value = text;

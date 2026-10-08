@@ -150,7 +150,7 @@
         @if (collectionsNotInSql.length) {
           <p class="ds-collections__hint" role="note">{{ 'Not in SQL' | translate: { collections: collectionsNotInSql.join(', ') } }}</p>
         }
-        <bx-sql-editor [(value)]="sqlQuery"></bx-sql-editor>
+        <bx-sql-editor [(value)]="sqlQuery" [examples]="sqlExamples"></bx-sql-editor>
       </div>
     }
 

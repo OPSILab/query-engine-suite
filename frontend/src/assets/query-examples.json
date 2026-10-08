@@ -1,0 +1,25 @@
+{
+  "sql": [
+    {
+      "label": "All records - sources",
+      "sql": "SELECT * FROM sources"
+    },
+    {
+      "label": "A field of the records",
+      "sql": [
+        "SELECT *",
+        "FROM sources",
+        "WHERE data->>'language' = 'IT'"
+      ]
+    },
+    {
+      "label": "A field at any depth (jsonpath)",
+      "sql": [
+        "SELECT *",
+        "FROM sources",
+        "WHERE data @? '$.** ? (@.language == \"IT\")'"
+      ]
+    }
+  ],
+  "graphql": []
+}
