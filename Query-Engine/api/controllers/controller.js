@@ -93,6 +93,18 @@ const querySQL = async (req, res) => {
     await service.querySQL(res, req.body.query, req.body.prefix, req.body.bucketName, req.headers.visibility)
 }
 
+function cacheEndpoint(run) {
+    return async (req, res) => {
+        try {
+            res.send(await run(req.query || {}))
+        }
+        catch (error) {
+            logger.error(error)
+            res.status(error.status || 500).send({ error: error.message || String(error) })
+        }
+    }
+}
+
 module.exports = {
 
     queryMongo,
@@ -121,21 +133,13 @@ module.exports = {
 
     querySQL,
 
-    resetCache: async (req, res) => {
-        res.send(await service.resetCache(req.query.queriesMapFilter, req.query.cacheFilter))
-    },
-
-    backupCache: async (req, res) => {
-        res.send(await service.backupCache(req.query.queriesMapFilter, req.query.cacheFilter))
-    },
-
-    restoreCache: async (req, res) => {
-        res.send(await service.restoreCache(req.query.queriesMapFilter, req.query.cacheFilter, req.query.timestamp))
-    },
-
-    resetBackup: async (req, res) => {
-        res.send(await service.resetBackup(req.query.queriesMapFilter, req.query.cacheFilter))
-    },
+    // GraphQL datapoints cache (services/queryCache.js). queriesMapFilter / cacheFilter: strings that must all be in
+    // the stringified query (case insensitive), as before.
+    resetCache: cacheEndpoint(q => service.resetCache(q.queriesMapFilter, q.cacheFilter)),
+    backupCache: cacheEndpoint(q => service.backupCache(q.queriesMapFilter, q.cacheFilter)),
+    restoreCache: cacheEndpoint(q => service.restoreCache(q.queriesMapFilter, q.cacheFilter, q.timestamp, q.version)),
+    resetBackup: cacheEndpoint(q => service.resetBackup(q.queriesMapFilter, q.cacheFilter, q.timestamp)),
+    listCache: cacheEndpoint(q => service.listCache(q.queriesMapFilter, q.cacheFilter)),
 
     assets: async (req, res) => {
         try {

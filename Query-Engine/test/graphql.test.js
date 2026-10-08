@@ -243,4 +243,21 @@ describe("datapoints (the Orion collection)", () => {
         const none = await exec('{ datapoints(survey: "NOT A DATAPOINT") { region } }')
         assert.deepEqual(none.data.datapoints, [])
     })
+
+    test("the same query again is read from the cache (one version), in the same order", async () => {
+        const query = '{ datapoints(survey: "NAMA_10R3GDP", sortBy: ["year", "region"], sortOrder: ["desc", "desc"]) { region value } }'
+        const first = await exec(query)
+        assert.deepEqual(first.data.datapoints.map(d => d.value), [3, 2, 1])
+        await Orion.collection.insertOne(dp("SOFIA", 2022, 4))
+        try {
+            const second = await exec(query)
+            assert.equal(second.errors, undefined)
+            assert.deepEqual(second.data, first.data)
+        }
+        finally {
+            await Orion.collection.deleteMany({ region: "SOFIA" })
+        }
+        const versions = await load("api/models/QueriesMap.js").collection.find({ query: { $regex: "NAMA_10R3GDP" }, state: "active" }).toArray()
+        assert.ok(versions.some(r => r.count == 3 && r.survey == "NAMA_10R3GDP"))
+    })
 })

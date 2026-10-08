@@ -20,6 +20,7 @@ router.get(encodeURI("/assets/:name"), controller.assets)
 router.get(encodeURI("/backupCache"), auth, adminOnly, controller.backupCache)
 router.get(encodeURI("/restoreCache"), auth, adminOnly, controller.restoreCache)
 router.post(encodeURI("/resetBackup"), auth, adminOnly, controller.resetBackup)
+router.get(encodeURI("/listCache"), auth, adminOnly, controller.listCache)
 //router.get('/manage-collections', controller.manageCollections);
 //router.delete('/delete-collection', controller.deleteCollection);
 

@@ -3,8 +3,7 @@
 const { collectionModel, storedCollections } = require("../services/collections")
 const DATAPOINT_FILTER = { survey: { $exists: true }, dimensions: { $exists: true } }
 const Dimensions = require("../models/Dimensions");
-const QueryCache = require("../models/QueryCache")
-const QueriesMap = require("../models/QueriesMap")
+const { readCache, writeCache } = require("../services/queryCache")
 const util = require("util");
 const { translateDataPointsBatch } = require("../services/translationService");
 const logger = require("percocologger")
@@ -23,11 +22,6 @@ function tagged(doc, connector) {
   if (doc && typeof doc === "object")
     collectionOf.set(doc, connector)
   return doc
-}
-
-function buildCachePrefix(args) {
-  const { source, survey, dimensions, region, sortBy, sortOrder, limit, exclude, filterBy, filter, lang } = args
-  return ("Cached" + (source || survey || dimensions.toString() || region || sortBy || sortOrder || limit || exclude || filterBy || filter || lang) + " : ")
 }
 
 // Plain-object view of a Source document, computed once per document and
@@ -94,13 +88,12 @@ const resolvers = {
       if (args.survey)
         args.survey = args.survey.toUpperCase()
       const { source, survey, dimensions, region, sortBy, sortOrder = 'ASC', limit, exclude, filterBy, filter, lang } = args
-      let queryIn = { query: JSON.stringify({ _, args, db }) }
-      logger.info(queryIn)
-      let queried = await QueriesMap.find(queryIn)
-      if (Array.isArray(queried) && queried[0] || queried?.query) {
+      // cache key: the stringified query, as before (services/queryCache.js: one collection, versioned)
+      const query = JSON.stringify({ _, args, db })
+      logger.info({ query })
+      const cacheFound = await readCache(query)
+      if (cacheFound) {
         logger.info("Cache found")
-        const CachedQuery = QueryCache(buildCachePrefix(args) + (Array.isArray(queried) ? queried[0]._id : queried._id))
-        const cacheFound = await CachedQuery.find().lean()
         return cacheFound
       }
       try {
@@ -201,11 +194,12 @@ const resolvers = {
         });
         if (lang && lang !== "en")
           savingDP = await translateDataPointsBatch(savingDP, lang);
-        let queryMap = (await QueriesMap.insertMany([queryIn]))[0]._id.toString()
-        let collName = buildCachePrefix(args) + queryMap
-        const CachedQuery = QueryCache(collName)
-        await CachedQuery.insertMany(savingDP)
-        await QueriesMap.findByIdAndUpdate(queryMap, { coll: collName })
+        // a cache that cannot be written does not fail the query
+        try {
+          await writeCache(query, savingDP, { survey, source, lang })
+        } catch (error) {
+          logger.error("Datapoints cache not written", error)
+        }
         return savingDP
       } catch (error) {
         console.error(error);

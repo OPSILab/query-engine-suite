@@ -12,6 +12,8 @@ const mongoose = require("mongoose");
 const logger = require('percocologger')
 mongoose.connect(config.mongo, { useNewUrlParser: true }).then(() => {
     logger.info("Connected to mongo")
+    // GraphQL datapoints cache: indexes, versions interrupted by a stop, pruning (in background)
+    require("./api/services/queryCache").recover().catch(error => logger.error("Query cache recovery failed", error))
     const cors = require('cors');
     const routes = require("./api/routes/router")
     logger.info(config.queryAllowedExtensions);

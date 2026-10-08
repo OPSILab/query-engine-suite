@@ -8,7 +8,7 @@ const express = require("express")
 
 const calls = []
 const done = name => async () => { calls.push(name); return name + " done" }
-stub("api/services/service.js", { resetCache: done("resetCache"), backupCache: done("backupCache"), restoreCache: done("restoreCache"), resetBackup: done("resetBackup") })
+stub("api/services/service.js", { resetCache: done("resetCache"), backupCache: done("backupCache"), restoreCache: done("restoreCache"), resetBackup: done("resetBackup"), listCache: done("listCache") })
 stub("inputConnectors/minioConnector.js", {})
 stub("inputConnectors/postgresConnector.js", () => ({ query: () => { } }))
 
@@ -29,7 +29,7 @@ beforeEach(() => {
     Object.assign(config.authConfig, { disableAuth: false, clientId: "query-engine", publicKey, userInfoEndpoint: "", introspect: false })
 })
 
-const ENDPOINTS = [["POST", "/minio/resetCache"], ["GET", "/backupCache"], ["GET", "/restoreCache"], ["POST", "/resetBackup"]]
+const ENDPOINTS = [["POST", "/minio/resetCache"], ["GET", "/backupCache"], ["GET", "/restoreCache"], ["POST", "/resetBackup"], ["GET", "/listCache"]]
 const call = (method, path, token) => fetch(baseUrl + path, { method, headers: token ? { Authorization: "Bearer " + token } : {} })
 const userToken = (extra = {}) => makeToken({ azp: "query-engine", email: "anna@demetrix.it", ...extra })
 
@@ -39,7 +39,7 @@ describe("cache endpoints", () => {
             assert.equal((await call(method, path)).status, 401, path)
             assert.equal((await call(method, path, userToken())).status, 200, path)
         }
-        assert.deepEqual(calls, ["resetCache", "backupCache", "restoreCache", "resetBackup"])
+        assert.deepEqual(calls, ["resetCache", "backupCache", "restoreCache", "resetBackup", "listCache"])
     })
 
     test("adminRoles: only tokens with one of them (realm or client roles)", async () => {

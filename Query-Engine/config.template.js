@@ -96,6 +96,13 @@ module.exports = {
     // no datapoints. Ids: api, orion, minio. The Simple search does not read these collections.
     defaultCollections: ["api", "minio"]
   },
+  // Cache of the GraphQL datapoints queries: one collection (the datapoints of every version of every query) and the
+  // queriesmap collection (one row per version). keepVersions: versions kept per query, the active one included;
+  // the versions saved by backupCache are kept until resetBackup.
+  cache: {
+    collection: "querycache",
+    keepVersions: 3
+  },
   // The MongoDB collections of the Source-Connector, one per connector: same names as in its config (only mongo /
   // toMongo are used here). The frontend lets the user choose which ones to search (GET /api/collections).
   collections: {
