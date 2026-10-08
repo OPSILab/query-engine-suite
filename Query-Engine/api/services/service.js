@@ -113,6 +113,22 @@ function connectorsFilter(collections = defaultCollections()) {
         conditions.push({ connectors: { $exists: false } })
     return { $or: conditions }
 }
+// keys / values / entries of one Advanced search file type only: the formats of their refs (written by the
+// Source-Connector, see its entriesStore.entriesFormat) that the file type searches (see formatFilter).
+// Documents written before the formats existed have no `formats`: suggested for every file type until the rebuild.
+const SUGGESTION_FORMATS = {
+    json: ["object", "json"], // top-level fields or rows of JSON arrays ("json+object")
+    csv: ["csv"],
+    geojson: ["geojson"],
+    object: ["object"]        // no file type: top-level fields only
+}
+function formatsFilter(format) {
+    if (format === undefined)
+        return {}
+    return { $or: [{ formats: { $in: SUGGESTION_FORMATS[format] } }, { formats: { $exists: false } }] }
+}
+// the filters of the suggestions: collections and file type
+const suggestionScope = (collections, format) => ({ $and: [connectorsFilter(collections), formatsFilter(format)] })
 const simpleSearch = require('./simpleSearch')
 
 async function listCollections() {
@@ -146,11 +162,13 @@ module.exports = {
     },
 
     SUGGESTIONS_MAX,
+    SUGGESTION_FORMATS,
 
     // search: prefix, case insensitive, taken literally (not a regex)
     // collections: only the suggestions coming from those collections (undefined: all)
-    async getKeys(prefix, bucketName, visibility, search, page, collections) {
-        const filter = { key: startsWith(search), ...suggestionsVisibilityFilter(prefix, bucketName, visibility), ...connectorsFilter(collections) }
+    // format: only the suggestions of that Advanced search file type (SUGGESTION_FORMATS; undefined: all)
+    async getKeys(prefix, bucketName, visibility, search, page, collections, format) {
+        const filter = { key: startsWith(search), ...suggestionsVisibilityFilter(prefix, bucketName, visibility), ...suggestionScope(collections, format) }
         return suggestions(Key, filter, { key: 1, _id: 0 }, { key: 1 }, page, true)
     },
 
@@ -162,8 +180,8 @@ module.exports = {
         return { keys: rows.map(row => row.key) }
     },
 
-    async getValues(prefix, bucketName, visibility, search, page, collections) {
-        const filter = { value: startsWith(search), ...suggestionsVisibilityFilter(prefix, bucketName, visibility), ...connectorsFilter(collections) }
+    async getValues(prefix, bucketName, visibility, search, page, collections, format) {
+        const filter = { value: startsWith(search), ...suggestionsVisibilityFilter(prefix, bucketName, visibility), ...suggestionScope(collections, format) }
         return suggestions(Value, filter, { value: 1, _id: 0 }, { value: 1 }, page, true)
     },
 
@@ -203,12 +221,12 @@ module.exports = {
     },
 
     // exactKey / exactValue: that field must be the whole text (still case insensitive), not just start with it
-    async getEntries(prefix, bucketName, visibility, searchKey, searchValue, page, { exactKey = false, exactValue = false, collections } = {}) {
+    async getEntries(prefix, bucketName, visibility, searchKey, searchValue, page, { exactKey = false, exactValue = false, collections, format } = {}) {
         const filter = {
             key: exactKey ? equalsIgnoringCase(searchKey) : startsWith(searchKey),
             value: exactValue ? equalsIgnoringCase(searchValue) : startsWith(searchValue),
             ...suggestionsVisibilityFilter(prefix, bucketName, visibility),
-            ...connectorsFilter(collections)
+            ...suggestionScope(collections, format)
         }
         return suggestions(Entries, filter, { key: 1, value: 1, _id: 0 }, { key: 1, value: 1 }, page, false)
     },

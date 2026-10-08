@@ -18,6 +18,17 @@ function suggestionsPage(query) {
 }
 const isTrue = value => value === "true" || value === true
 
+// format of the suggestions: the Advanced search file type (JSON / CSV / GeoJSON, any case), or object (no file
+// type); none: every suggestion
+function suggestionsFormat(query) {
+    if (query.format === undefined || query.format === "")
+        return undefined
+    const format = String(query.format).toLowerCase()
+    if (!service.SUGGESTION_FORMATS[format])
+        throw Object.assign(new Error(`format must be one of ${Object.keys(service.SUGGESTION_FORMATS).join(", ")}`), { status: 400 })
+    return format
+}
+
 // Advanced search page: body.page = { limit, skip } - in the body, the query string carries the searched fields.
 // skip: a number (every collection) or { <collection>: n } (the `next` of the previous page).
 // Without it: the first queryOptions.advancedSearchMaxResults results of each collection (see service.mongoQuery).
@@ -162,7 +173,7 @@ module.exports = {
     getValues: async (req, res) => {
         logger.info("values")
         try {
-            res.send(await service.getValues(req.body.prefix, req.body.bucketName, req.headers.visibility, req.query.value, suggestionsPage(req.query), parseCollections(req.query.collections)))
+            res.send(await service.getValues(req.body.prefix, req.body.bucketName, req.headers.visibility, req.query.value, suggestionsPage(req.query), parseCollections(req.query.collections), suggestionsFormat(req.query)))
         }
         catch (error) {
             logger.error(error)
@@ -183,7 +194,7 @@ module.exports = {
         }
         try {
             res.send(await service.getEntries(req.body.prefix, req.body.bucketName, req.headers.visibility, req.query.key, req.query.value,
-                suggestionsPage(req.query), { exactKey: isTrue(req.query.exactKey), exactValue: isTrue(req.query.exactValue), collections: parseCollections(req.query.collections) }))
+                suggestionsPage(req.query), { exactKey: isTrue(req.query.exactKey), exactValue: isTrue(req.query.exactValue), collections: parseCollections(req.query.collections), format: suggestionsFormat(req.query) }))
         }
         catch (error) {
             logger.error(error)
@@ -205,7 +216,7 @@ module.exports = {
     getKeys: async (req, res) => {
         logger.info("keys")
         try {
-            res.send(await service.getKeys(req.body.prefix, req.body.bucketName, req.headers.visibility, req.query.key, suggestionsPage(req.query), parseCollections(req.query.collections)))
+            res.send(await service.getKeys(req.body.prefix, req.body.bucketName, req.headers.visibility, req.query.key, suggestionsPage(req.query), parseCollections(req.query.collections), suggestionsFormat(req.query)))
         }
         catch (error) {
             logger.error(error)

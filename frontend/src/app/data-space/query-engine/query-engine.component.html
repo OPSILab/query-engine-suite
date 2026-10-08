@@ -334,13 +334,13 @@
   </div>
   <div class="ds-kv-row">
     <div class="ds-kv-field">
-      <autocomplete [otherVerified]="valueVerified[i]" [mode]="'key'" [preloaded]="preloadedKeys" [collections]="suggestionCollections"
+      <autocomplete [otherVerified]="valueVerified[i]" [mode]="'key'" [preloaded]="preloadedKeys" [collections]="suggestionCollections" [format]="suggestionFormat"
         [v]="item.value" [value]="item.key" [placeholder]="'Key (E.g. name)'"
       (output)="onKeysChange($event, i)" (ver)="keyVerifiedChange($event, i)"></autocomplete>
     </div>
     @if (item.type != 'Date') {
       <div class="ds-kv-field">
-        <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [preloaded]="preloadedValues" [collections]="suggestionCollections"
+        <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [preloaded]="preloadedValues" [collections]="suggestionCollections" [format]="suggestionFormat"
           [key]="item.key" [value]="item.value" [placeholder]="'Value (E.g. Geo data)'"
           [valuesNotSuggested]="valuesNotSuggested(item.key)"
           (output)="onValuesChange($event, i)" (ver)="valueVerifiedChange($event, i)">

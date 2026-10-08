@@ -174,3 +174,47 @@ describe("collections: only the suggestions of the chosen collections", () => {
         assert.equal((await get("values", { value: "", limit: 10, collections: "ftp" })).status, 400)
     })
 })
+
+describe("format: only the suggestions of the Advanced search file type", () => {
+    const Model = name => load("api/models/" + name + ".js")
+    before(async () => {
+        const pub = ["public-data"]
+        await Model("Key").collection.insertMany([
+            { key: "fmtTop", visibility: pub, formats: ["object"] },
+            { key: "fmtRows", visibility: pub, formats: ["json"] },
+            { key: "fmtCsv", visibility: pub, formats: ["csv"] },
+            { key: "fmtGeo", visibility: pub, formats: ["geojson"], connectors: ["api"] },
+            { key: "fmtLegacy", visibility: pub }
+        ])
+        await Model("Entries").collection.insertMany([
+            { key: "fmtPoi", value: "Colosseum", visibility: pub, formats: ["geojson"] },
+            { key: "fmtPoi", value: "Duomo", visibility: pub, formats: ["object", "csv"] }
+        ])
+    })
+    after(async () => {
+        await Model("Key").collection.deleteMany({ key: /^fmt/ })
+        await Model("Entries").collection.deleteMany({ key: /^fmt/ })
+    })
+    const keys = async (format, extra = "") => (await get("/keys?key=fmt&limit=50" + (format ? "&format=" + format : "") + extra)).body.items.map(k => k.key)
+
+    test("JSON: top-level fields and JSON rows; CSV; GeoJSON; object (no file type); none: all", async () => {
+        assert.deepEqual(await keys("JSON"), ["fmtLegacy", "fmtRows", "fmtTop"])
+        assert.deepEqual(await keys("CSV"), ["fmtCsv", "fmtLegacy"])
+        assert.deepEqual(await keys("geojson"), ["fmtGeo", "fmtLegacy"])
+        assert.deepEqual(await keys("object"), ["fmtLegacy", "fmtTop"])
+        assert.deepEqual(await keys(), ["fmtCsv", "fmtGeo", "fmtLegacy", "fmtRows", "fmtTop"])
+    })
+
+    test("with the collections too; entries", async () => {
+        assert.deepEqual(await keys("GeoJSON", "&collections=api"), ["fmtGeo", "fmtLegacy"]) // legacy: api / minio, every format
+        assert.deepEqual(await keys("GeoJSON", "&collections=orion"), [])
+        const values = async format => (await get("/entries?key=fmtPoi&value=&limit=10&format=" + format)).body.items.map(e => e.value)
+        assert.deepEqual(await values("GeoJSON"), ["Colosseum"])
+        assert.deepEqual(await values("CSV"), ["Duomo"])
+        assert.deepEqual(await values("JSON"), ["Duomo"])
+    })
+
+    test("unknown format: 400", async () => {
+        assert.equal((await get("/keys?key=fmt&limit=5&format=xml")).status, 400)
+    })
+})

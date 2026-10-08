@@ -84,12 +84,26 @@ describe('startup', () => {
     expect(suggestionRequests(http.requests)).toEqual([['keys', '0', '100'], ['values', '0', '100']]);
   });
 
-  it('the demo uses the preloaded keys', async () => {
+  it('the demo uses the preloaded keys; then the suggestions follow the file type of its pair', async () => {
     const { comp, http } = create({ backend: { keys: [{ key: 'city' }], entries: key => [{ key, value: 'Rome' }], query: () => [{}] } });
     await comp.ngOnInit();
     await comp.demo();
     expect(comp.lines[0]).toEqual({ key: 'city', value: 'Rome', type: 'String' });
-    expect(suggestionRequests(http.requests).filter(([url]) => url == 'keys').length).toBe(1);
+    expect(comp.type).toBe('JSON');
+    const keysFormats = http.requests.filter(r => /\/api\/keys(\?|$)/.test(r.url)).map(r => r.options.params.get('format'));
+    expect(keysFormats).toEqual(['object', 'JSON']); // preloaded (no file type: top-level fields), then JSON
+  });
+
+  it('the suggestions follow the file type of the Advanced search; all of them in the other modes', async () => {
+    const { comp, http } = create({ backend: { keys: { items: [], hasMore: false }, values: { items: [], hasMore: false } } });
+    await comp.ngOnInit();
+    comp.setType('CSV');
+    comp.setType('CSV'); // unchanged: not read again
+    comp.setType('GeoJSON');
+    comp.setMode('Simple search');
+    const formats = http.requests.filter(r => /\/api\/keys(\?|$)/.test(r.url)).map(r => r.options.params.get('format'));
+    expect(formats).toEqual(['object', 'CSV', 'GeoJSON', null]);
+    expect(comp.suggestionFormat).toBeUndefined();
   });
 
   it('a failed preload is not an error (the autocompletes read the page when needed)', async () => {
@@ -279,11 +293,12 @@ describe('"Find all" in Simple search', () => {
     const { comp, http } = create();
     comp.setMode('Simple search');
     comp.value = 'Rome';
+    const queries = () => http.requests.filter(r => r.url.endsWith('/api/query'));
     comp.minioQuery(true);
-    expect(http.requests[0].options.params.get('value')).toBe('');
+    expect(queries()[0].options.params.get('value')).toBe('');
     comp.loading = null;
     comp.minioQuery(false);
-    expect(http.requests[1].options.params.get('value')).toBe('Rome');
+    expect(queries()[1].options.params.get('value')).toBe('Rome');
   });
 
   it('the snippet follows the "Find all" option', () => {
@@ -313,7 +328,7 @@ describe('GraphQL examples from the real data', () => {
     expect(comp.graphqlExamples!.map(e => e.label)).toEqual([
       'Available sources', 'API data only (Sources)', 'Sources with their data', 'All sources, all fields (find all)', 'Filter: city = Rome', 'Filter: city = Rome, all fields', 'Name contains "Bike"', 'Records of Lanes', 'Datapoints — NAMA_10R_3GDP',
     ]);
-    expect(http.requests.every(r => r.options.headers.get('visibility') === 'public')).toBe(true);
+    expect(http.requests.filter(r => r.url.endsWith('/graphql')).every(r => r.options.headers.get('visibility') === 'public')).toBe(true);
   });
 
   it('read once per visibility', async () => {

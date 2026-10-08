@@ -204,26 +204,28 @@ export class BeopenAPIService {
   // ---- keys / values / entries suggestions, one page at a time (the Query-Engine never reads them all)
 
   // collections: only the suggestions of those collections (undefined: all of them)
+  // format: only those of an Advanced search file type - JSON, CSV, GeoJSON, or "object" (no file type: top-level
+  // fields); undefined: all of them. An older Query-Engine ignores it.
 
   /** Keys starting with `prefix` (case insensitive), sorted. */
-  getKeys(prefix = "", skip = 0, limit = this.suggestionsPageSize(), collections?: string[]): Promise<SuggestionsPage<string>> {
-    return this.suggestionsPage("keys", { key: prefix }, skip, limit, (row: any) => row?.key, collections);
+  getKeys(prefix = "", skip = 0, limit = this.suggestionsPageSize(), collections?: string[], format?: string): Promise<SuggestionsPage<string>> {
+    return this.suggestionsPage("keys", { key: prefix }, skip, limit, (row: any) => row?.key, collections, format);
   }
 
   /** Values starting with `prefix` (case insensitive), sorted. */
-  getValues(prefix = "", skip = 0, limit = this.suggestionsPageSize(), collections?: string[]): Promise<SuggestionsPage<string>> {
-    return this.suggestionsPage("values", { value: prefix }, skip, limit, (row: any) => row?.value, collections);
+  getValues(prefix = "", skip = 0, limit = this.suggestionsPageSize(), collections?: string[], format?: string): Promise<SuggestionsPage<string>> {
+    return this.suggestionsPage("values", { value: prefix }, skip, limit, (row: any) => row?.value, collections, format);
   }
 
   /**
    * Key / value pairs whose key starts with `key` and value with `value` (case insensitive); exact.key /
    * exact.value: that field must be the whole text instead.
    */
-  getEntries(key = "", value = "", skip = 0, limit = this.suggestionsPageSize(), exact: { key?: boolean; value?: boolean } = {}, collections?: string[]): Promise<SuggestionsPage<SuggestionEntry>> {
+  getEntries(key = "", value = "", skip = 0, limit = this.suggestionsPageSize(), exact: { key?: boolean; value?: boolean } = {}, collections?: string[], format?: string): Promise<SuggestionsPage<SuggestionEntry>> {
     const params: Record<string, string> = { key, value };
     if (exact.key) params["exactKey"] = "true";
     if (exact.value) params["exactValue"] = "true";
-    return this.suggestionsPage("entries", params, skip, limit, (row: any) => row && row.key !== undefined ? { key: String(row.key), value: String(row.value) } : undefined, collections);
+    return this.suggestionsPage("entries", params, skip, limit, (row: any) => row && row.key !== undefined ? { key: String(row.key), value: String(row.value) } : undefined, collections, format);
   }
 
   /**
@@ -282,9 +284,9 @@ export class BeopenAPIService {
 
   // collections: [] (no collection chosen) -> no suggestions, without asking (the Query-Engine would read an empty
   // list as "not given", i.e. its default collections); undefined -> all of them
-  private async suggestionsPage<T>(path: string, search: Record<string, string>, skip: number, limit: number, pick: (row: any) => T | undefined, collections?: string[]): Promise<SuggestionsPage<T>> {
+  private async suggestionsPage<T>(path: string, search: Record<string, string>, skip: number, limit: number, pick: (row: any) => T | undefined, collections?: string[], format?: string): Promise<SuggestionsPage<T>> {
     if (collections && !collections.length) return { items: [], hasMore: false };
-    const params = new HttpParams({ fromObject: { ...search, limit: String(limit), skip: String(skip), ...(collections ? { collections: collections.join(",") } : {}) } });
+    const params = new HttpParams({ fromObject: { ...search, limit: String(limit), skip: String(skip), ...(collections ? { collections: collections.join(",") } : {}), ...(format ? { format } : {}) } });
     const res: any = await firstValueFrom(this.http.get<any>(`${this.queryEngineBaseUrl}/api/${path}`, { params }));
     // a Query-Engine without pages answers the whole list, or ["Too many suggestions..."]
     const rows: any[] = Array.isArray(res) ? res.filter(row => typeof row !== "string") : (res?.items ?? []);

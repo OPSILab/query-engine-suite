@@ -262,6 +262,14 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   get suggestionCollections(): string[] | undefined {
     return this.collectionsLoaded && !this.collectionOptions.length ? undefined : this.selectedCollections;
   }
+
+  /**
+   * File type of the suggestions: in Advanced search, the selected one (no file type: "object", the top-level fields
+   * - what the search looks into); in the other modes, all of them.
+   */
+  get suggestionFormat(): string | undefined {
+    return this.mode === "Advanced search" ? (this.type || "object") : undefined;
+  }
   private collectionsLoaded = false;
 
   private loadKeysWithValuesNotSuggested(): void {
@@ -276,8 +284,9 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       return page;
     };
     const collections = this.suggestionCollections;
-    this.preloadedKeys = preload(() => this.beopenAPI.getKeys("", 0, this.beopenAPI.suggestionsPageSize(), collections));
-    this.preloadedValues = preload(() => this.beopenAPI.getValues("", 0, this.beopenAPI.suggestionsPageSize(), collections));
+    const format = this.suggestionFormat;
+    this.preloadedKeys = preload(() => this.beopenAPI.getKeys("", 0, this.beopenAPI.suggestionsPageSize(), collections, format));
+    this.preloadedValues = preload(() => this.beopenAPI.getValues("", 0, this.beopenAPI.suggestionsPageSize(), collections, format));
   }
 
   /** The row's key has values that are not suggested (they can still be typed and searched). */
@@ -315,12 +324,16 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   // (and minioQuery()) already reads, just from a (click) instead of an
   // nb-select's [(ngModel)].
   setMode(m: string): void {
+    const format = this.suggestionFormat;
     this.form.get('mode').setValue(m);
     if (m === "Query GraphQL") this.loadGraphqlExamples();
+    if (this.suggestionFormat !== format) this.preloadSuggestions(); // the suggestions follow the file type
   }
 
   setType(t: string): void {
+    const format = this.suggestionFormat;
     this.type = t;
+    if (this.suggestionFormat !== format) this.preloadSuggestions();
   }
 
   setItemType(item: any, t: string): void {
@@ -347,7 +360,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       // and show the new values.
       this.lines = [{ key, value, type: "String" }];
       this.value = value;
-      this.type = type;
+      this.setType(type);
     } finally {
       this.demoLoading = false;
     }
@@ -360,8 +373,13 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   private async pickDemoPair(): Promise<{ key: string; value: string } | null> {
     let keys: string[];
     try {
-      const page = await (this.preloadedKeys ?? Promise.reject()).catch(() => this.beopenAPI.getKeys("", 0, this.beopenAPI.suggestionsPageSize(), this.suggestionCollections));
+      const read = () => this.beopenAPI.getKeys("", 0, this.beopenAPI.suggestionsPageSize(), this.suggestionCollections);
+      const page = await (this.preloadedKeys ?? Promise.reject()).catch(read);
       keys = Array.from(new Set(page.items.filter(k => typeof k === "string" && k)));
+      // the preloaded keys are of the current file type: none, those of every type (pickDemoFormat then selects
+      // the file type of the pair)
+      if (!keys.length && this.suggestionFormat !== undefined)
+        keys = Array.from(new Set((await read()).items.filter(k => typeof k === "string" && k)));
     } catch {
       return null;
     }

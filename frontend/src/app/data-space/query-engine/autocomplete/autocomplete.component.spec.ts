@@ -12,7 +12,7 @@ function fakeApi(data: { keys?: string[]; values?: string[]; entries?: { key: st
   return {
     calls,
     suggestionsPageSize: () => pageSize,
-    getKeys: vi.fn(async (prefix = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE, collections?: string[]) => {
+    getKeys: vi.fn(async (prefix = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE, collections?: string[], _format?: string) => {
       calls.push(['keys', prefix, skip]);
       if (collections) calls.push(['collections', collections]);
       if (fail) throw new Error('HTTP 500');
@@ -22,7 +22,7 @@ function fakeApi(data: { keys?: string[]; values?: string[]; entries?: { key: st
       calls.push(['values', prefix, skip]);
       return page((data.values ?? []).filter(v => starts(v, prefix)), skip, limit);
     }),
-    getEntries: vi.fn(async (key = '', value = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE, exact: { key?: boolean; value?: boolean } = {}, collections?: string[]) => {
+    getEntries: vi.fn(async (key = '', value = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE, exact: { key?: boolean; value?: boolean } = {}, collections?: string[], _format?: string) => {
       calls.push(['entries', key, value, skip, exact]);
       if (collections) calls.push(['collections', collections]);
       const match = (field: string, text: string, isExact?: boolean) => isExact ? equals(field, text) : starts(field, text);
@@ -84,6 +84,19 @@ describe('suggestions, other field empty', () => {
     const values = create('value', fakeApi({ values: ['Rome', 'rovigo', 'Milan'] }));
     await type(values.comp, values.textarea, 'RO');
     expect(values.comp.suggestions).toEqual(['Rome', 'rovigo']);
+  });
+
+  it('the file type (format) goes with every request: keys, values and entries', async () => {
+    const api = fakeApi({ keys: ['city'], values: ['Rome'], entries: [{ key: 'city', value: 'Rome' }] });
+    const keys = create('key', api, { format: 'CSV' });
+    keys.comp.onFocus();
+    await settle();
+    const values = create('value', api, { format: 'CSV', key: 'city' });
+    values.comp.onFocus();
+    await settle();
+    expect(api.getKeys.mock.calls[0][4]).toBe('CSV');
+    expect(api.getEntries.mock.calls.every(c => c[6] === 'CSV')).toBe(true);
+    expect(api.getEntries.mock.calls.length).toBeGreaterThan(0);
   });
 
   it('pages of the configured size (suggestionsPageSize): each one starts after what was read', async () => {

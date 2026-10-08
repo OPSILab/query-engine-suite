@@ -31,6 +31,8 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
   @Input() preloaded?: Promise<SuggestionsPage<string>>;
   /** Only the suggestions of these collections (the "Search in" choice); undefined: all of them. */
   @Input() collections?: string[];
+  /** Only the suggestions of this Advanced search file type (JSON, CSV, GeoJSON, "object"); undefined: all of them. */
+  @Input() format?: string;
   /** Value field: the key has values that are not suggested (not indexed), the dropdown says so. */
   @Input() valuesNotSuggested = false;
   /** Kept for the parent's bindings; not needed any more (the entries are matched by the backend). */
@@ -183,15 +185,15 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
       }
       const size = this.beopenAPI.suggestionsPageSize();
       const page = this.mode === 'key'
-        ? await this.beopenAPI.getKeys(text, skip, size, this.collections)
-        : await this.beopenAPI.getValues(text, skip, size, this.collections);
+        ? await this.beopenAPI.getKeys(text, skip, size, this.collections, this.format)
+        : await this.beopenAPI.getValues(text, skip, size, this.collections, this.format);
       return { options: page.items.map(String), hasMore: page.hasMore, read: page.items.length };
     }
     // pairs that exist; the other field exactly when its text exists as it is, else by prefix
     const size = this.beopenAPI.suggestionsPageSize();
     const query = (exact: boolean) => this.mode === 'key'
-      ? this.beopenAPI.getEntries(text, other, skip, size, { value: exact }, this.collections)
-      : this.beopenAPI.getEntries(other, text, skip, size, { key: exact }, this.collections);
+      ? this.beopenAPI.getEntries(text, other, skip, size, { value: exact }, this.collections, this.format)
+      : this.beopenAPI.getEntries(other, text, skip, size, { key: exact }, this.collections, this.format);
     let page = first || this.exactOther ? await query(true) : await query(false);
     if (first) {
       this.exactOther = page.items.length > 0;
