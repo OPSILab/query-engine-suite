@@ -220,9 +220,24 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     return this.selectedCollections.includes(id);
   }
 
+  /** Labels of the collections not stored in MongoDB (toMongo false): GraphQL doesn't find their data (warned there). */
+  get collectionsNotInMongo(): string[] {
+    return this.collectionOptions.filter(c => !c.advancedSearch).map(c => c.label);
+  }
+
   /** Labels of the collections not copied to PostgreSQL: the SQL queries don't find their data (warned in that mode). */
   get collectionsNotInSql(): string[] {
     return this.collectionOptions.filter(c => c.sql === false).map(c => c.label);
+  }
+
+  /**
+   * Why a collection can't be chosen in the current mode (tooltip of its disabled pill): Simple search, disabled in
+   * simpleSearchOptions; Advanced search, not stored in MongoDB (collections.<id>.toMongo false).
+   */
+  unavailableReason(c: CollectionInfo & { label?: string }, mode = this.mode): string {
+    const key = mode === 'Simple search' ? 'Not searched by the Simple search reason' : mode === 'Advanced search' ? 'Not searched by the Advanced search reason' : 'Not searched by this mode';
+    const text = this.tr(key, { collection: c.label ?? c.id });
+    return text && text !== key ? text : this.tr('Not searched by this mode');
   }
 
   /** The collection is searched by the current mode (e.g. Orion is not in the Simple search unless configured). */

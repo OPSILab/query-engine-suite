@@ -489,6 +489,13 @@ describe('collections ("Search in")', () => {
     expect(older.comp.collectionsNotInSql).toEqual([]);
   });
 
+  it('Query GraphQL: the collections not stored in MongoDB are named', async () => {
+    const noMinio = { collections: COLLECTIONS.collections.map(c => ({ ...c, advancedSearch: c.id !== 'minio' })) };
+    const { comp } = create({ backend: { collections: noMinio } });
+    await comp.ngOnInit();
+    expect(comp.collectionsNotInMongo).toEqual(['MinIO']);
+  });
+
   it('the collections of the Query-Engine with their labels; all selected the first time', async () => {
     const { comp } = create({ backend: { collections: COLLECTIONS }, settings: { collectionLabels: { orion: 'Eurostat' } } });
     await comp.ngOnInit();
@@ -590,6 +597,16 @@ describe('collections ("Search in")', () => {
     expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['ORION_DISABLED']);
     comp.toggleCollection('orion'); // not searchable by the Simple search (pill disabled): the warning says why
     expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['ORION_DISABLED']);
+  });
+
+  it('a disabled pill says why, for its collection and mode', async () => {
+    const translation = { instant: (key: string, p: any) => key.endsWith(' reason') ? `${p.collection}: ${key}` : key };
+    const { comp } = create({ backend: { collections: COLLECTIONS }, translation });
+    await comp.ngOnInit();
+    const orion = comp.collectionOptions.find(c => c.id === 'orion')!;
+    comp.setMode('Simple search');
+    expect(comp.unavailableReason(orion)).toBe('Datapoints: Not searched by the Simple search reason');
+    expect(comp.unavailableReason(orion, 'Advanced search')).toBe('Datapoints: Not searched by the Advanced search reason');
   });
 
   it('Simple search limits name the collection with its label', async () => {

@@ -56,7 +56,7 @@
               [class.ds-pill--active]="isCollectionSelected(c.id) && collectionAvailable(c)"
               [attr.aria-pressed]="isCollectionSelected(c.id) && collectionAvailable(c)"
               [disabled]="!collectionAvailable(c)"
-              [title]="collectionAvailable(c) ? '' : ('Not searched by this mode' | translate)"
+              [title]="collectionAvailable(c) ? '' : unavailableReason(c)"
               (click)="toggleCollection(c.id)"
             >
               @if (isCollectionSelected(c.id) && collectionAvailable(c)) {
@@ -175,6 +175,9 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
           </button>
         </div>
+        @if (collectionsNotInMongo.length) {
+          <p class="ds-collections__hint" role="note">{{ 'Not in GraphQL' | translate: { collections: collectionsNotInMongo.join(', ') } }}</p>
+        }
         <bx-graphql-editor
           [endpoint]="graphqlEndpoint"
           [(value)]="graphqlText"
