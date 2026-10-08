@@ -110,7 +110,7 @@
   "Load more results": "Load more results",
   "Search in": "Search in",
   "Search in info": "The collections searched: Sources (the API data), Datapoints (Orion) and Files (MinIO). Your choice is remembered in this browser; Find all, too, finds everything only in the chosen collections. The suggestions follow the choice.",
-  "Not searched by this mode": "Not searched by this mode",
+  "Not searched by this mode": "Not searched by this mode since minio it's disabled",
   "Not in SQL": "{{collections}}: not copied to PostgreSQL, the SQL queries don't find this data (use Advanced search or GraphQL).",
   "Select at least one source": "Select at least one collection to search.",
   "Loading more results": "Loading more results...",
