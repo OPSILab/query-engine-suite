@@ -5,7 +5,7 @@
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",
   "queryEngineBaseUrl": "http://localhost:3001",
-  "collectionLabels": { "api": "Sources", "orion": "Datapoints", "minio": "Files" },
+  "collectionLabels": { "api": "Sources", "orion": "Datapoints", "minio": "MinIO" },
   "advancedSearchPageSize": 50,
   "suggestionsPageSize": 100,
   "keycloak": {

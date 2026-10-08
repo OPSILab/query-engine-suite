@@ -886,19 +886,26 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
    */
   get shownSimpleSearchLimits(): QueryWarning[] {
     const liveSourcesSearched = !this.authEnabled || this.visibility === "public";
-    // only those of the selected collections (a warning without collection: an older Query-Engine, always shown)
-    const selected = this.collectionOptions.length ? this.selectedCollections : undefined;
+    // hidden only for the collections the user left out: a collection the Simple search can't search (its pill is
+    // disabled) keeps its warning - it says why. A warning without collection (an older Query-Engine): always shown.
+    const leftOut = (id: string) => this.collectionOptions.some(c => c.id === id && this.collectionAvailable(c, 'Simple search')) && !this.isCollectionSelected(id);
     return this.simpleSearchLimits
       .filter(w => w.code === "MINIO_DISABLED" || liveSourcesSearched)
-      .filter(w => !selected || !w.collection || selected.includes(w.collection));
+      .filter(w => !w.collection || !leftOut(w.collection));
   }
 
-  /** Translated text of a warning ("Simple search warning <CODE>", with {{source}}), else the backend's message. */
+  /**
+   * Translated text of a warning ("Simple search warning <CODE>", with {{source}} and {{collection}}: the label of
+   * its collection, e.g. Datapoints), else the backend's message.
+   */
   warningText(w: QueryWarning): string {
     const key = `Simple search warning ${w.code}`;
-    const text = this.tr(key, { source: w.source ?? "" });
+    const id = w.collection ?? QueryEngineComponent.WARNING_COLLECTION[w.code];
+    const text = this.tr(key, { source: w.source ?? "", collection: id ? this.beopenAPI.collectionLabel(id) : "" });
     return text && text !== key ? text : w.message;
   }
+  // the collection of the warnings of an older Query-Engine (no `collection`)
+  private static readonly WARNING_COLLECTION: Record<string, string> = { MINIO_DISABLED: "minio", API_DISABLED: "api", ORION_DISABLED: "orion" };
 
   private tr(key: string, params?: object): string {
     try {

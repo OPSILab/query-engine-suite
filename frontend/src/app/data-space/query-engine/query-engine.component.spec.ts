@@ -493,7 +493,7 @@ describe('collections ("Search in")', () => {
     const { comp } = create({ backend: { collections: COLLECTIONS }, settings: { collectionLabels: { orion: 'Eurostat' } } });
     await comp.ngOnInit();
     await flush();
-    expect(comp.collectionOptions.map(c => [c.id, c.label])).toEqual([['api', 'Sources'], ['orion', 'Eurostat'], ['minio', 'Files']]);
+    expect(comp.collectionOptions.map(c => [c.id, c.label])).toEqual([['api', 'Sources'], ['orion', 'Eurostat'], ['minio', 'MinIO']]);
     expect(comp.collectionsFor('Advanced search')).toEqual(['api', 'orion', 'minio']);
     expect(comp.collectionsFor('Simple search')).toEqual(['api', 'minio']); // Orion not in the Simple search
   });
@@ -577,7 +577,7 @@ describe('collections ("Search in")', () => {
     expect(comp.hasMoreResults).toBe(false);
   });
 
-  it('Simple search limits: only those of the selected collections', async () => {
+  it('Simple search limits: hidden for the collections left out, kept for those the Simple search cannot search', async () => {
     const limits: QueryWarning[] = [
       { kind: 'config', code: 'ORION_DISABLED', collection: 'orion', message: 'o' },
       { kind: 'config', code: 'API_EXCLUDED', collection: 'api', source: 'X', message: 'a' },
@@ -586,8 +586,17 @@ describe('collections ("Search in")', () => {
     await comp.ngOnInit();
     await flush();
     expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['ORION_DISABLED', 'API_EXCLUDED']);
-    comp.toggleCollection('orion');
-    expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['API_EXCLUDED']);
+    comp.toggleCollection('api'); // left out by the user: its limits don't matter
+    expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['ORION_DISABLED']);
+    comp.toggleCollection('orion'); // not searchable by the Simple search (pill disabled): the warning says why
+    expect(comp.shownSimpleSearchLimits.map(w => w.code)).toEqual(['ORION_DISABLED']);
+  });
+
+  it('Simple search limits name the collection with its label', async () => {
+    const translation = { instant: (key: string, p: any) => key === 'Simple search warning ORION_DISABLED' ? `${p.collection}: Orion` : key };
+    const { comp } = create({ backend: { collections: COLLECTIONS }, settings: { collectionLabels: { orion: 'Eurostat' } }, translation });
+    expect(comp.warningText({ kind: 'config', code: 'ORION_DISABLED', collection: 'orion', message: 'o' })).toBe('Eurostat: Orion');
+    expect(comp.warningText({ kind: 'config', code: 'ORION_DISABLED', message: 'o' })).toBe('Eurostat: Orion'); // older Query-Engine
   });
 
   it('the snippet has the collections', async () => {

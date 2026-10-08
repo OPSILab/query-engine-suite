@@ -64,7 +64,7 @@ export interface CollectionInfo {
 }
 
 /** Names shown for the collections, unless config.json has "collectionLabels". */
-export const DEFAULT_COLLECTION_LABELS: Record<string, string> = { api: "Sources", orion: "Datapoints", minio: "Files" };
+export const DEFAULT_COLLECTION_LABELS: Record<string, string> = { api: "Sources", orion: "Datapoints", minio: "MinIO" };
 
 export interface SuggestionsPage<T> {
   items: T[];
