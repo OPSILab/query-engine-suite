@@ -179,6 +179,12 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     this.getUser();
     const collections = this.beopenAPI.getCollections().then(list => {
       this.collectionOptions = list.map(c => ({ ...c, label: this.beopenAPI.collectionLabel(c.id) }));
+      this.collectionsLoaded = true;
+      // an older Query-Engine, and the suggestions already read with a saved choice: again, without it
+      if (!list.length && this.savedCollections) {
+        this.preloadSuggestions();
+        this.loadKeysWithValuesNotSuggested();
+      }
       // never chosen in this browser: the Query-Engine's defaults (all of them if it doesn't say)
       if (!this.savedCollections && list.some(c => c.default !== undefined))
         this.selectedCollections = QueryEngineComponent.ALL_COLLECTIONS.filter(id => list.some(c => c.id === id && c.default));
@@ -248,10 +254,15 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     return (this.mode === 'Simple search' || this.mode === 'Advanced search') && this.collectionsFor()?.length === 0;
   }
 
-  /** Collections of the suggestions (keys / values / entries): the selected ones. */
-  get suggestionCollections(): string[] {
-    return this.selectedCollections;
+  /**
+   * Collections of the suggestions (keys / values / entries): the selected ones - none selected, no suggestions.
+   * undefined (all of them) with an older Query-Engine: it has no collections and shows no choice, so a choice saved
+   * in this browser must not hide its suggestions.
+   */
+  get suggestionCollections(): string[] | undefined {
+    return this.collectionsLoaded && !this.collectionOptions.length ? undefined : this.selectedCollections;
   }
+  private collectionsLoaded = false;
 
   private loadKeysWithValuesNotSuggested(): void {
     this.beopenAPI.getKeysWithValuesNotIndexed(this.suggestionCollections).then(keys => this.keysWithValuesNotSuggested = new Set(keys));

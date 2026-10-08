@@ -564,3 +564,38 @@ describe('collections ("Search in")', () => {
     expect(comp.snippetCode).not.toContain('"orion"');
   });
 });
+
+describe('no collection selected', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+  const COLLECTIONS = { collections: [
+    { id: 'api', advancedSearch: true, simpleSearch: true, default: true },
+    { id: 'orion', advancedSearch: true, simpleSearch: false, default: false },
+    { id: 'minio', advancedSearch: true, simpleSearch: true, default: true },
+  ] };
+  const suggestionGets = (requests: any[]) => requests.filter(r => /\/api\/(keys|values|entries)(\/notIndexed)?$/.test(r.url));
+
+  it('no suggestions at all, and no request for them', async () => {
+    const { comp, http } = create({ backend: { collections: COLLECTIONS, keys: { items: [{ key: 'city' }], hasMore: false } } });
+    await comp.ngOnInit();
+    await flush();
+    comp.toggleCollection('api');          // only Files: the suggestions of Files are read
+    await flush();
+    const before = suggestionGets(http.requests).length;
+    comp.toggleCollection('minio');        // nothing selected
+    expect(comp.suggestionCollections).toEqual([]);
+    expect(await comp.preloadedKeys).toEqual({ items: [], hasMore: false });
+    await flush();
+    expect(comp.keysWithValuesNotSuggested.size).toBe(0);
+    expect(suggestionGets(http.requests).length).toBe(before);
+  });
+
+  it('an older Query-Engine (no collections): a choice saved in this browser does not hide its suggestions', async () => {
+    localStorage.setItem('qe.selectedCollections', JSON.stringify([]));
+    const { comp, http } = create({ backend: { keys: { items: [{ key: 'city' }], hasMore: false } } });
+    await comp.ngOnInit();
+    await flush();
+    expect(comp.suggestionCollections).toBeUndefined();
+    expect(await comp.preloadedKeys).toEqual({ items: ['city'], hasMore: false });
+    expect(http.requests.filter(r => r.url.endsWith('/api/keys')).at(-1).options.params.has('collections')).toBe(false);
+  });
+});

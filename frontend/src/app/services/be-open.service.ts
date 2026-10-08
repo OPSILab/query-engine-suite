@@ -223,6 +223,7 @@ export class BeopenAPIService {
    * datapoints' `value`, hundreds of thousands of distinct numbers). [] when unavailable (older Query-Engine).
    */
   getKeysWithValuesNotIndexed(collections?: string[]): Promise<string[]> {
+    if (collections && !collections.length) return Promise.resolve([]); // no collection chosen: nothing to warn about
     const params = new HttpParams({ fromObject: collections ? { collections: collections.join(",") } : {} });
     return firstValueFrom(this.http.get<any>(`${this.queryEngineBaseUrl}/api/keys/notIndexed`, { params }))
       .then(res => (Array.isArray(res?.keys) ? res.keys.filter((k: any) => typeof k === "string") : []))
@@ -247,7 +248,10 @@ export class BeopenAPIService {
     return (labels && typeof labels[id] === "string" && labels[id]) || DEFAULT_COLLECTION_LABELS[id] || id;
   }
 
+  // collections: [] (no collection chosen) -> no suggestions, without asking (the Query-Engine would read an empty
+  // list as "not given", i.e. its default collections); undefined -> all of them
   private async suggestionsPage<T>(path: string, search: Record<string, string>, skip: number, limit: number, pick: (row: any) => T | undefined, collections?: string[]): Promise<SuggestionsPage<T>> {
+    if (collections && !collections.length) return { items: [], hasMore: false };
     const params = new HttpParams({ fromObject: { ...search, limit: String(limit), skip: String(skip), ...(collections ? { collections: collections.join(",") } : {}) } });
     const res: any = await firstValueFrom(this.http.get<any>(`${this.queryEngineBaseUrl}/api/${path}`, { params }));
     // a Query-Engine without pages answers the whole list, or ["Too many suggestions..."]

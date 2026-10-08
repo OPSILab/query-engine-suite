@@ -224,6 +224,11 @@ describe('collections', () => {
     await api.getEntries('k', '', 0, 100, {}, ['api', 'minio']);
     await api.getKeysWithValuesNotIndexed(['orion']);
     expect(gets.map(g => g.params.collections)).toEqual(['orion', 'api,minio', 'orion']);
+    // no collection chosen: empty answers, no request
+    expect(await api.getKeys('a', 0, 100, [])).toEqual({ items: [], hasMore: false });
+    expect(await api.getEntries('k', '', 0, 100, {}, [])).toEqual({ items: [], hasMore: false });
+    expect(await api.getKeysWithValuesNotIndexed([])).toEqual([]);
+    expect(gets.length).toBe(3);
   });
 
   it('getCollections: the list of /api/collections, [] for an older Query-Engine', async () => {
