@@ -66,7 +66,7 @@ const typeDefs = gql`
     #   source: exact origin url of API / Orion records
     #   collections: api, orion, minio - default queryOptions.defaultCollections, ["api", "minio"] unless configured
     #                (the Orion datapoints: datapoints(...))
-    #   limit:  default queryOptions.graphQLDefaultLimit (100), at most queryOptions.graphQLMaxLimit (1000);
+    #   limit:  default queryOptions.graphQLDefaultLimit (100 if not set), at most queryOptions.graphQLMaxLimit (1000 if not set);
     #           limit and skip apply to each collection
     # To read the stored data use doc (whole document) or doc(fields: [...]).
     sources(filter: JSON, name: String, source: String, collections: [String], limit: Int, skip: Int): [Source]

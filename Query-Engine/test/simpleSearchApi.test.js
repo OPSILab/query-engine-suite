@@ -129,9 +129,12 @@ describe("collections", () => {
             { id: "api", default: true, advancedSearch: true, simpleSearch: false },
             { id: "orion", default: false, advancedSearch: false, simpleSearch: true },
             { id: "minio", default: true, advancedSearch: true, simpleSearch: true }
-        ] })
+        ], limits: { advancedSearch: 1000, suggestions: 500 } })
         config.queryOptions.defaultCollections = ["orion"]
+        config.queryOptions.advancedSearchMaxResults = 5000
+        config.queryOptions.suggestionsMaxResults = 200
         const custom = await (await fetch(baseUrl + "/collections")).json()
         assert.deepEqual(custom.collections.map(c => [c.id, c.default]), [["api", false], ["orion", true], ["minio", false]])
+        assert.deepEqual(custom.limits, { advancedSearch: 5000, suggestions: 200 })
     })
 })

@@ -8,8 +8,8 @@
 // - collections: the collections searched (collections.js); default queryOptions.defaultCollections (api and minio,
 //   the old `sources` collection - the Orion datapoints are read with `datapoints`, or with collections: ["orion"]).
 //   limit / skip apply to each collection.
-// - limit / skip: limit defaults to queryOptions.graphQLDefaultLimit (100) and is capped at
-//   queryOptions.graphQLMaxLimit (1000).
+// - limit / skip: limit defaults to queryOptions.graphQLDefaultLimit (100 if not set) and is capped at
+//   queryOptions.graphQLMaxLimit (1000 if not set).
 // - visibility: the same rule as visibility.objectFilter, translated into the query (so limit/skip and the
 //   count apply to what the user may see); the resolvers still check every document with objectFilter.
 

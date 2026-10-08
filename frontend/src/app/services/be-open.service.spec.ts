@@ -116,7 +116,7 @@ describe('sending', () => {
 
 describe('suggestions', () => {
   // records the params of every GET; answers `answer(url, params)`
-  function suggestionsService(answer: (url: string, params: any) => any) {
+  function suggestionsService(answer: (url: string, params: any) => any, settings: any = {}) {
     const gets: { url: string; params: Record<string, string | null> }[] = [];
     const http = {
       get: (url: string, options: any) => {
@@ -125,13 +125,20 @@ describe('suggestions', () => {
         return of(answer(url, params));
       },
     };
-    return { gets, api: new BeopenAPIService(http as any, fakeConfig({ beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }) as any) };
+    return { gets, api: new BeopenAPIService(http as any, fakeConfig({ beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe', ...settings }) as any) };
   }
 
   it('one page: prefix, limit and skip as params (the text is sent as it is, the backend escapes it)', async () => {
     const { gets, api } = suggestionsService(() => ({ items: [{ key: 'a[b' }, { key: 'a[c' }], hasMore: true }));
     expect(await api.getKeys('a[', 200)).toEqual({ items: ['a[b', 'a[c'], hasMore: true });
     expect(gets[0]).toEqual({ url: 'http://qe/api/keys', params: { key: 'a[', limit: '100', skip: '200' } });
+  });
+
+  it('config.json suggestionsPageSize: the default page size', async () => {
+    const { gets, api } = suggestionsService(() => ({ items: [], hasMore: false }), { suggestionsPageSize: 30 });
+    await api.getKeys('c');
+    await api.getEntries('k', 'v');
+    expect(gets.map(g => g.params['limit'])).toEqual(['30', '30']);
   });
 
   it('values and entries; exact key / value', async () => {
@@ -236,6 +243,21 @@ describe('collections', () => {
     expect(await ok.api.getCollections()).toEqual([{ id: 'api', advancedSearch: true, simpleSearch: true, default: true }, { id: 'orion', advancedSearch: true, simpleSearch: false }]);
     expect(await service(undefined, () => throwError(() => new Error('404'))).api.getCollections()).toEqual([]);
   });
+
+  it('page sizes: never above the limits of the Query-Engine (GET /api/collections), not capped if it does not say', async () => {
+    const settings = { beopenApiBaseUrl: 'http://be', advancedSearchPageSize: 5000, suggestionsPageSize: 2000 };
+    const newer = service(settings, () => of({ collections: [], limits: { advancedSearch: 1000, suggestions: 500 } }));
+    expect([newer.api.advancedSearchPageSize(), newer.api.suggestionsPageSize()]).toEqual([5000, 2000]); // not known yet
+    await newer.api.getCollections();
+    expect([newer.api.advancedSearchPageSize(), newer.api.suggestionsPageSize()]).toEqual([1000, 500]);
+    const older = service(settings, () => of({ collections: [] }));
+    await older.api.getCollections();
+    expect([older.api.advancedSearchPageSize(), older.api.suggestionsPageSize()]).toEqual([5000, 2000]);
+    const small = service({ beopenApiBaseUrl: 'http://be' }, () => of({ collections: [], limits: { advancedSearch: 20 } }));
+    await small.api.getCollections();
+    expect([small.api.advancedSearchPageSize(), small.api.suggestionsPageSize()]).toEqual([20, 100]);
+  });
+
 
   it('advancedSearchPageSize: config.json advancedSearchPageSize if a positive integer, else 50', () => {
     expect(service().api.advancedSearchPageSize()).toBe(50);

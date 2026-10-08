@@ -91,6 +91,7 @@ module.exports = {
     graphQLDefaultLimit: 100, // GraphQL sources: documents returned when the query has no limit
     graphQLMaxLimit: 1000,    // GraphQL sources: highest accepted limit
     advancedSearchMaxResults: 1000, // Advanced search: highest page size, and results without page
+    suggestionsMaxResults: 500,     // keys / values / entries suggestions: highest page size, and results without page
     // Collections searched by the requests without `collections` (clients older than the collections): Advanced
     // search, keys / values / entries suggestions, GraphQL sources. Default: what the old `sources` collection held,
     // no datapoints. Ids: api, orion, minio. The Simple search does not read these collections.

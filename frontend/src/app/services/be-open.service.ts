@@ -31,12 +31,12 @@ export interface QueryWarning {
   message: string;
 }
 
-/** Page size of the keys / values / entries suggestions. */
+/** Default page size of the keys / values / entries suggestions: config.json "suggestionsPageSize" overrides it. */
 export const SUGGESTIONS_PAGE_SIZE = 100;
 
 /**
  * Default page size of the Advanced search results: config.json "advancedSearchPageSize" overrides it (see
- * BeopenAPIService.advancedSearchPageSize). The Query-Engine refuses pages above its queryOptions.advancedSearchMaxResults.
+ * BeopenAPIService.advancedSearchPageSize). Never above the Query-Engine's queryOptions.advancedSearchMaxResults.
  */
 export const ADVANCED_SEARCH_PAGE_SIZE = 50;
 
@@ -103,6 +103,11 @@ export class BeopenAPIService {
    * proxy exposes it somewhere else.
    */
   graphqlEndpoint: string;
+  /**
+   * Highest page sizes the Query-Engine accepts (GET /api/collections "limits": its advancedSearchMaxResults and
+   * suggestionsMaxResults). Unknown until getCollections() answers, or with an older Query-Engine: then not capped.
+   */
+  queryEngineLimits: { advancedSearch?: number; suggestions?: number } = {};
 
   constructor(private http: HttpClient, private configService: ConfigService) {
     this.apiBaseUrl = this.configService.getSettings("beopenApiBaseUrl");
@@ -201,12 +206,12 @@ export class BeopenAPIService {
   // collections: only the suggestions of those collections (undefined: all of them)
 
   /** Keys starting with `prefix` (case insensitive), sorted. */
-  getKeys(prefix = "", skip = 0, limit = SUGGESTIONS_PAGE_SIZE, collections?: string[]): Promise<SuggestionsPage<string>> {
+  getKeys(prefix = "", skip = 0, limit = this.suggestionsPageSize(), collections?: string[]): Promise<SuggestionsPage<string>> {
     return this.suggestionsPage("keys", { key: prefix }, skip, limit, (row: any) => row?.key, collections);
   }
 
   /** Values starting with `prefix` (case insensitive), sorted. */
-  getValues(prefix = "", skip = 0, limit = SUGGESTIONS_PAGE_SIZE, collections?: string[]): Promise<SuggestionsPage<string>> {
+  getValues(prefix = "", skip = 0, limit = this.suggestionsPageSize(), collections?: string[]): Promise<SuggestionsPage<string>> {
     return this.suggestionsPage("values", { value: prefix }, skip, limit, (row: any) => row?.value, collections);
   }
 
@@ -214,7 +219,7 @@ export class BeopenAPIService {
    * Key / value pairs whose key starts with `key` and value with `value` (case insensitive); exact.key /
    * exact.value: that field must be the whole text instead.
    */
-  getEntries(key = "", value = "", skip = 0, limit = SUGGESTIONS_PAGE_SIZE, exact: { key?: boolean; value?: boolean } = {}, collections?: string[]): Promise<SuggestionsPage<SuggestionEntry>> {
+  getEntries(key = "", value = "", skip = 0, limit = this.suggestionsPageSize(), exact: { key?: boolean; value?: boolean } = {}, collections?: string[]): Promise<SuggestionsPage<SuggestionEntry>> {
     const params: Record<string, string> = { key, value };
     if (exact.key) params["exactKey"] = "true";
     if (exact.value) params["exactValue"] = "true";
@@ -238,17 +243,35 @@ export class BeopenAPIService {
    * frontend then shows no choice and sends no `collections`).
    */
   getCollections(): Promise<CollectionInfo[]> {
+    const positive = (n: any) => Number.isInteger(n) && n > 0 ? n : undefined;
     return firstValueFrom(this.http.get<any>(`${this.queryEngineBaseUrl}/api/collections`))
+      .then(res => {
+        this.queryEngineLimits = { advancedSearch: positive(res?.limits?.advancedSearch), suggestions: positive(res?.limits?.suggestions) };
+        return res;
+      })
       .then(res => (Array.isArray(res?.collections) ? res.collections : [])
         .filter((c: any) => typeof c?.id === "string")
         .map((c: any) => ({ id: c.id, advancedSearch: c.advancedSearch !== false, simpleSearch: c.simpleSearch !== false, ...(typeof c.default === "boolean" ? { default: c.default } : {}) })))
       .catch(() => []);
   }
 
-  /** Page size of the Advanced search: config.json "advancedSearchPageSize" (a positive integer), else ADVANCED_SEARCH_PAGE_SIZE. */
+  /**
+   * Page size of the Advanced search: config.json "advancedSearchPageSize" (a positive integer), else
+   * ADVANCED_SEARCH_PAGE_SIZE; at most what the Query-Engine accepts.
+   */
   advancedSearchPageSize(): number {
-    const size = Number(this.configService.getSettings("advancedSearchPageSize", null));
-    return Number.isInteger(size) && size > 0 ? size : ADVANCED_SEARCH_PAGE_SIZE;
+    return this.pageSize("advancedSearchPageSize", ADVANCED_SEARCH_PAGE_SIZE, this.queryEngineLimits.advancedSearch);
+  }
+
+  /** Page size of the suggestions: config.json "suggestionsPageSize", else SUGGESTIONS_PAGE_SIZE; capped the same way. */
+  suggestionsPageSize(): number {
+    return this.pageSize("suggestionsPageSize", SUGGESTIONS_PAGE_SIZE, this.queryEngineLimits.suggestions);
+  }
+
+  private pageSize(setting: string, fallback: number, max?: number): number {
+    const configured = Number(this.configService.getSettings(setting, null));
+    const size = Number.isInteger(configured) && configured > 0 ? configured : fallback;
+    return max ? Math.min(size, max) : size;
   }
 
   /** Label of a collection: config.json "collectionLabels", else DEFAULT_COLLECTION_LABELS, else its id. */

@@ -4,13 +4,14 @@ import { SUGGESTIONS_PAGE_SIZE } from '../../../services/be-open.service';
 
 // Paged backend over in-memory keys / values / entries (prefix and exact matches case insensitive, like the
 // Query-Engine). Records every call.
-function fakeApi(data: { keys?: string[]; values?: string[]; entries?: { key: string; value: string }[] } = {}, fail = false) {
+function fakeApi(data: { keys?: string[]; values?: string[]; entries?: { key: string; value: string }[] } = {}, fail = false, pageSize = SUGGESTIONS_PAGE_SIZE) {
   const calls: any[] = [];
   const starts = (text: string, prefix: string) => text.toLowerCase().startsWith(prefix.toLowerCase());
   const equals = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   const page = <T>(all: T[], skip: number, limit: number) => ({ items: all.slice(skip, skip + limit), hasMore: all.length > skip + limit });
   return {
     calls,
+    suggestionsPageSize: () => pageSize,
     getKeys: vi.fn(async (prefix = '', skip = 0, limit = SUGGESTIONS_PAGE_SIZE, collections?: string[]) => {
       calls.push(['keys', prefix, skip]);
       if (collections) calls.push(['collections', collections]);
@@ -83,6 +84,19 @@ describe('suggestions, other field empty', () => {
     const values = create('value', fakeApi({ values: ['Rome', 'rovigo', 'Milan'] }));
     await type(values.comp, values.textarea, 'RO');
     expect(values.comp.suggestions).toEqual(['Rome', 'rovigo']);
+  });
+
+  it('pages of the configured size (suggestionsPageSize): each one starts after what was read', async () => {
+    const all = Array.from({ length: 7 }, (_, i) => 'k' + i);
+    const { comp, api } = create('key', fakeApi({ keys: all }, false, 3));
+    comp.onFocus();
+    await settle();
+    expect(comp.suggestions).toEqual(['k0', 'k1', 'k2']);
+    await comp.loadMore();
+    await comp.loadMore();
+    expect(comp.suggestions).toEqual(all);
+    expect(comp.hasMore).toBe(false);
+    expect(api.calls.map(c => c[2])).toEqual([0, 3, 6]);
   });
 
   it('pages: "Load more" appends the next page, until there is no more', async () => {

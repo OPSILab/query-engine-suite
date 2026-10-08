@@ -80,7 +80,8 @@ function formatFilter(query, format) {
 // page = { limit, skip }: one page, sorted, { items, hasMore } (read limit + 1 to know if there is more).
 // No page (older clients): at most SUGGESTIONS_MAX + 1 documents are read - never the whole collection - and above
 // SUGGESTIONS_MAX keys / values answer the "too many" message, entries the first SUGGESTIONS_MAX.
-const SUGGESTIONS_MAX = 500
+// SUGGESTIONS_MAX: queryOptions.suggestionsMaxResults (default 500), also the highest page size.
+const SUGGESTIONS_MAX = () => Number.isInteger(Number(config.queryOptions?.suggestionsMaxResults)) && Number(config.queryOptions.suggestionsMaxResults) > 0 ? Number(config.queryOptions.suggestionsMaxResults) : 500
 const TOO_MANY_SUGGESTIONS = ["Too many suggestions. Type some characters in order to reduce them"]
 const escapeRegex = text => String(text ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 const startsWith = text => ({ $regex: "^" + escapeRegex(text), $options: "i" })
@@ -91,9 +92,10 @@ async function suggestions(Model, filter, projection, sort, page, tooMany) {
         const rows = await Model.find(filter, projection).sort(sort).skip(page.skip).limit(page.limit + 1).lean()
         return { items: rows.slice(0, page.limit), hasMore: rows.length > page.limit }
     }
-    const rows = await Model.find(filter, projection).limit(SUGGESTIONS_MAX + 1).lean()
-    if (rows.length > SUGGESTIONS_MAX)
-        return tooMany ? TOO_MANY_SUGGESTIONS : rows.slice(0, SUGGESTIONS_MAX)
+    const max = SUGGESTIONS_MAX()
+    const rows = await Model.find(filter, projection).limit(max + 1).lean()
+    if (rows.length > max)
+        return tooMany ? TOO_MANY_SUGGESTIONS : rows.slice(0, max)
     return rows
 }
 
@@ -156,7 +158,7 @@ module.exports = {
     // origins (orion.datapointsNotIndexed, e.g. the datapoints' `value`) and lists those origins in valuesNotIndexed.
     async getKeysWithValuesNotIndexed(prefix, bucketName, visibility, collections) {
         const filter = { "valuesNotIndexed.0": { $exists: true }, ...suggestionsVisibilityFilter(prefix, bucketName, visibility), ...connectorsFilter(collections) }
-        const rows = await Key.collection.find(filter, { projection: { key: 1, _id: 0 } }).sort({ key: 1 }).limit(SUGGESTIONS_MAX).toArray()
+        const rows = await Key.collection.find(filter, { projection: { key: 1, _id: 0 } }).sort({ key: 1 }).limit(SUGGESTIONS_MAX()).toArray()
         return { keys: rows.map(row => row.key) }
     },
 

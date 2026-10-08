@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, ViewChild, AfterViewInit, OnDestroy, EventEmitter, Output, Input } from '@angular/core';
-import { BeopenAPIService, SUGGESTIONS_PAGE_SIZE, SuggestionEntry, SuggestionsPage } from '../../../services/be-open.service';
+import { BeopenAPIService, SuggestionEntry, SuggestionsPage } from '../../../services/be-open.service';
 
 // Key / value field of the "Advanced search" rows, with suggestions from the Query-Engine's keys / values /
 // entries, read one page at a time ("Load more" at the end of the list): the backend never reads them all.
@@ -141,7 +141,6 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
   loadMore(event?: Event): Promise<void> {
     event?.stopPropagation();
     if (!this.hasMore || this.loadingSuggestions) return Promise.resolve();
-    this.skip += SUGGESTIONS_PAGE_SIZE;
     return this.load(false);
   }
 
@@ -153,6 +152,7 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
     try {
       const page = await this.fetchPage(text, this.skip, first);
       if (seq !== this.requestSeq) return; // the text changed meanwhile
+      this.skip += page.read; // the next page starts after what was read, whatever the page size
       const seen = new Set(this.suggestions);
       this.suggestions = this.suggestions.concat(page.options.filter(option => !seen.has(option) && seen.add(option)));
       this.hasMore = page.hasMore;
@@ -170,33 +170,35 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private async fetchPage(text: string, skip: number, first: boolean): Promise<{ options: string[]; hasMore: boolean }> {
+  private async fetchPage(text: string, skip: number, first: boolean): Promise<{ options: string[]; hasMore: boolean; read: number }> {
     const other = String((this.mode === 'key' ? this.v : this.key) ?? '');
     if (!other) {
       if (!text && skip === 0 && this.preloaded) {
         try {
           const page = await this.preloaded;
-          return { options: page.items.map(String), hasMore: page.hasMore };
+          return { options: page.items.map(String), hasMore: page.hasMore, read: page.items.length };
         } catch {
           // read it now
         }
       }
+      const size = this.beopenAPI.suggestionsPageSize();
       const page = this.mode === 'key'
-        ? await this.beopenAPI.getKeys(text, skip, SUGGESTIONS_PAGE_SIZE, this.collections)
-        : await this.beopenAPI.getValues(text, skip, SUGGESTIONS_PAGE_SIZE, this.collections);
-      return { options: page.items.map(String), hasMore: page.hasMore };
+        ? await this.beopenAPI.getKeys(text, skip, size, this.collections)
+        : await this.beopenAPI.getValues(text, skip, size, this.collections);
+      return { options: page.items.map(String), hasMore: page.hasMore, read: page.items.length };
     }
     // pairs that exist; the other field exactly when its text exists as it is, else by prefix
+    const size = this.beopenAPI.suggestionsPageSize();
     const query = (exact: boolean) => this.mode === 'key'
-      ? this.beopenAPI.getEntries(text, other, skip, SUGGESTIONS_PAGE_SIZE, { value: exact }, this.collections)
-      : this.beopenAPI.getEntries(other, text, skip, SUGGESTIONS_PAGE_SIZE, { key: exact }, this.collections);
+      ? this.beopenAPI.getEntries(text, other, skip, size, { value: exact }, this.collections)
+      : this.beopenAPI.getEntries(other, text, skip, size, { key: exact }, this.collections);
     let page = first || this.exactOther ? await query(true) : await query(false);
     if (first) {
       this.exactOther = page.items.length > 0;
       if (!this.exactOther) page = await query(false);
     }
     const pick = (entry: SuggestionEntry) => this.mode === 'key' ? entry.key : entry.value;
-    return { options: page.items.map(pick), hasMore: page.hasMore };
+    return { options: page.items.map(pick), hasMore: page.hasMore, read: page.items.length };
   }
 
   private openDropdown(): void {

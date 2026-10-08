@@ -90,6 +90,12 @@ describe("pages", () => {
         for (const query of ["limit=0", "limit=501", "limit=x", "limit=5&skip=-1"])
             assert.equal((await get("/keys?key=c&" + query)).status, 400, query)
     })
+
+    test("queryOptions.suggestionsMaxResults: the highest page size", async () => {
+        config.queryOptions.suggestionsMaxResults = 1000
+        assert.equal((await get("/keys?key=c&limit=1000")).status, 200)
+        assert.equal((await get("/keys?key=c&limit=1001")).status, 400)
+    })
 })
 
 describe("without a page (older clients): never the whole collection", () => {

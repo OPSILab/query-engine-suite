@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input
 import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
-import { BeopenAPIService, CollectionInfo, QueryWarning, ResultsPage, SUGGESTIONS_PAGE_SIZE, SuggestionsPage } from '../../services/be-open.service';
+import { BeopenAPIService, CollectionInfo, QueryWarning, ResultsPage, SuggestionsPage } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
 import { UntypedFormGroup, UntypedFormControl } from '@angular/forms';
@@ -276,8 +276,8 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       return page;
     };
     const collections = this.suggestionCollections;
-    this.preloadedKeys = preload(() => this.beopenAPI.getKeys("", 0, SUGGESTIONS_PAGE_SIZE, collections));
-    this.preloadedValues = preload(() => this.beopenAPI.getValues("", 0, SUGGESTIONS_PAGE_SIZE, collections));
+    this.preloadedKeys = preload(() => this.beopenAPI.getKeys("", 0, this.beopenAPI.suggestionsPageSize(), collections));
+    this.preloadedValues = preload(() => this.beopenAPI.getValues("", 0, this.beopenAPI.suggestionsPageSize(), collections));
   }
 
   /** The row's key has values that are not suggested (they can still be typed and searched). */
@@ -360,7 +360,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   private async pickDemoPair(): Promise<{ key: string; value: string } | null> {
     let keys: string[];
     try {
-      const page = await (this.preloadedKeys ?? Promise.reject()).catch(() => this.beopenAPI.getKeys("", 0, SUGGESTIONS_PAGE_SIZE, this.suggestionCollections));
+      const page = await (this.preloadedKeys ?? Promise.reject()).catch(() => this.beopenAPI.getKeys("", 0, this.beopenAPI.suggestionsPageSize(), this.suggestionCollections));
       keys = Array.from(new Set(page.items.filter(k => typeof k === "string" && k)));
     } catch {
       return null;

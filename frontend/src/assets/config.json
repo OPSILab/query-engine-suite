@@ -7,6 +7,7 @@
   "queryEngineBaseUrl": "http://localhost:3001",
   "collectionLabels": { "api": "Sources", "orion": "Datapoints", "minio": "Files" },
   "advancedSearchPageSize": 50,
+  "suggestionsPageSize": 100,
   "keycloak": {
     "authProfile": "oidc",
     "baseURL": "https://dx-lab.eng.it/auth/realms/smartera/protocol/openid-connect",

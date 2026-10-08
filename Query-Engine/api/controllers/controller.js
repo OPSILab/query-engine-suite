@@ -12,8 +12,8 @@ function suggestionsPage(query) {
         return undefined
     const limit = Number(query.limit)
     const skip = query.skip === undefined ? 0 : Number(query.skip)
-    if (!Number.isInteger(limit) || limit < 1 || limit > service.SUGGESTIONS_MAX || !Number.isInteger(skip) || skip < 0)
-        throw Object.assign(new Error(`limit must be 1-${service.SUGGESTIONS_MAX}, skip >= 0`), { status: 400 })
+    if (!Number.isInteger(limit) || limit < 1 || limit > service.SUGGESTIONS_MAX() || !Number.isInteger(skip) || skip < 0)
+        throw Object.assign(new Error(`limit must be 1-${service.SUGGESTIONS_MAX()}, skip >= 0`), { status: 400 })
     return { limit, skip }
 }
 const isTrue = value => value === "true" || value === true
@@ -123,7 +123,9 @@ module.exports = {
                 default: byDefault.includes(id),
                 advancedSearch: collectionSettings(id).toMongo,
                 simpleSearch: id == "orion" ? live.orion === true : live[id] !== false
-            }))
+            })),
+            // highest page sizes accepted: the frontend never asks for more (its config.json may say more)
+            limits: { advancedSearch: service.ADVANCED_SEARCH_MAX(), suggestions: service.SUGGESTIONS_MAX() }
         })
     },
 

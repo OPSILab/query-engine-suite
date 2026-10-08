@@ -37,8 +37,9 @@ const GENERIC: GqlExample[] = [
     doc
   }
 }` },
-  // "Find all": no filter, every field. Without limit the backend applies queryOptions.graphQLDefaultLimit (100),
-  // at most graphQLMaxLimit (1000) per query: sourcesCount says how many there are, skip reads the next pages.
+  // "Find all": no filter, every field. Without limit the backend applies queryOptions.graphQLDefaultLimit (default
+  // 100), at most queryOptions.graphQLMaxLimit (default 1000) per query: sourcesCount says how many there are, skip
+  // reads the next pages.
   { label: 'All sources, all fields (find all)', query: `query {
   sourcesCount
   sources {
