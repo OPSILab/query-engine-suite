@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input
 import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
-import { ADVANCED_SEARCH_PAGE_SIZE, BeopenAPIService, CollectionInfo, QueryWarning, ResultsPage, SUGGESTIONS_PAGE_SIZE, SuggestionsPage } from '../../services/be-open.service';
+import { BeopenAPIService, CollectionInfo, QueryWarning, ResultsPage, SUGGESTIONS_PAGE_SIZE, SuggestionsPage } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
 import { UntypedFormGroup, UntypedFormControl } from '@angular/forms';
@@ -420,7 +420,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     }
     const mongoQuery = this.buildMongoQuery(all);
     const kind = all ? 'all' : 'query';
-    const page = this.mode === "Advanced search" ? { limit: ADVANCED_SEARCH_PAGE_SIZE, skip: 0 } : undefined;
+    const page = this.mode === "Advanced search" ? { limit: this.beopenAPI.advancedSearchPageSize(), skip: 0 } : undefined;
     const collections = this.collectionsFor();
     this.pendingQuery = this.track(kind, this.beopenAPI.minioQuery(this.mode, this.searchValue(all), mongoQuery, this.sqlQuery, this.visibility, this.type, page, collections)).subscribe(queryResult => {
       this.resultsRequest = page ? { mongoQuery, type: this.type, visibility: this.visibility, kind, page, collections, next: queryResult?.next } : undefined;
@@ -629,7 +629,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     if (this.mode === "Query GraphQL")
       return this.beopenAPI.buildGraphqlRequest(this.graphqlText, this.visibility);
     const all = (this.mode === "Advanced search" || this.mode === "Simple search") && this.snippetFindAll;
-    const page = this.mode === "Advanced search" ? { limit: ADVANCED_SEARCH_PAGE_SIZE, skip: 0 } : undefined;
+    const page = this.mode === "Advanced search" ? { limit: this.beopenAPI.advancedSearchPageSize(), skip: 0 } : undefined;
     return this.beopenAPI.buildQueryRequest(this.mode, this.searchValue(all), this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type, page, this.collectionsFor());
   }
 

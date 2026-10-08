@@ -237,6 +237,14 @@ describe('collections', () => {
     expect(await service(undefined, () => throwError(() => new Error('404'))).api.getCollections()).toEqual([]);
   });
 
+  it('advancedSearchPageSize: config.json advancedSearchPageSize if a positive integer, else 50', () => {
+    expect(service().api.advancedSearchPageSize()).toBe(50);
+    expect(service({ beopenApiBaseUrl: 'http://be', advancedSearchPageSize: 5000 }).api.advancedSearchPageSize()).toBe(5000);
+    expect(service({ beopenApiBaseUrl: 'http://be', advancedSearchPageSize: '200' }).api.advancedSearchPageSize()).toBe(200);
+    for (const wrong of [0, -5, 2.5, 'many', null])
+      expect(service({ beopenApiBaseUrl: 'http://be', advancedSearchPageSize: wrong }).api.advancedSearchPageSize()).toBe(50);
+  });
+
   it('collectionLabel: config.json collectionLabels, else the defaults, else the id', () => {
     expect(service().api.collectionLabel('api')).toBe('Sources');
     expect(service().api.collectionLabel('orion')).toBe('Datapoints');

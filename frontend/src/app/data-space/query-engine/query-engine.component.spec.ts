@@ -351,6 +351,18 @@ describe('Advanced search results, one page at a time', () => {
   };
   const queries = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query')).map(r => r.options.body);
 
+  it('config.json advancedSearchPageSize: the size of every page, "Load more results" included', async () => {
+    const { comp, http } = create({ backend: { query: paged(7) }, settings: { advancedSearchPageSize: 5 } });
+    comp.lines = [{ key: 'city', value: 'Rome', type: 'String' }];
+    comp.minioQuery(false);
+    await flush();
+    comp.loadMoreResults();
+    await flush();
+    expect(queries(http.requests).map(q => q.page)).toEqual([{ limit: 5, skip: 0 }, { limit: 5, skip: 5 }]);
+    expect(comp.extractedElements.length).toBe(7);
+    expect(comp.hasMoreResults).toBe(false);
+  });
+
   it('"Apply Query" asks for the first page; "Load more results" appends the next ones, until there are no more', async () => {
     const { comp, http } = create({ backend: { query: paged(120) } });
     const more: boolean[] = [];

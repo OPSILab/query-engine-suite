@@ -34,7 +34,10 @@ export interface QueryWarning {
 /** Page size of the keys / values / entries suggestions. */
 export const SUGGESTIONS_PAGE_SIZE = 100;
 
-/** Page size of the Advanced search results (the Query-Engine caps it at queryOptions.advancedSearchMaxResults). */
+/**
+ * Default page size of the Advanced search results: config.json "advancedSearchPageSize" overrides it (see
+ * BeopenAPIService.advancedSearchPageSize). The Query-Engine refuses pages above its queryOptions.advancedSearchMaxResults.
+ */
 export const ADVANCED_SEARCH_PAGE_SIZE = 50;
 
 /**
@@ -240,6 +243,12 @@ export class BeopenAPIService {
         .filter((c: any) => typeof c?.id === "string")
         .map((c: any) => ({ id: c.id, advancedSearch: c.advancedSearch !== false, simpleSearch: c.simpleSearch !== false, ...(typeof c.default === "boolean" ? { default: c.default } : {}) })))
       .catch(() => []);
+  }
+
+  /** Page size of the Advanced search: config.json "advancedSearchPageSize" (a positive integer), else ADVANCED_SEARCH_PAGE_SIZE. */
+  advancedSearchPageSize(): number {
+    const size = Number(this.configService.getSettings("advancedSearchPageSize", null));
+    return Number.isInteger(size) && size > 0 ? size : ADVANCED_SEARCH_PAGE_SIZE;
   }
 
   /** Label of a collection: config.json "collectionLabels", else DEFAULT_COLLECTION_LABELS, else its id. */
