@@ -11,7 +11,7 @@
   "Value (E.g. BikeLane)": "Value (e.g. BikeLane)",
   "Apply Query": "Apply query",
   "Select the type of value to filter": "Select the type of value to filter",
-  "Value type select info": "Choose whether the value you are filtering on is text or a date.",
+  "Value type select info": "Choose whether the value you are filtering on is text or a date. If the field is a list (e.g. dimensions), the value finds the documents whose list contains it. Fields inside other fields have dotted keys (e.g. title.value).",
   "Enter a key that you want so search": "Enter a key you want to search",
   "Enter a value that you want so search": "Enter a value you want to search",
   "Select the start date for your search": "Select the start date for your search",

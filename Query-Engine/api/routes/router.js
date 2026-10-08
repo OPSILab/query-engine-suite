@@ -1,7 +1,7 @@
 const express = require("express")
 const controller = require("../controllers/controller.js")
 const router = express.Router()
-const { auth } = require("../middlewares/auth.js")
+const { auth, adminOnly } = require("../middlewares/auth.js")
 const { bodyCheck } = require('../../utils/common.js')
 const mongoose = require('mongoose');
 
@@ -14,11 +14,12 @@ router.get(encodeURI("/keys/notIndexed"), auth, controller.getKeysWithValuesNotI
 router.get(encodeURI("/values"), auth, controller.getValues)
 router.get(encodeURI("/entries"), auth, controller.getEntries)
 router.get(encodeURI("/minio/listObjects"), auth, controller.minioListObjects)
-router.post(encodeURI("/minio/resetCache"), controller.resetCache)
+// cache management: authenticated, and with one of authConfig.adminRoles if configured
+router.post(encodeURI("/minio/resetCache"), auth, adminOnly, controller.resetCache)
 router.get(encodeURI("/assets/:name"), controller.assets)
-router.get(encodeURI("/backupCache"), controller.backupCache)
-router.get(encodeURI("/restoreCache"), controller.restoreCache)
-router.post(encodeURI("/resetBackup"), controller.resetBackup)
+router.get(encodeURI("/backupCache"), auth, adminOnly, controller.backupCache)
+router.get(encodeURI("/restoreCache"), auth, adminOnly, controller.restoreCache)
+router.post(encodeURI("/resetBackup"), auth, adminOnly, controller.resetBackup)
 //router.get('/manage-collections', controller.manageCollections);
 //router.delete('/delete-collection', controller.deleteCollection);
 

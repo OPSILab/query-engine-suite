@@ -73,6 +73,9 @@ module.exports = {
     authRealm: "",
     introspect: false,
     publicKey: "",
+    // Cache reset / backup / restore endpoints: roles required besides a valid token (Keycloak realm roles or roles of
+    // clientId). [] = any authenticated user. Not checked with disableAuth.
+    adminRoles: [],
     secret: "" // don't push it
   },
   sourceConnectors: {

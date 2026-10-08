@@ -11,7 +11,7 @@
   "Value (E.g. BikeLane)": "Valore (es. BikeLane)",
   "Apply Query": "Applica query",
   "Select the type of value to filter": "Seleziona il tipo di valore da filtrare",
-  "Value type select info": "Scegli se il valore da filtrare è testo o data.",
+  "Value type select info": "Scegli se il valore da filtrare è testo o data. Se il campo è una lista (ad es. dimensions), il valore trova i documenti la cui lista lo contiene. I campi dentro altri campi hanno chiavi con il punto (ad es. title.value).",
   "Enter a key that you want so search": "Inserisci una chiave da cercare",
   "Enter a value that you want so search": "Inserisci un valore da cercare",
   "Select the start date for your search": "Seleziona la data di inizio della ricerca",

@@ -181,5 +181,25 @@ module.exports = {
             else
                 return res.sendStatus(401);
         }
+    },
+
+    // After `auth`, for the endpoints that change the Query-Engine itself (cache reset / backup / restore): with
+    // authentication on, the token must also have one of authConfig.adminRoles (Keycloak realm roles or roles of
+    // the clientId client). adminRoles empty / missing: any authenticated user. disableAuth: everything passes.
+    adminOnly: (req, res, next) => {
+        if (authConfig.disableAuth)
+            return next()
+        const required = Array.isArray(authConfig.adminRoles) ? authConfig.adminRoles.filter(r => typeof r === "string" && r) : []
+        if (!required.length)
+            return next()
+        const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "")
+        const decoded = jwt.decode(token) || {}
+        const roles = [
+            ...(decoded.realm_access?.roles || []),
+            ...(decoded.resource_access?.[authConfig.clientId]?.roles || [])
+        ]
+        if (required.some(role => roles.includes(role)))
+            return next()
+        return res.status(403).send(`One of these roles is required: ${required.join(", ")}`)
     }
 };
