@@ -9,6 +9,7 @@ const { translateDataPointsBatch } = require("../services/translationService");
 const logger = require("percocologger")
 const { visibleIn } = require("../services/visibility")
 const { sourcesQuery, sourcesCollections, limits } = require("./sourcesQuery")
+const { timeLimit } = require("../services/queryGuards")
 
 // Same scoping as the REST queries: everything with disableAuth, otherwise only the documents the user may see
 // for the visibility header (prefix and bucket are set on req.body by the auth middleware, see index.js).
@@ -54,12 +55,12 @@ const resolvers = {
     sources: async (parent, args, { req }) => {
       const { limit, skip } = limits(args)
       const lists = await Promise.all(sourcesCollections(args).map(async c =>
-        (await collectionModel(c).find(sourcesQuery(args, req, c)).sort({ _id: 1 }).skip(skip).limit(limit))
+        (await collectionModel(c).find(sourcesQuery(args, req, c), null, timeLimit()).sort({ _id: 1 }).skip(skip).limit(limit))
           .filter(doc => visibleTo(req, doc, c)).map(doc => tagged(doc, c))))
       return lists.flat();
     },
     sourcesCount: async (parent, args, { req }) => {
-      const counts = await Promise.all(sourcesCollections(args).map(c => collectionModel(c).countDocuments(sourcesQuery(args, req, c))))
+      const counts = await Promise.all(sourcesCollections(args).map(c => collectionModel(c).countDocuments(sourcesQuery(args, req, c), timeLimit())))
       return counts.reduce((a, b) => a + b, 0);
     },
     // One document per survey in `dimensions` (written by the Source-Connector with the datapoints): cheap,
@@ -182,7 +183,7 @@ const resolvers = {
 
         logger.info("Pipeline built")
         logger.info(util.inspect(pipeline, { depth: null }))
-        const datapoints = await collectionModel("orion").aggregate(pipeline);
+        const datapoints = await collectionModel("orion").aggregate(pipeline, timeLimit());
         logger.info("Datapoints fetched: ", datapoints.length)
 
         // Convert timestamp to datetime format

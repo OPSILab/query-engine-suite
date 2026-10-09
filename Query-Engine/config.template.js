@@ -76,6 +76,8 @@ module.exports = {
     // Cache reset / backup / restore endpoints: roles required besides a valid token (Keycloak realm roles or roles of
     // clientId). [] = any authenticated user. Not checked with disableAuth.
     adminRoles: [],
+    // With disableAuth the cache endpoints are closed, unless this token is set and sent in the X-Admin-Token header
+    adminToken: "", // don't push it
     secret: "" // don't push it
   },
   sourceConnectors: {
@@ -95,14 +97,19 @@ module.exports = {
     // Collections searched by the requests without `collections` (clients older than the collections): Advanced
     // search, keys / values / entries suggestions, GraphQL sources. Default: what the old `sources` collection held,
     // no datapoints. Ids: api, orion, minio. The Simple search does not read these collections.
-    defaultCollections: ["api", "minio"]
+    defaultCollections: ["api", "minio"],
+    // Advanced search, suggestions and GraphQL: MongoDB stops a query after this time (ms) and the request gets 504.
+    // Generous: some legitimate queries are slow. 0: no limit.
+    mongoMaxTimeMS: 900000
   },
   // Cache of the GraphQL datapoints queries: one collection (the datapoints of every version of every query) and the
   // queriesmap collection (one row per version). keepVersions: versions kept per query, the active one included;
   // the versions saved by backupCache are kept until resetBackup.
   cache: {
     collection: "querycache",
-    keepVersions: 3
+    keepVersions: 3,
+    // highest number of cached datapoints (all versions of all queries); beyond it the results are not cached. 0: no limit
+    maxDatapoints: 5000000
   },
   // The MongoDB collections of the Source-Connector, one per connector: same values as in its config (only mongo /
   // toMongo / toPostgres are used here). The frontend lets the user choose which ones to search, and warns that the

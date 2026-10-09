@@ -177,6 +177,21 @@ describe("pages", () => {
     })
 })
 
+describe("operators", () => {
+    test("only read operators: $where, $function, $expr... 400, nothing run", async () => {
+        for (const query of [{ $where: "sleep(1000) || true" }, { city: { $function: { body: "return true", args: [], lang: "js" } } }, { $expr: { $eq: [1, 1] } }]) {
+            const { status, body } = await search(query)
+            assert.equal(status, 400, JSON.stringify(query))
+            assert.match(body, /not allowed/)
+        }
+    })
+
+    test("a query string field with a nested operator ([$where]): 400", async () => {
+        const res = await fetch(`${baseUrl}/query?city[$where]=1`, { method: "POST", headers: { "Content-Type": "application/json", visibility: "public" }, body: JSON.stringify({}) })
+        assert.equal(res.status, 400)
+    })
+})
+
 describe("visibility", () => {
     test("with authentication: private, public", async () => {
         config.authConfig.disableAuth = false

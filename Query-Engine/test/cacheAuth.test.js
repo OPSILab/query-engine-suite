@@ -54,9 +54,24 @@ describe("cache endpoints", () => {
         assert.deepEqual(calls, ["resetCache", "resetCache"])
     })
 
-    test("authentication disabled: everything passes, adminRoles not checked", async () => {
+    test("authentication disabled, no adminToken: closed (403), nothing called", async () => {
         Object.assign(config.authConfig, { disableAuth: true, adminRoles: ["qe-admin"] })
-        for (const [method, path] of ENDPOINTS)
-            assert.equal((await call(method, path)).status, 200, path)
+        for (const [method, path] of ENDPOINTS) {
+            const res = await call(method, path)
+            assert.equal(res.status, 403, path)
+            assert.match(await res.text(), /adminToken/)
+        }
+        assert.deepEqual(calls, [])
+    })
+
+    test("authentication disabled with adminToken: only with the right X-Admin-Token (adminRoles not checked)", async () => {
+        Object.assign(config.authConfig, { disableAuth: true, adminRoles: ["qe-admin"], adminToken: "s3cret" })
+        const withHeader = (method, path, value) => fetch(baseUrl + path, { method, headers: { "X-Admin-Token": value } })
+        for (const [method, path] of ENDPOINTS) {
+            assert.equal((await call(method, path)).status, 403, path)
+            assert.equal((await withHeader(method, path, "wrong")).status, 403, path)
+            assert.equal((await withHeader(method, path, "s3cret")).status, 200, path)
+        }
+        assert.deepEqual(calls, ["resetCache", "backupCache", "restoreCache", "resetBackup", "listCache"])
     })
 })

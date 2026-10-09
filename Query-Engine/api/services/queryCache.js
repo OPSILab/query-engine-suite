@@ -31,8 +31,27 @@ function cacheSettings() {
     const keep = Number(c.keepVersions)
     return {
         collection: typeof c.collection === "string" && c.collection ? c.collection : "querycache",
-        keepVersions: Number.isInteger(keep) && keep >= 1 ? keep : 3
+        keepVersions: Number.isInteger(keep) && keep >= 1 ? keep : 3,
+        maxDatapoints: maxDatapoints(c.maxDatapoints)
     }
+}
+
+// cache.maxDatapoints: highest number of datapoints in the cache (every version of every query); a result that would
+// go beyond it is not cached (the query is answered anyway). Missing: DEFAULT_MAX_DATAPOINTS; 0: no limit.
+const DEFAULT_MAX_DATAPOINTS = 5000000
+function maxDatapoints(value) {
+    if (value === undefined || value === null || value === "")
+        return DEFAULT_MAX_DATAPOINTS
+    const max = Number(value)
+    return Number.isFinite(max) && max > 0 ? max : 0
+}
+
+async function cachedDatapoints() {
+    const [total] = await rows().aggregate([
+        { $match: { state: { $in: ["active", "previous"] } } },
+        { $group: { _id: null, count: { $sum: "$count" } } }
+    ]).toArray()
+    return total?.count || 0
 }
 
 const rows = () => QueriesMap.collection
@@ -79,6 +98,14 @@ function toCached(datapoint, cacheId, cacheSeq) {
 // Returns the version, or null when another request is already writing one for the same query.
 async function writeCache(query, datapoints, meta = {}) {
     await ensureIndexes()
+    const { maxDatapoints } = cacheSettings()
+    if (maxDatapoints) {
+        const cached = await cachedDatapoints()
+        if (cached + datapoints.length > maxDatapoints) {
+            logger.warn(`Cache full (${cached} datapoints, cache.maxDatapoints ${maxDatapoints}): ${datapoints.length} datapoints of ${query} not cached`)
+            return null
+        }
+    }
     const last = await rows().findOne({ query, state: { $in: STATES } }, { sort: { version: -1 }, projection: { version: 1 } })
     const version = (last?.version || 0) + 1
     let _id

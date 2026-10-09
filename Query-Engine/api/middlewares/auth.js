@@ -1,6 +1,7 @@
 const config = require('../../config')
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const authConfig = config.authConfig
 const keycloakServerURL = authConfig.idmHost;
 const realm = authConfig.authRealm;
@@ -28,6 +29,15 @@ function deniedQuery(query, bucketName, prefix) {
         logger.error(error)
         return true
     }
+}
+
+// constant time comparison of the admin token
+function sameSecret(given, expected) {
+    if (typeof given !== "string")
+        return false
+    const a = crypto.createHash("sha256").update(given).digest()
+    const b = crypto.createHash("sha256").update(expected).digest()
+    return crypto.timingSafeEqual(a, b)
 }
 
 module.exports = {
@@ -185,10 +195,18 @@ module.exports = {
 
     // After `auth`, for the endpoints that change the Query-Engine itself (cache reset / backup / restore): with
     // authentication on, the token must also have one of authConfig.adminRoles (Keycloak realm roles or roles of
-    // the clientId client). adminRoles empty / missing: any authenticated user. disableAuth: everything passes.
+    // the clientId client). adminRoles empty / missing: any authenticated user.
+    // disableAuth: there is no user, so these endpoints are closed (403) unless authConfig.adminToken is set and sent
+    // in the X-Admin-Token header (e.g. resetBackup deletes the cache history: not for anyone who reaches the API).
     adminOnly: (req, res, next) => {
-        if (authConfig.disableAuth)
+        if (authConfig.disableAuth) {
+            const adminToken = typeof authConfig.adminToken === "string" ? authConfig.adminToken : ""
+            if (!adminToken)
+                return res.status(403).send("Cache management is disabled while authConfig.disableAuth is true: set authConfig.adminToken and send it in the X-Admin-Token header")
+            if (!sameSecret(req.headers["x-admin-token"], adminToken))
+                return res.status(403).send("X-Admin-Token missing or wrong")
             return next()
+        }
         const required = Array.isArray(authConfig.adminRoles) ? authConfig.adminRoles.filter(r => typeof r === "string" && r) : []
         if (!required.length)
             return next()

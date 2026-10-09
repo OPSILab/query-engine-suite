@@ -17,6 +17,7 @@ function suggestionsPage(query) {
     return { limit, skip }
 }
 const isTrue = value => value === "true" || value === true
+const { checkFilter, httpStatus } = require('../services/queryGuards')
 
 // format of the suggestions: the Advanced search file type (JSON / CSV / GeoJSON, any case), or object (no file
 // type); none: every suggestion
@@ -89,7 +90,17 @@ const queryMongo = async (req, res) => {
     const query = req.query.format == "JSON"
         ? { ...JSON.parse(JSON.stringify(req.body.mongoQuery || req.query)), format: "json+object" }
         : { ...req.body.mongoQuery, ...req.query }
-    const result = await service.mongoQuery(query, req.body.prefix, req.body.bucketName, req.headers.visibility, page, warnings, collections)
+    let result
+    try {
+        // the searched fields: read operators only (no $where, $expr, ...), see queryGuards
+        const { format, ...fields } = query
+        checkFilter(fields, 0, "query")
+        result = await service.mongoQuery(query, req.body.prefix, req.body.bucketName, req.headers.visibility, page, warnings, collections)
+    }
+    catch (error) {
+        logger.error(error)
+        return res.status(httpStatus(error)).send(error.message || String(error))
+    }
     if (warnings.length)
         res.set("X-Query-Warnings", encodeURIComponent(JSON.stringify(warnings)))
     res.send(result)

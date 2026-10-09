@@ -4,6 +4,7 @@ const Value = require('../models/Value')
 const Key = require('../models/Key')
 const Entries = require('../models/Entries')
 const queryCache = require('./queryCache')
+const { timeLimit } = require('./queryGuards')
 const { json2csv } = require('../../utils/common')
 const config = require('../../config')
 const minioWriter = require("../../inputConnectors/minioConnector")
@@ -89,11 +90,11 @@ const equalsIgnoringCase = text => ({ $regex: "^" + escapeRegex(text) + "$", $op
 
 async function suggestions(Model, filter, projection, sort, page, tooMany) {
     if (page) {
-        const rows = await Model.find(filter, projection).sort(sort).skip(page.skip).limit(page.limit + 1).lean()
+        const rows = await Model.find(filter, projection, timeLimit()).sort(sort).skip(page.skip).limit(page.limit + 1).lean()
         return { items: rows.slice(0, page.limit), hasMore: rows.length > page.limit }
     }
     const max = SUGGESTIONS_MAX()
-    const rows = await Model.find(filter, projection).limit(max + 1).lean()
+    const rows = await Model.find(filter, projection, timeLimit()).limit(max + 1).lean()
     if (rows.length > max)
         return tooMany ? TOO_MANY_SUGGESTIONS : rows.slice(0, max)
     return rows
@@ -176,7 +177,7 @@ module.exports = {
     // origins (orion.datapointsNotIndexed, e.g. the datapoints' `value`) and lists those origins in valuesNotIndexed.
     async getKeysWithValuesNotIndexed(prefix, bucketName, visibility, collections) {
         const filter = { "valuesNotIndexed.0": { $exists: true }, ...suggestionsVisibilityFilter(prefix, bucketName, visibility), ...connectorsFilter(collections) }
-        const rows = await Key.collection.find(filter, { projection: { key: 1, _id: 0 } }).sort({ key: 1 }).limit(SUGGESTIONS_MAX()).toArray()
+        const rows = await Key.collection.find(filter, { projection: { key: 1, _id: 0 }, ...timeLimit() }).sort({ key: 1 }).limit(SUGGESTIONS_MAX()).toArray()
         return { keys: rows.map(row => row.key) }
     },
 
@@ -265,7 +266,7 @@ module.exports = {
         const skipOf = c => !page ? 0 : typeof page.skip === "object" && page.skip !== null ? (page.skip[c] || 0) : (page.skip || 0)
         const perCollection = await Promise.all(searched.map(async c => {
             const filter = { $and: [formatFilter(fields, format), collectionVisibilityFilter(c, prefix, bucket, visibility)] }
-            const rows = await collectionModel(c).find(filter).sort({ _id: 1 }).skip(skipOf(c)).limit(limit + 1).lean()
+            const rows = await collectionModel(c).find(filter, null, timeLimit()).sort({ _id: 1 }).skip(skipOf(c)).limit(limit + 1).lean()
             const results = rows.slice(0, limit)
                 .filter(obj => visibleIn(c, obj, prefix, bucket, visibility))
                 .map(obj => c == "minio" ? withFileInfo(obj) : obj)

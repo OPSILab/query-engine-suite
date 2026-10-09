@@ -16,33 +16,22 @@
 const { UserInputError } = require('apollo-server-express')
 const config = require('../../config')
 const { collectionVisibilityFilter } = require('../services/visibility')
+const guards = require('../services/queryGuards')
+const { ALLOWED_OPERATORS } = guards
 const { DEFAULT_COLLECTIONS, defaultCollections, collectionSettings, storedCollections, parseCollections } = require('../services/collections')
 
-const ALLOWED_OPERATORS = new Set([
-    "$eq", "$ne", "$gt", "$gte", "$lt", "$lte", "$in", "$nin",
-    "$exists", "$type", "$regex", "$options", "$not",
-    "$and", "$or", "$nor",
-    "$elemMatch", "$all", "$size", "$mod"
-])
-const MAX_DEPTH = 12
 const DEFAULT_LIMIT = 100
 const MAX_LIMIT = 1000
 
 const escapeRegex = text => String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-function checkFilter(value, depth = 0) {
-    if (depth > MAX_DEPTH)
-        throw new UserInputError("filter: too deeply nested")
-    if (Array.isArray(value))
-        return value.forEach(item => checkFilter(item, depth + 1))
-    if (value === null || typeof value !== "object")
-        return
-    for (const key of Object.keys(value)) {
-        if (key.startsWith("$") && !ALLOWED_OPERATORS.has(key))
-            throw new UserInputError(`filter: operator ${key} is not allowed (allowed: ${[...ALLOWED_OPERATORS].join(", ")})`)
-        if (key.includes("\0"))
-            throw new UserInputError("filter: invalid field name")
-        checkFilter(value[key], depth + 1)
+// read operators only (services/queryGuards.js), as a GraphQL input error
+function checkFilter(value) {
+    try {
+        guards.checkFilter(value)
+    }
+    catch (error) {
+        throw new UserInputError(error.message)
     }
 }
 

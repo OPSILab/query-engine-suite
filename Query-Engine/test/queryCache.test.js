@@ -111,6 +111,25 @@ describe("readCache / writeCache", () => {
     })
 })
 
+describe("cache.maxDatapoints", () => {
+    test("a result that would go beyond it is not cached (null); 0 = no limit", async () => {
+        config.cache.maxDatapoints = 10
+        assert.equal(await cache.writeCache(Q, points(6, "v1")), 1)
+        assert.equal(await cache.writeCache(Q2, points(5)), null)
+        assert.equal(await cache.readCache(Q2), null)
+        assert.equal(await cache.writeCache(Q2, points(4)), 1) // 6 + 4 = 10: fits
+        assert.equal(await cache.writeCache(Q, points(1, "v2")), null)
+        assert.ok((await cache.readCache(Q)).every(d => d.tag == "v1"))
+        config.cache.maxDatapoints = 0
+        assert.equal(await cache.writeCache(Q, points(100, "v2")), 2)
+    })
+
+    test("default: 5 million", async () => {
+        delete config.cache.maxDatapoints
+        assert.equal(cache.cacheSettings().maxDatapoints, 5000000)
+    })
+})
+
 describe("versions kept (config.cache.keepVersions)", () => {
     test("per query: keepVersions versions, the active one included; the older ones deleted with their datapoints", async () => {
         config.cache.keepVersions = 2
