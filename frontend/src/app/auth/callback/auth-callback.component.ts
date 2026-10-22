@@ -8,6 +8,7 @@ import { BeopenAPIService } from '../../services/be-open.service';
 import { OidcUserInformationService } from '../services/oidc-user-information.service';
 import { UserClaims } from '../oidc';
 import { SharedService } from '../../services/shared.service';
+import { takeReturnUrl } from '../services/return-url';
 
 /**
  * Adapted from the dashboard's AuthCallbackComponent.
@@ -43,12 +44,14 @@ export class AuthCallbackComponent implements OnDestroy {
       .subscribe((authResult: NbAuthResult) => {
         this.propagateRolesFromToken();
 
+        // the page asked before the login (AuthGuard), else the home page
+        const returnUrl = takeReturnUrl();
         this.beopenAPIService.getUser().subscribe(beopenUser => {
           this.sharedService.propagateUser(beopenUser);
-          this.router.navigateByUrl('/');
+          this.router.navigateByUrl(returnUrl);
         }, err => {
           console.warn('No BeOpen user record for this Keycloak account yet', err);
-          this.router.navigateByUrl('/');
+          this.router.navigateByUrl(returnUrl);
         });
       }, (error) => {
         console.error(error);

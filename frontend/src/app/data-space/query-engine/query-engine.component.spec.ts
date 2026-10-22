@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, throwError, map } from 'rxjs';
 import { HttpHeaders, HttpResponse } from '@angular/common/http';
+import { DefaultUrlSerializer } from '@angular/router';
 
 // Only NbAuthService's getToken() is used (snippet with the real token): no need to load Nebular
 vi.mock('@nebular/auth', () => ({ NbAuthService: class { } }));
@@ -56,7 +57,8 @@ function fakeHttp(backend: Backend) {
   };
 }
 
-function create({ backend = {} as Backend, settings = {}, token = null as string | null, translation = {} as any } = {}) {
+// url: the address of the page (its query params through the real Angular parser), e.g. '/?key=a&value=1'
+function create({ backend = {} as Backend, settings = {}, token = null as string | null, translation = {} as any, url = '/' } = {}) {
   const allSettings: any = { beopenApiBaseUrl: 'http://qe', ...settings };
   const config = {
     getSettings: (key?: string, defaultValue?: any) => !key ? allSettings : (allSettings[key] ?? defaultValue),
@@ -69,6 +71,7 @@ function create({ backend = {} as Backend, settings = {}, token = null as string
   const comp = new QueryEngineComponent(
     {} as any, api, translation, toast as any, {} as any, shared as any, { BucketObjectsPush: () => { } } as any, nbAuth as any, config as any,
     { nativeElement: document.createElement('div') } as any,
+    { snapshot: { queryParamMap: new DefaultUrlSerializer().parse(url).queryParamMap } } as any,
   );
   comp.visibility = 'public';
   return { comp, http, api, toast };
@@ -688,5 +691,47 @@ describe('no collection selected', () => {
     expect(comp.suggestionCollections).toBeUndefined();
     expect(await comp.preloadedKeys).toEqual({ items: ['city'], hasMore: false });
     expect(http.requests.filter(r => r.url.endsWith('/api/keys')).at(-1).options.params.has('collections')).toBe(false);
+  });
+});
+
+describe('link with the filters of an Advanced search (?key=...&value=...)', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+  const queries = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query')).map(r => r.options.body);
+  const SOURCE = 'https://api.example/data?from=2026-01-01&to=2026-02-01&q=a+b#top';
+
+  it('the url-encoded value (encodeURIComponent) arrives as it is, and Apply Query searches it', async () => {
+    const { comp, http } = create({ url: '/?key=source&value=' + encodeURIComponent(SOURCE) });
+    comp.setMode('Query SQL');
+    await comp.ngOnInit();
+    expect(comp.mode).toBe('Advanced search');
+    expect(comp.lines).toEqual([{ key: 'source', value: SOURCE, type: 'String' }]);
+    comp.minioQuery(false);
+    await flush();
+    expect(JSON.stringify(queries(http.requests)[0])).toContain(JSON.stringify(SOURCE).slice(1, -1));
+  });
+
+  it('several filters: key and value repeated, paired in order; a missing value is empty', async () => {
+    const { comp } = create({ url: '/?key=city&value=Rome&key=year&value=2026&key=name' });
+    await comp.ngOnInit();
+    expect(comp.lines).toEqual([
+      { key: 'city', value: 'Rome', type: 'String' },
+      { key: 'year', value: '2026', type: 'String' },
+      { key: 'name', value: '', type: 'String' },
+    ]);
+  });
+
+  it('a url not encoded is cut at its first "&" and its "+" become spaces: that is why it must be encoded', async () => {
+    const { comp } = create({ url: '/?key=source&value=' + SOURCE });
+    await comp.ngOnInit();
+    expect(comp.lines[0].value).toBe('https://api.example/data?from=2026-01-01');
+    const plus = create({ url: '/?key=q&value=a+b&key=r&value=a%2Bb' });
+    await plus.comp.ngOnInit();
+    expect(plus.comp.lines.map(l => l.value)).toEqual(['a b', 'a+b']);
+  });
+
+  it('no key in the address: the filters stay as they are', async () => {
+    const { comp } = create({ url: '/?value=x' });
+    await comp.ngOnInit();
+    expect(comp.lines).toEqual([{ key: '', value: '' }]);
   });
 });

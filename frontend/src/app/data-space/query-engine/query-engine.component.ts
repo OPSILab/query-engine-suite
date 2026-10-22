@@ -7,7 +7,7 @@ import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
 import { UntypedFormGroup, UntypedFormControl } from '@angular/forms';
 import { BeopenUser } from '../../model/beopen-user';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SharedService } from '../../services/shared.service';
 import { DataSpaceService } from '../data-space.service';
 import { NbAuthService } from '@nebular/auth';
@@ -161,7 +161,8 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     private dataSpaceService: DataSpaceService,
     private nbAuth: NbAuthService,
     private configService: ConfigService,
-    private host: ElementRef<HTMLElement>
+    private host: ElementRef<HTMLElement>,
+    private route?: ActivatedRoute
   ) {
     this.authEnabled = !!this.configService.getSettings('enableAuthentication', false);
     this.form = new UntypedFormGroup({
@@ -177,6 +178,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   }
 
   async ngOnInit(): Promise<void> {
+    this.applyLinkFilters();
     this.getUser();
     this.loadQueryExamples();
     const collections = this.beopenAPI.getCollections().then(list => {
@@ -203,6 +205,23 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       if (runtime.length)
         this.createToastr('warning', this.tr("Simple search incomplete"), runtime.map(w => this.warningText(w)).join(" — "));
     });
+  }
+
+  /**
+   * A link to a ready Advanced search: ?key=<key>&value=<value>, repeated for more filters
+   * (?key=a&value=1&key=b&value=2, paired in order). Only fills the filters: the search starts with Apply Query.
+   * The values must be URL-encoded (encodeURIComponent): a url used as value contains "&", "#", "+"... that would
+   * otherwise end the value or (the "+") become a space.
+   */
+  private applyLinkFilters(): void {
+    const params = this.route?.snapshot?.queryParamMap;
+    const keys = params?.getAll('key') ?? [];
+    if (!keys.some(key => key)) return;
+    const values = params!.getAll('value');
+    this.form.get('mode')!.setValue('Advanced search');
+    this.lines = keys
+      .map((key, i) => ({ key, value: values[i] ?? '', type: 'String' }))
+      .filter(line => line.key);
   }
 
   // ---- collections
