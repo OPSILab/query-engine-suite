@@ -236,6 +236,12 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     return preset.filters.map(f => `${f.key} = ${f.value}`).join('\n');
   }
 
+  /** The ready search whose filters are the ones in the form (green, like the GraphQL / SQL examples). */
+  isPresetActive(preset: PresetSearch): boolean {
+    return this.lines.length === preset.filters.length && preset.filters.every((f, i) =>
+      this.lines[i].type !== 'Date' && this.lines[i].key === f.key && this.lines[i].value === f.value);
+  }
+
   /** A button of the ready searches: fills the filters like a link does (the search starts with Apply Query). */
   applyPresetSearch(preset: PresetSearch): void {
     this.fillFilters(preset.filters);

@@ -766,6 +766,18 @@ describe('ready searches (config.json "presetSearches")', () => {
     expect(comp.lines).toEqual([{ key: 'source', value: 'https://agrotour.eu/api/v1/health', type: 'String' }]);
   });
 
+  it('green while the filters are the ones of the button: no longer after a change', () => {
+    const { comp } = create({ settings: { presetSearches } });
+    const [first, second] = comp.presetSearches;
+    expect(comp.isPresetActive(first)).toBe(false);
+    comp.applyPresetSearch(second);
+    expect([comp.isPresetActive(first), comp.isPresetActive(second)]).toEqual([false, true]);
+    comp.onValuesChange('2027' as any, 1);
+    expect(comp.isPresetActive(second)).toBe(false);
+    comp.lines = [{ key: 'source', value: 'https://agrotour.eu/api/v1/health', type: 'String' }]; // same filters, typed
+    expect(comp.isPresetActive(first)).toBe(true);
+  });
+
   it('tooltip: the filters of the button', () => {
     const { comp } = create({ settings: { presetSearches } });
     expect(comp.presetTitle(comp.presetSearches[1])).toBe('source = https://api.example/x?a=1&b=2\nyear = 2026');

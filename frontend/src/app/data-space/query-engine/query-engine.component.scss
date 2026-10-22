@@ -514,3 +514,50 @@ a.ds-external-link:hover .ds-external-link__icon {
   color: #D97706;
   font-size: calc(12px * var(--ds-font-scale));
 }
+
+// Ready searches (config.json "presetSearches"): white chips like the GraphQL / SQL examples, green while the filters
+// in the form are the ones of the chip.
+.ds-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ds-preset {
+  max-width: 320px;
+  padding: 7px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: calc(12.5px * var(--ds-font-scale));
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.ds-preset:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-border-strong);
+}
+
+// Bootstrap's reboot outlines a button after a mouse click too: only for keyboard focus here
+.ds-preset:focus {
+  outline: none;
+}
+
+.ds-preset:focus-visible {
+  outline: 2px solid var(--ds-accent-border);
+  outline-offset: 1px;
+}
+
+.ds-preset--active,
+.ds-preset--active:hover {
+  border-color: var(--ds-accent-border);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}
