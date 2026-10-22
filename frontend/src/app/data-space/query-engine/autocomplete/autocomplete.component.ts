@@ -102,6 +102,8 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
   ) {
   }
 
+  private resizeObserver?: ResizeObserver;
+
   ngAfterViewInit() {
     // The field is uncontrolled (read through input.nativeElement.value, so typing never fights change
     // detection): the initial value is set once here.
@@ -109,6 +111,21 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
       this.input.nativeElement.value = this.value;
     }
     this.autoResize();
+    // That first measure can come before the page layout is final: a value filled in while the page is still
+    // loading (a link with the filters, ?key=...&value=...) was measured on a narrower field and kept the height
+    // of several lines. Measured again whenever the width of the field changes, and once the fonts are loaded.
+    if (typeof ResizeObserver !== 'undefined') {
+      let width = -1;
+      this.resizeObserver = new ResizeObserver(([entry]) => {
+        const current = Math.round(entry.contentRect.width);
+        if (current !== width) { // a height set by autoResize() doesn't measure again
+          width = current;
+          this.autoResize();
+        }
+      });
+      this.resizeObserver.observe(this.input.nativeElement);
+    }
+    (typeof document !== 'undefined' ? document.fonts?.ready : undefined)?.then(() => this.autoResize());
   }
 
   get showNotSuggestedNote(): boolean {
@@ -220,6 +237,7 @@ export class AutocompleteComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
     if (this.dropdownOpen) {
       this.dropdownOpen = false;
       AutocompleteComponent.setOpenDropdowns(-1);

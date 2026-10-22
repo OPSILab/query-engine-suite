@@ -5,6 +5,13 @@
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",
   "queryEngineBaseUrl": "http://localhost:3001",
+  "presetSearches": [
+    { "label": "Example API", "filters": [{ "key": "source", "value": "https://example.com/api/data" }] },
+    { "label": "Example API, year 2026", "filters": [
+      { "key": "source", "value": "https://example.com/api/data" },
+      { "key": "year", "value": "2026" }
+    ] }
+  ],
   "keycloak": {
     "authProfile": "oidc",
     "baseURL": "http://keycloakurl/auth/realms/smartera/protocol/openid-connect",

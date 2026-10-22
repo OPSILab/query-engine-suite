@@ -344,3 +344,30 @@ describe('collections', () => {
     expect(values.api.calls).toContainEqual(['collections', ['orion', 'minio']]);
   });
 });
+
+describe('height of a value filled in while the page is loading (a link with the filters)', () => {
+  it('measured again when the width of the field changes (not when only its height does), not after destroy', () => {
+    const observers: { callback: ResizeObserverCallback; disconnected: boolean }[] = [];
+    vi.stubGlobal('ResizeObserver', class {
+      private entry: { callback: ResizeObserverCallback; disconnected: boolean };
+      constructor(callback: ResizeObserverCallback) { this.entry = { callback, disconnected: false }; observers.push(this.entry); }
+      observe() { }
+      disconnect() { this.entry.disconnected = true; }
+    });
+    try {
+      const { comp } = create('value', fakeApi(), { value: 'https://agrotour.eu/api/v1/health' });
+      const resize = vi.spyOn(comp as any, 'autoResize');
+      comp.ngAfterViewInit();
+      expect(resize).toHaveBeenCalledTimes(1);
+      const width = (w: number, h = 40) => observers[0].callback([{ contentRect: { width: w, height: h } } as any], {} as any);
+      width(300);  // the first layout
+      width(900);  // the final one
+      width(900, 60); // only the height (set by autoResize itself)
+      expect(resize).toHaveBeenCalledTimes(3);
+      comp.ngOnDestroy();
+      expect(observers[0].disconnected).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

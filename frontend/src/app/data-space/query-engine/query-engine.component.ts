@@ -16,6 +16,12 @@ import { QueryRequest, SNIPPET_LANGS, SnippetLang, toSnippet } from './request-s
 import { FALLBACK_GQL_EXAMPLES, GqlExample, SOURCES_DISCOVERY_QUERY, SURVEYS_DISCOVERY_QUERY, buildGqlExamples } from './graphql-editor/graphql-examples';
 import { DEFAULT_SQL_EXAMPLES, SqlExample } from './sql-editor/sql-editor.component';
 
+/** A ready Advanced search of config.json ("presetSearches"): a button that fills the filters. */
+export interface PresetSearch {
+  label: string;
+  filters: { key: string; value: string }[];
+}
+
 /**
  * Ported from the main dashboard's QueryEngineComponent
  * (src/app/pages/data-space/query-engine/query-engine.component.ts).
@@ -147,6 +153,9 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   // Same condition TokenInterceptor uses to add the Authorization header.
   authEnabled = false;
 
+  // Advanced search: the ready searches of config.json ("presetSearches"), shown as buttons above the filters.
+  presetSearches: PresetSearch[] = [];
+
   // Simple search: what the configuration leaves out (shown under the search field) - see QueryWarning.
   simpleSearchLimits: QueryWarning[] = [];
   private queryWarningsSub?: Subscription;
@@ -165,6 +174,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     private route?: ActivatedRoute
   ) {
     this.authEnabled = !!this.configService.getSettings('enableAuthentication', false);
+    this.presetSearches = QueryEngineComponent.readPresetSearches(this.configService.getSettings('presetSearches', []));
     this.form = new UntypedFormGroup({
       mode: new UntypedFormControl(this.modes[1])
     });
@@ -218,10 +228,42 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     const keys = params?.getAll('key') ?? [];
     if (!keys.some(key => key)) return;
     const values = params!.getAll('value');
+    this.fillFilters(keys.map((key, i) => ({ key, value: values[i] ?? '' })));
+  }
+
+  /** Tooltip of a ready search button: its filters. */
+  presetTitle(preset: PresetSearch): string {
+    return preset.filters.map(f => `${f.key} = ${f.value}`).join('\n');
+  }
+
+  /** A button of the ready searches: fills the filters like a link does (the search starts with Apply Query). */
+  applyPresetSearch(preset: PresetSearch): void {
+    this.fillFilters(preset.filters);
+  }
+
+  /** Advanced search with these filters (the ones without a key left out). */
+  private fillFilters(filters: { key: string; value: string }[]): void {
+    const lines = filters.filter(f => f.key).map(f => ({ key: f.key, value: f.value, type: 'String' }));
+    if (!lines.length) return;
     this.form.get('mode')!.setValue('Advanced search');
-    this.lines = keys
-      .map((key, i) => ({ key, value: values[i] ?? '', type: 'String' }))
-      .filter(line => line.key);
+    // New objects: the @for tracks them by identity, so the rows (and their autocompletes) are re-created
+    this.lines = lines;
+  }
+
+  /**
+   * config.json "presetSearches": [{ "label": "...", "filters": [{ "key": "...", "value": "..." }, ...] }, ...].
+   * Entries without a label or without a filter with a key are left out; values are kept as text.
+   */
+  static readPresetSearches(setting: unknown): PresetSearch[] {
+    if (!Array.isArray(setting)) return [];
+    return setting
+      .map((preset: any) => ({
+        label: typeof preset?.label === 'string' ? preset.label.trim() : '',
+        filters: (Array.isArray(preset?.filters) ? preset.filters : [])
+          .filter((f: any) => typeof f?.key === 'string' && f.key)
+          .map((f: any) => ({ key: f.key, value: f.value === undefined || f.value === null ? '' : String(f.value) })),
+      }))
+      .filter(preset => preset.label && preset.filters.length);
   }
 
   // ---- collections

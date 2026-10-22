@@ -2,6 +2,8 @@
   "queryEngine": "Motore di query",
   "Query Mode Select": "Seleziona una modalità di ricerca",
   "Query Mode Select info": "Scegli come cercare: ricerca semplice per testo libero, ricerca avanzata per chiave/valore, una query SQL oppure una query GraphQL.",
+  "Preset searches": "Ricerche pronte",
+  "Preset searches info": "Ricerche preimpostate per questa installazione: un clic compila i filtri qui sotto, la ricerca parte con Apply Query.",
   "typeSelect": "Seleziona il tipo di file",
   "File type select info": "Scegli il formato dei file da cercare.",
   "Type the SQL query here": "Scrivi qui la query SQL",

@@ -5,7 +5,11 @@
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",
   "queryEngineBaseUrl": "http://localhost:3001",
-  "collectionLabels": { "api": "Sources", "orion": "Datapoints", "minio": "MinIO" },
+  "collectionLabels": {
+    "api": "Sources",
+    "orion": "Datapoints",
+    "minio": "MinIO"
+  },
   "advancedSearchPageSize": 50,
   "suggestionsPageSize": 100,
   "keycloak": {
@@ -13,5 +17,124 @@
     "baseURL": "https://dx-lab.eng.it/auth/realms/smartera/protocol/openid-connect",
     "accountURL": "https://dx-lab.eng.it/auth/realms/smartera/account",
     "userURL": "https://dx-lab.eng.it/auth/realms/smartera/protocol/openid-connect/userinfo"
-  }
+  },
+  "presetSearches": [
+    {
+      "label": "Wisita - Val di Sole/East Herz/Bosnia itineraryViews",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://www.progettosmartera.com/api/v1/analytics/itineraryViews/"
+        }
+      ]
+    },
+    {
+      "label": "Wisita - Val di Sole/East Herz/Bosnia poiViews",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://www.progettosmartera.com/api/v1/analytics/poiViews/"
+        }
+      ]
+    },
+    {
+      "label": "Wisita - Val di Sole/East Herz/Bosnia poiByItineraryViews",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://www.progettosmartera.com/api/v1/analytics/poiByItineraryViews/"
+        }
+      ]
+    },
+    {
+      "label": "Wisita - Val di Sole/East Herz/Bosnia analyticsAppDownloads",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://www.progettosmartera.com/api/v1/analyticsAppDownloads/"
+        }
+      ]
+    },
+    {
+      "label": "CH#9 JourneyStatistics",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://toyota-v2-be-cmeufdczc6gde4bf.westeurope-01.azurewebsites.net/api/v1/Route/JourneyStatistics"
+        }
+      ]
+    },
+    {
+      "label": "CH#4 kpis",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://api-neurofarming.8bellsresearch.com/api/v1/kpis"
+        }
+      ]
+    },
+    {
+      "label": "CH#11 pois",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://devetaki.travel2fit.eu/wp-json/t2d/v1/pois"
+        }
+      ]
+    },
+    {
+      "label": "CH#11 villages",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://devetaki.travel2fit.eu/wp-json/t2d/v1/villages"
+        }
+      ]
+    },
+    {
+      "label": "CH#7 search",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://agrotour.eu/api/v1/search"
+        }
+      ]
+    },
+    {
+      "label": "CH#2 observations",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://ucyq2jnvm7mqnqnymjezlrohy40jpzqv.lambda-url.eu-central-1.on.aws/v1/observations"
+        }
+      ]
+    },
+    {
+      "label": "CH#2 sensors",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://ucyq2jnvm7mqnqnymjezlrohy40jpzqv.lambda-url.eu-central-1.on.aws/v1/sensors"
+        }
+      ]
+    },
+    {
+      "label": "CH#8 tourism",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://smartherz-be.livelyflower-1c718338.eastus.azurecontainerapps.io/api/v1/integration/tourism"
+        }
+      ]
+    },
+    {
+      "label": "CH#8 kpis",
+      "filters": [
+        {
+          "key": "source",
+          "value": "ttps://smartherz-be.livelyflower-1c718338.eastus.azurecontainerapps.io/api/v1/integration/kpis"
+        }
+      ]
+    }
+  ]
 }

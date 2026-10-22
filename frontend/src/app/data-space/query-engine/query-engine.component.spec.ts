@@ -735,3 +735,51 @@ describe('link with the filters of an Advanced search (?key=...&value=...)', () 
     expect(comp.lines).toEqual([{ key: '', value: '' }]);
   });
 });
+
+describe('ready searches (config.json "presetSearches")', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+  const queries = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query')).map(r => r.options.body);
+  const presetSearches = [
+    { label: 'Agrotour health', filters: [{ key: 'source', value: 'https://agrotour.eu/api/v1/health' }] },
+    { label: 'Two filters', filters: [{ key: 'source', value: 'https://api.example/x?a=1&b=2' }, { key: 'year', value: 2026 }] },
+  ];
+
+  it('a button fills the filters (Advanced search) and Apply Query searches them', async () => {
+    const { comp, http } = create({ settings: { presetSearches } });
+    comp.setMode('Simple search');
+    expect(comp.presetSearches.map(p => p.label)).toEqual(['Agrotour health', 'Two filters']);
+    comp.applyPresetSearch(comp.presetSearches[1]);
+    expect(comp.mode).toBe('Advanced search');
+    expect(comp.lines).toEqual([
+      { key: 'source', value: 'https://api.example/x?a=1&b=2', type: 'String' },
+      { key: 'year', value: '2026', type: 'String' },
+    ]);
+    comp.minioQuery(false);
+    await flush();
+    expect(JSON.stringify(queries(http.requests)[0])).toContain('https://api.example/x?a=1&b=2');
+  });
+
+  it('every click starts from its own filters: the previous ones are replaced', () => {
+    const { comp } = create({ settings: { presetSearches } });
+    comp.lines = [{ key: 'city', value: 'Rome', type: 'String' }, { key: 'x', value: 'y', type: 'String' }];
+    comp.applyPresetSearch(comp.presetSearches[0]);
+    expect(comp.lines).toEqual([{ key: 'source', value: 'https://agrotour.eu/api/v1/health', type: 'String' }]);
+  });
+
+  it('tooltip: the filters of the button', () => {
+    const { comp } = create({ settings: { presetSearches } });
+    expect(comp.presetTitle(comp.presetSearches[1])).toBe('source = https://api.example/x?a=1&b=2\nyear = 2026');
+  });
+
+  it('none configured, or not a list: no buttons; entries without a label or a key left out', () => {
+    expect(create().comp.presetSearches).toEqual([]);
+    expect(create({ settings: { presetSearches: { label: 'x' } } }).comp.presetSearches).toEqual([]);
+    const { comp } = create({ settings: { presetSearches: [
+      { filters: [{ key: 'a', value: '1' }] },                          // no label
+      { label: 'no filters' },
+      { label: 'empty key', filters: [{ key: '', value: '1' }] },
+      { label: '  ok  ', filters: [{ key: '', value: 'x' }, { key: 'k' }, null] },
+    ] } });
+    expect(comp.presetSearches).toEqual([{ label: 'ok', filters: [{ key: 'k', value: '' }] }]);
+  });
+});

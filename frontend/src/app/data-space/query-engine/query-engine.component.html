@@ -100,6 +100,31 @@
 
     @if (mode == 'Advanced search') {
       <div class="ds-mode-panel ds-mode-panel--wide">
+        @if (presetSearches.length) {
+          <div>
+            <div class="ds-field-row">
+              <label class="ds-field-label">{{ 'Preset searches' | translate }}</label>
+              <button
+                type="button"
+                [dsTooltip]="'Preset searches info' | translate"
+                class="ds-icon-button"
+                aria-label="Info"
+                >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
+              </button>
+            </div>
+            <div class="ds-pills">
+              @for (preset of presetSearches; track $index) {
+                <button
+                  type="button"
+                  class="ds-pill"
+                  [title]="presetTitle(preset)"
+                  (click)="applyPresetSearch(preset)"
+                >{{ preset.label }}</button>
+              }
+            </div>
+          </div>
+        }
         <div>
           <div class="ds-field-row">
             <label class="ds-field-label">{{ 'typeSelect' | translate }}</label>

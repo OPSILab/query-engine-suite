@@ -2,6 +2,8 @@
   "queryEngine": "Query engine",
   "Query Mode Select": "Select a query mode",
   "Query Mode Select info": "Choose how you want to search: a simple free-text search, an advanced key/value search, a raw SQL query, or a GraphQL query.",
+  "Preset searches": "Ready searches",
+  "Preset searches info": "Ready searches configured for this installation: a click fills the filters below, the search starts with Apply Query.",
   "typeSelect": "Select the file type",
   "File type select info": "Choose the format of the files you want to search.",
   "Type the SQL query here": "Type the SQL query here",
