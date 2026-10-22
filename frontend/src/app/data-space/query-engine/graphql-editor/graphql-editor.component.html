@@ -81,9 +81,9 @@
           <button
             type="button"
             class="gql-editor__example"
-            [class.gql-editor__example--active]="value === ex.query"
-            [title]="ex.query"
-            (click)="useExample(ex.query)"
+            [class.gql-editor__example--active]="isActiveExample(ex)"
+            [title]="ex.label + '\n\n' + ex.query"
+            (click)="useExample(ex)"
           >{{ ex.label }}</button>
         }
       </div>

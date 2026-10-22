@@ -105,9 +105,23 @@ export class GraphqlEditorComponent implements OnInit {
     this.updateSuggestions();
   }
 
-  useExample(query: string): void {
-    this.onInput(query);
+  useExample(example: GqlExample): void {
+    this.onInput(GraphqlEditorComponent.exampleText(example));
     this.suggestions = null;
+  }
+
+  /** The example selected: the text in the editor is the one it inserted (until it is edited). */
+  isActiveExample(example: GqlExample): boolean {
+    return this._value === GraphqlEditorComponent.exampleText(example);
+  }
+
+  /**
+   * What an example puts in the editor: its label as a comment above the query, so that a label cut with "..."
+   * in its button can be read in full. A comment (#) rather than an operation name: a name allows only letters,
+   * digits and _, while the labels have spaces, accents, dashes, parentheses.
+   */
+  static exampleText(example: GqlExample): string {
+    return `# ${example.label.replace(/[\r\n]+/g, ' ').trim()}\n${example.query}`;
   }
 
   onKeyup(event: KeyboardEvent): void {
