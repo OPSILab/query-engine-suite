@@ -15,16 +15,23 @@
   padding: 0 28px 40px;
 }
 
+// The whole width of the window (outside .ds-page); its content in the same column as the page: same max width
+// and side padding, so the logo and the controls line up with the panels below.
 .ds-topbar {
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--ds-topbar-border);
+  background: var(--ds-topbar-bg);
+  color: var(--ds-topbar-text);
+}
+
+.ds-topbar__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 60px;
-  margin: 0 -28px 24px;
+  max-width: 1920px;
+  margin: 0 auto;
   padding: 0 28px;
-  border-bottom: 1px solid var(--ds-topbar-border);
-  background: var(--ds-topbar-bg);
-  color: var(--ds-topbar-text);
 }
 
 .ds-topbar__brand {
