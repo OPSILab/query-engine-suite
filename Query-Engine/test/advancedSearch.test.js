@@ -21,6 +21,13 @@ const DOCS = [
     { name: "map.geojson", record: { bucketName: "public-data" }, features: [{ properties: { city: "Rome" }, geometry: { type: "Polygon", coordinates: [[[12.5, 41.9], [12.6, 41.9]]] } }] },
     { name: "Datapoint", source: "EUROSTAT", fromUrl: "https://eurostat/nama.xml", survey: "NAMA", dimensions: ["Lovech", "Euro per inhabitant", "2020"], value: 1, kind: "item", n: 100 },
     { name: "Text code", source: "https://api.example.org/codes", code: "007" },
+    // an API answering a GeoJSON: its source at the top level, the villages in the features
+    {
+        name: "Villages", source: "https://api.example.org/villages", type: "FeatureCollection", features: [
+            { type: "Feature", properties: { village: "Etara", population: 120 }, geometry: { type: "Point", coordinates: [25.3, 42.8] } },
+            { type: "Feature", properties: { village: "Bozhentsi", population: 30 }, geometry: { type: "Point", coordinates: [25.4, 42.87] } }
+        ]
+    },
     ...Array.from({ length: 7 }, (_, i) => ({ name: "Item " + i, source: "https://api.example.org/items", kind: "item", n: i }))
 ]
 const collectionOf = d => d.record ? "minio" : d.survey ? "orion" : "api"
@@ -77,6 +84,29 @@ describe("file types", () => {
         assert.deepEqual(names((await search({ city: "Rome" }, { format: "GeoJSON" })).body), ["map.geojson"])
         assert.deepEqual(names((await search({ coordinates: "12.6" }, { format: "GeoJSON" })).body), ["map.geojson"])
         assert.deepEqual(names((await search({ coordinates: "99" }, { format: "GeoJSON" })).body), [])
+    })
+
+    test("GeoJSON: top-level fields too (the source of an API record), alone or with feature properties", async () => {
+        const villages = "https://api.example.org/villages"
+        const geojson = (query, collections = ["api", "minio"]) => search(query, { format: "GeoJSON", collections }).then(r => names(r.body))
+        assert.deepEqual(await geojson({ source: villages }), ["Villages"])                              // top level only
+        assert.deepEqual(await geojson({ source: villages, village: "Etara" }), ["Villages"])            // top level + a feature
+        assert.deepEqual(await geojson({ source: villages, village: "Rome" }), [])
+        assert.deepEqual(await geojson({ source: villages, coordinates: "42.87" }), ["Villages"])
+        assert.deepEqual(await geojson({ source: villages, coordinates: "99" }), [])
+        // the properties of the same feature: Etara has 120 inhabitants, not 30
+        assert.deepEqual(await geojson({ village: "Etara", population: "120" }), ["Villages"])
+        assert.deepEqual(await geojson({ village: "Etara", population: "30" }), [])
+        assert.deepEqual(await geojson({ source: villages, village: "Etara", population: "30" }), [])
+        // only GeoJSON documents: an API record with the same top-level field and no features is not one
+        assert.deepEqual(await geojson({ source: "https://api.example.org/codes" }), [])
+        // JSON: the top-level fields, as for any document
+        assert.deepEqual(names((await search({ source: villages }, { format: "JSON", collections: ["api"] })).body), ["Villages"])
+    })
+
+    test("GeoJSON with more than 6 fields: each one at the top level or in any feature", async () => {
+        const query = { source: "https://api.example.org/villages", name: "Villages", type: "FeatureCollection", village: "Etara", population: "30", a: { $exists: false }, b: { $exists: false } }
+        assert.deepEqual(names((await search(query, { format: "GeoJSON", collections: ["api"] })).body), ["Villages"]) // 30: another feature
     })
 
     test("an array field matches any of its elements (dimensions = Lovech)", async () => {

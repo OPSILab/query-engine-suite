@@ -57,24 +57,46 @@ function formatFilter(query, format) {
         case "json": return { json: { $elemMatch: query } }
         case "json+object": return { $or: [query, { json: { $elemMatch: query } }] }
         case "csv": return { csv: { $elemMatch: query } }
-        case "geojson": {
-            const properties = {}
-            for (const key in query)
-                if (key != "coordinates")
-                    properties[`properties.${key}`] = query[key]
-            if (query.coordinates === undefined)
-                return { features: { $elemMatch: properties } }
-            // a coordinate at any depth of Point / LineString / Polygon / MultiPolygon geometries
-            let coordinate = { $eq: Number(query.coordinates) }
-            const depths = []
-            for (let depth = 1; depth <= 4; depth++) {
-                coordinate = { $elemMatch: coordinate }
-                depths.push({ features: { $elemMatch: { ...properties, "geometry.coordinates": coordinate } } })
-            }
-            return { $or: depths }
-        }
+        case "geojson": return geojsonFilter(query)
         default: return query
     }
+}
+
+// GeoJSON: every field is looked for at the top level of the document (e.g. the source of an API record, see the
+// Source-Connector's common.getEntries) or in the properties of a feature; those in the properties must be in the same
+// feature, together with the coordinates (always in the geometry). One $or with a branch per way of splitting the
+// fields between the top level and the feature (2^n): a single scan of the collection, as before. Above
+// GEOJSON_SPLIT_MAX fields, each one on its own (top level or any feature: no longer the same feature).
+const GEOJSON_SPLIT_MAX = 6
+function geojsonFilter(query) {
+    const keys = Object.keys(query).filter(key => key != "coordinates")
+    const coordinates = query.coordinates
+    // fields in the properties of one feature, with the coordinates if asked
+    function inFeature(featureKeys) {
+        const properties = {}
+        for (const key of featureKeys)
+            properties[`properties.${key}`] = query[key]
+        if (coordinates === undefined)
+            return featureKeys.length ? { features: { $elemMatch: properties } } : { features: { $exists: true } }
+        // a coordinate at any depth of Point / LineString / Polygon / MultiPolygon geometries
+        let coordinate = { $eq: Number(coordinates) }
+        const depths = []
+        for (let depth = 1; depth <= 4; depth++) {
+            coordinate = { $elemMatch: coordinate }
+            depths.push({ features: { $elemMatch: { ...properties, "geometry.coordinates": coordinate } } })
+        }
+        return { $or: depths }
+    }
+    const atTopLevel = topKeys => Object.fromEntries(topKeys.map(key => [key, query[key]]))
+    if (keys.length > GEOJSON_SPLIT_MAX)
+        return { $and: [...keys.map(key => ({ $or: [{ [key]: query[key] }, inFeature([key])] })), inFeature([])] }
+    const branches = []
+    for (let mask = 0; mask < 2 ** keys.length; mask++) {
+        const top = keys.filter((_, i) => mask & (1 << i))
+        const feature = keys.filter((_, i) => !(mask & (1 << i)))
+        branches.push(top.length ? { $and: [atTopLevel(top), inFeature(feature)] } : inFeature(feature))
+    }
+    return branches.length == 1 ? branches[0] : { $or: branches }
 }
 
 // ---- keys / values / entries suggestions
