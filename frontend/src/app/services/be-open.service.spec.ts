@@ -274,3 +274,16 @@ describe('collections', () => {
     expect(service().api.collectionLabel('other')).toBe('other');
   });
 });
+
+describe('getStatusLog', () => {
+  it('GET /api/statuslog with the page and the filters given; a missing answer as an empty page', async () => {
+    const calls: any[] = [];
+    const http = { get: (url: string, options: any) => { calls.push({ url, options }); return of({ items: [{ createdAt: 'x' }], total: 7, masked: false }); } };
+    const api = new BeopenAPIService(http as any, fakeConfig({ beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }) as any);
+    const page = await api.getStatusLog({ from: '2026-11-01T00:00:00.000Z', url: 'example' }, { limit: 50, skip: 100 });
+    expect(calls).toEqual([{ url: 'http://qe/api/statuslog', options: { params: { limit: '50', skip: '100', from: '2026-11-01T00:00:00.000Z', url: 'example' } } }]);
+    expect(page).toEqual({ items: [{ createdAt: 'x' }], total: 7, masked: false });
+    const empty = new BeopenAPIService({ get: () => of(null) } as any, fakeConfig({ beopenApiBaseUrl: 'http://be' }) as any);
+    expect(await empty.getStatusLog({}, { limit: 50, skip: 0 })).toEqual({ items: [], total: 0, masked: true });
+  });
+});

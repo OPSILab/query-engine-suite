@@ -1,0 +1,38 @@
+<app-topbar [showMenuButton]="true" [menuOpen]="drawerOpen" (menuToggle)="toggleDrawer()">
+  <ng-content select="[topbar]"></ng-content>
+</app-topbar>
+
+<div class="ds-layout" [class.ds-layout--collapsed]="collapsed">
+  <nav id="ds-sidenav" class="ds-sidenav" [class.ds-sidenav--open]="drawerOpen" [attr.aria-label]="'Navigation' | translate">
+    <!-- the column takes the whole height of the page; its content stays in view while the page scrolls -->
+    <div class="ds-sidenav__inner">
+    <div class="ds-sidenav__items">
+      @for (item of items; track item.link) {
+      <a class="ds-sidenav__item" [routerLink]="item.link" routerLinkActive="ds-sidenav__item--active"
+        [routerLinkActiveOptions]="activeOptions" ariaCurrentWhenActive="page" (click)="closeDrawer()"
+        [title]="collapsed ? (item.label | translate) : ''">
+        <svg class="ds-sidenav__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path [attr.d]="item.icon" />
+        </svg>
+        <span class="ds-sidenav__label">{{ item.label | translate }}</span>
+      </a>
+      }
+    </div>
+    <button type="button" class="ds-sidenav__collapse" (click)="toggleCollapsed()" [attr.aria-pressed]="collapsed"
+      [title]="(collapsed ? 'Expand menu' : 'Collapse menu') | translate">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path [attr.d]="collapsed ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'" />
+      </svg>
+      <span class="ds-sidenav__label">{{ 'Collapse menu' | translate }}</span>
+    </button>
+    </div>
+  </nav>
+  @if (drawerOpen) {
+  <div class="ds-sidenav-backdrop" (click)="closeDrawer()" aria-hidden="true"></div>
+  }
+  <main class="ds-layout__main">
+    <ng-content></ng-content>
+  </main>
+</div>

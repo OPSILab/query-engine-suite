@@ -57,6 +57,9 @@ import { ToastContainerComponent } from './shared/toast-container/toast-containe
 import { TooltipDirective } from './shared/tooltip/tooltip.directive';
 import { JsonTableComponent } from './shared/json-table/json-table.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker.component';
+import { TopbarComponent } from './shared/topbar/topbar.component';
+import { LayoutComponent } from './shared/layout/layout.component';
+import { StatusLogComponent } from './status-log/status-log.component';
 
 export function translateLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -78,6 +81,9 @@ export function translateLoaderFactory(http: HttpClient) {
     TooltipDirective,
     JsonTableComponent,
     ThemePickerComponent,
+    TopbarComponent,
+    LayoutComponent,
+    StatusLogComponent,
   ],
   imports: [
     BrowserModule,

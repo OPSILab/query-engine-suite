@@ -15,81 +15,6 @@
   padding: 0 28px 40px;
 }
 
-// The whole width of the window (outside .ds-page); its content in the same column as the page: same max width
-// and side padding, so the logo and the controls line up with the panels below.
-.ds-topbar {
-  margin-bottom: 24px;
-  border-bottom: 1px solid var(--ds-topbar-border);
-  background: var(--ds-topbar-bg);
-  color: var(--ds-topbar-text);
-}
-
-.ds-topbar__inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 60px;
-  max-width: 1920px;
-  margin: 0 auto;
-  padding: 0 28px;
-}
-
-.ds-topbar__brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.ds-topbar__title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-// Project logo (Smartera theme only): its own background is the topbar green, so it blends in.
-.ds-topbar__logo {
-  display: block;
-  height: 44px;
-  width: auto;
-}
-
-.ds-topbar__divider {
-  width: 1px;
-  height: 30px;
-  background: var(--ds-topbar-border-strong);
-}
-
-.ds-topbar__name {
-  font-size: calc(16px * var(--ds-font-scale));
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.ds-topbar__tag {
-  font-size: calc(12px * var(--ds-font-scale));
-  color: var(--ds-topbar-muted);
-}
-
-.ds-topbar .ds-select {
-  background: var(--ds-topbar-control-bg);
-  color: var(--ds-topbar-text);
-  border-color: var(--ds-topbar-border);
-}
-
-.ds-topbar a.ds-link {
-  color: var(--ds-topbar-muted);
-}
-
-.ds-topbar a.ds-link:hover {
-  color: var(--ds-topbar-link-hover);
-}
-
-.ds-topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 // The visibility <select> is a native element (not Nebular), so the
 // global .ds-select look needs one small addition here: lowercase values
 // ("private"/"shared"/"public") read better capitalized in the UI.
@@ -330,7 +255,8 @@
 // Floating "N results below" pill, bottom centre.
 .ds-results-pill {
   position: fixed;
-  left: 50%;
+  // the middle of the page, right of the side menu (app-layout)
+  left: calc(50% + var(--ds-sidenav-offset, 0px) / 2);
   bottom: 24px;
   z-index: 20;
   display: inline-flex;

@@ -207,17 +207,40 @@ module.exports = {
                 return res.status(403).send("X-Admin-Token missing or wrong")
             return next()
         }
-        const required = Array.isArray(authConfig.adminRoles) ? authConfig.adminRoles.filter(r => typeof r === "string" && r) : []
-        if (!required.length)
+        if (hasAdminRole(req))
             return next()
-        const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "")
-        const decoded = jwt.decode(token) || {}
-        const roles = [
-            ...(decoded.realm_access?.roles || []),
-            ...(decoded.resource_access?.[authConfig.clientId]?.roles || [])
-        ]
-        if (required.some(role => roles.includes(role)))
+        return res.status(403).send(`One of these roles is required: ${adminRoles().join(", ")}`)
+    },
+
+    // For the endpoints everyone may read, whose sensitive parts only an admin sees (GET /statuslog): sets
+    // req.adminView. No token, or authentication disabled: reached with adminView false. A token: checked by `auth`
+    // (invalid: 403), then adminView = an admin as for adminOnly (any authenticated user if adminRoles is empty).
+    adminView: (req, res, next) => {
+        req.adminView = false
+        if (authConfig.disableAuth || !req.headers.authorization)
             return next()
-        return res.status(403).send(`One of these roles is required: ${required.join(", ")}`)
+        return module.exports.auth(req, res, () => {
+            req.adminView = hasAdminRole(req)
+            next()
+        })
     }
 };
+
+function adminRoles() {
+    return Array.isArray(authConfig.adminRoles) ? authConfig.adminRoles.filter(r => typeof r === "string" && r) : []
+}
+
+// The token of an authenticated request has one of authConfig.adminRoles (Keycloak realm roles or roles of the
+// clientId client); adminRoles empty / missing: any authenticated user
+function hasAdminRole(req) {
+    const required = adminRoles()
+    if (!required.length)
+        return true
+    const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "")
+    const decoded = jwt.decode(token) || {}
+    const roles = [
+        ...(decoded.realm_access?.roles || []),
+        ...(decoded.resource_access?.[authConfig.clientId]?.roles || [])
+    ]
+    return required.some(role => roles.includes(role))
+}

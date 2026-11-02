@@ -75,6 +75,51 @@ export interface QueryExamples {
 /** Names shown for the collections, unless config.json has "collectionLabels". */
 export const DEFAULT_COLLECTION_LABELS: Record<string, string> = { api: "Sources", orion: "Datapoints", minio: "MinIO" };
 
+/**
+ * A failed HTTP request of the Source-Connector (its statuslog collection, GET /api/statuslog of the Query-Engine).
+ * body / data: text (JSON for objects), cut at the Source-Connector's statusLog.maxDataSize (bodyTruncated /
+ * dataTruncated, with the original length). headers: values "<masked>" unless the user is an administrator; saved as
+ * JSON text when MongoDB refused their field names.
+ */
+export interface StatusLogRecord {
+  _id?: string;
+  createdAt: string;
+  /** The configured API (apiConnectorConfig.apiUrls) the request belongs to, if any. */
+  api?: string;
+  host?: string;
+  method?: string;
+  url?: string;
+  fullUrl?: string;
+  params?: any;
+  headers?: Record<string, any> | string;
+  body?: string;
+  bodyTruncated?: boolean;
+  bodyLength?: number;
+  status?: number;
+  statusText?: string;
+  data?: string;
+  dataTruncated?: boolean;
+  dataLength?: number;
+  /** No answer (timeout, connection refused...): the message and code of the error. */
+  error?: string;
+  code?: string;
+}
+
+export interface StatusLogPage {
+  items: StatusLogRecord[];
+  /** Every record matching the filters. */
+  total: number;
+  /** The header values are hidden (not an administrator, or authentication disabled). */
+  masked: boolean;
+}
+
+/** Filters of the status log: from / to (ISO dates, createdAt), part of the url. */
+export interface StatusLogFilters {
+  from?: string;
+  to?: string;
+  url?: string;
+}
+
 export interface SuggestionsPage<T> {
   items: T[];
   /** More pages after this one. */
@@ -205,6 +250,19 @@ export class BeopenAPIService {
   }
 
   /** What the configuration leaves out of the Simple search ([] with a Query-Engine that doesn't report it). */
+  /** A page of the failed requests of the Source-Connector, newest first (empty filters left out). */
+  getStatusLog(filters: StatusLogFilters, page: { limit: number; skip: number }): Promise<StatusLogPage> {
+    const params: Record<string, string> = { limit: String(page.limit), skip: String(page.skip) };
+    for (const key of ['from', 'to', 'url'] as const)
+      if (filters[key]) params[key] = filters[key]!;
+    return firstValueFrom(this.http.get<StatusLogPage>(`${this.queryEngineBaseUrl}/api/statuslog`, { params }))
+      .then(res => ({
+        items: Array.isArray(res?.items) ? res.items : [],
+        total: Number.isInteger(res?.total) ? res.total : 0,
+        masked: res?.masked !== false,
+      }));
+  }
+
   getSimpleSearchLimits(): Promise<QueryWarning[]> {
     return firstValueFrom(this.http.get<{ warnings: QueryWarning[] }>(`${this.queryEngineBaseUrl}/api/query/simple/limits`))
       .then(res => (Array.isArray(res?.warnings) ? res.warnings : []))

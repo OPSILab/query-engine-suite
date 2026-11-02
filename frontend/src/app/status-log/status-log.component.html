@@ -1,0 +1,101 @@
+<app-layout>
+<ng-container ngProjectAs="[topbar]">
+  <app-theme-picker></app-theme-picker>
+  @if (authEnabled) {
+    <a class="ds-link" routerLink="/keycloak-auth/logout">{{ 'Logout' | translate }}</a>
+  }
+</ng-container>
+
+<div class="ds-page">
+  <section class="sl-panel">
+    <div class="sl-panel__header">
+      <h1 class="sl-title">{{ 'Status log' | translate }}</h1>
+      <p class="sl-subtitle">{{ 'Status log info' | translate }}</p>
+    </div>
+
+    <form class="sl-filters" (ngSubmit)="search()">
+      <label class="sl-field">
+        <span class="ds-field-label">{{ 'From date' | translate }}</span>
+        <input class="ds-input" type="date" name="from" [(ngModel)]="from" />
+      </label>
+      <label class="sl-field">
+        <span class="ds-field-label">{{ 'To date' | translate }}</span>
+        <input class="ds-input" type="date" name="to" [(ngModel)]="to" />
+      </label>
+      <label class="sl-field sl-field--wide">
+        <span class="ds-field-label">URL</span>
+        <input class="ds-input ds-mono" type="search" name="url" [(ngModel)]="url"
+          [placeholder]="'Part of the url' | translate" />
+      </label>
+      <div class="sl-filters__actions">
+        <button type="submit" class="ds-primary-button" [disabled]="loading === 'list'">{{ 'Apply filters' | translate }}</button>
+        <button type="button" class="ds-ghost-button" (click)="reset()">{{ 'Reset' | translate }}</button>
+      </div>
+    </form>
+
+    @if (masked) {
+    <div class="sl-notice" role="note">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      </svg>
+      <span>{{ (authEnabled ? 'Status log masked' : 'Status log masked no auth') | translate }}</span>
+      @if (authEnabled) {
+      <button type="button" class="ds-ghost-button sl-notice__login" (click)="login()">{{ 'Log in' | translate }}</button>
+      }
+    </div>
+    }
+  </section>
+
+  <section class="sl-results" [class.sl-results--stale]="loading === 'list'" [attr.aria-busy]="!!loading">
+    @if (error) {
+    <p class="sl-message sl-message--error" role="alert">{{ 'Status log error' | translate }}</p>
+    } @else if (!items.length && !loading) {
+    <p class="sl-message">{{ 'Status log empty' | translate }}</p>
+    }
+
+    @if (items.length) {
+    <div class="sl-count">{{ 'Status log count' | translate: { shown: items.length, total: total } }}</div>
+    <div class="sl-list">
+      @for (item of items; track item) {
+      <div class="sl-row" [class.sl-row--open]="isOpen(item)">
+        <button type="button" class="sl-row__head" (click)="toggle(item)" [attr.aria-expanded]="isOpen(item)">
+          <span class="sl-status" [class.sl-status--client]="statusKind(item) === 'client'"
+            [class.sl-status--server]="statusKind(item) === 'server'" [title]="item.error || item.statusText || ''">{{ statusLabel(item) }}</span>
+          <span class="sl-method ds-mono">{{ item.method }}</span>
+          <span class="sl-url ds-mono" [title]="item.fullUrl || item.url">{{ item.fullUrl || item.url }}</span>
+          <span class="sl-source">{{ item.api || item.host }}</span>
+          <span class="sl-time">{{ item.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</span>
+          <svg class="sl-row__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        @if (isOpen(item)) {
+        <dl class="sl-details">
+          @for (part of detailOf(item); track part.label) {
+          <dt class="ds-field-label">{{ part.label | translate }}</dt>
+          <dd>
+            <pre class="sl-pre ds-mono">{{ part.text }}</pre>
+            @if (part.cutAt) {
+            <span class="sl-cut">{{ 'Status log cut' | translate: { length: part.cutAt } }}</span>
+            }
+          </dd>
+          }
+        </dl>
+        }
+      </div>
+      }
+    </div>
+    }
+
+    @if (hasMore) {
+    <button type="button" class="ds-ghost-button sl-more" [disabled]="!!loading" [attr.aria-busy]="loading === 'more'"
+      (click)="loadMore()">
+      {{ (loading === 'more' ? 'Loading more results' : 'Load more results') | translate }}
+    </button>
+    }
+  </section>
+</div>
+</app-layout>

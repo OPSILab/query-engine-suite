@@ -1,7 +1,8 @@
 const express = require("express")
 const controller = require("../controllers/controller.js")
 const router = express.Router()
-const { auth, adminOnly } = require("../middlewares/auth.js")
+const { auth, adminOnly, adminView } = require("../middlewares/auth.js")
+const statusLog = require("../services/statusLog.js")
 const { bodyCheck } = require('../../utils/common.js')
 const mongoose = require('mongoose');
 
@@ -21,6 +22,8 @@ router.get(encodeURI("/backupCache"), auth, adminOnly, controller.backupCache)
 router.get(encodeURI("/restoreCache"), auth, adminOnly, controller.restoreCache)
 router.post(encodeURI("/resetBackup"), auth, adminOnly, controller.resetBackup)
 router.get(encodeURI("/listCache"), auth, adminOnly, controller.listCache)
+// failed HTTP requests of the Source-Connector: readable by everyone, header values only for admins (adminView)
+router.get(encodeURI("/statuslog"), adminView, statusLog.endpoint)
 //router.get('/manage-collections', controller.manageCollections);
 //router.delete('/delete-collection', controller.deleteCollection);
 
