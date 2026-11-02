@@ -143,5 +143,14 @@
   "Navigation": "Navigation",
   "Menu": "Menu",
   "Collapse menu": "Collapse menu",
-  "Expand menu": "Expand menu"
+  "Expand menu": "Expand menu",
+  "Ignore url": "Ignore the failures of this url (they are listed only when you filter by url)",
+  "Restore url": "List again",
+  "Ignored": "ignored",
+  "Ignored urls": "Ignored urls",
+  "Ignored urls info": "Their failed requests are not listed, unless you filter by url.",
+  "Ignored urls not shown": "{{count}} ignored urls not shown",
+  "Status log action error": "The change could not be saved.",
+  "Ignored in config": "config",
+  "Ignored in config info": "Ignored in the configuration of the Query-Engine (statusLog.ignoredUrls): to list its failures again, remove it there."
 }

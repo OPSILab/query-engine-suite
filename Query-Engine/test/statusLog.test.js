@@ -161,3 +161,74 @@ describe("credentials in params, urls, body and response", () => {
         assert.equal(find(body, "https://api.example.org/login").data, CUT.data)
     })
 })
+
+describe("ignored urls", () => {
+    const IGNORED = "https://api.example.org/records"
+    const ignore = (url, token, headers = {}) => fetch(`${baseUrl}/statuslog/ignored`, {
+        method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}), ...headers }, body: JSON.stringify({ url })
+    })
+    const restore = (url, token, headers = {}) => fetch(`${baseUrl}/statuslog/ignored?${new URLSearchParams({ url })}`, {
+        method: "DELETE", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...headers }
+    })
+    const ignoredList = async token => (await fetch(`${baseUrl}/statuslog/ignored`, { headers: token ? { Authorization: "Bearer " + token } : {} })).json()
+    const StatusLogIgnored = () => load("api/models/StatusLogIgnored.js")
+    after(async () => { await StatusLogIgnored().collection.deleteMany({}) })
+
+    test("only admins change them: 401 without a token, 403 without the role, 400 without url", async () => {
+        config.authConfig.adminRoles = ["qe-admin"]
+        assert.equal((await ignore(IGNORED)).status, 401)
+        assert.equal((await ignore(IGNORED, userToken({ realm_access: { roles: ["user"] } }))).status, 403)
+        assert.equal((await restore(IGNORED, userToken({ realm_access: { roles: ["user"] } }))).status, 403)
+        assert.equal((await ignore("", userToken({ realm_access: { roles: ["qe-admin"] } }))).status, 400)
+        assert.deepEqual((await ignoredList()).urls, [])
+    })
+
+    test("authentication disabled: only with the X-Admin-Token", async () => {
+        Object.assign(config.authConfig, { disableAuth: true, adminToken: "s3cret" })
+        assert.equal((await ignore(IGNORED)).status, 403)
+        assert.equal((await ignore(IGNORED, undefined, { "X-Admin-Token": "s3cret" })).status, 200)
+        assert.equal((await restore(IGNORED, undefined, { "X-Admin-Token": "s3cret" })).status, 200)
+        assert.deepEqual((await ignoredList()).urls, [])
+    })
+
+    test("an ignored url: left out without a url filter (dates included), listed with one", async () => {
+        const res = await ignore(IGNORED, userToken())
+        assert.equal(res.status, 200)
+        assert.deepEqual((await res.json()).urls.map(doc => [doc.url, doc.by]), [[IGNORED, "anna@demetrix.it"]])
+        assert.equal((await ignore(IGNORED, userToken())).status, 200) // twice: still once
+        assert.equal((await ignoredList(userToken())).urls.length, 1)
+
+        config.authConfig.disableAuth = true
+        let { body } = await statusLog()
+        assert.deepEqual(urls(body), ["https://API.example.org/records/7", "https://orion.example/ngsi-ld/v1/entities"]) // not "records/7": another url
+        assert.deepEqual([body.total, body.ignoredExcluded], [2, 1])
+        assert.deepEqual(urls((await statusLog({ to: "2026-10-05" })).body), []) // a date filter does not bring it back
+        body = (await statusLog({ url: "example.org/records" })).body
+        assert.deepEqual(body.items.map(item => [item.url, item.ignored === true]), [["https://API.example.org/records/7", false], [IGNORED, true]])
+        assert.equal(body.ignoredExcluded, 0)
+        // non admins: the list with the requester hidden
+        assert.deepEqual((await ignoredList()).urls.map(doc => [doc.url, doc.by]), [[IGNORED, "<masked>"]])
+    })
+
+    test("statusLog.ignoredUrls of the config: left out too, listed first, not restored from the API", async () => {
+        const ORION = "https://orion.example/ngsi-ld/v1/entities"
+        config.statusLog.ignoredUrls = [ORION, ORION, "", 7]
+        const list = (await ignoredList(userToken())).urls
+        assert.deepEqual(list.map(doc => [doc.url, doc.fromConfig === true]), [[ORION, true], [IGNORED, false]])
+        assert.equal((await restore(ORION, userToken())).status, 409)
+        assert.equal((await ignore(ORION, userToken())).status, 200) // already ignored: nothing saved
+        assert.equal(await StatusLogIgnored().collection.countDocuments({ url: ORION }), 0)
+        config.authConfig.disableAuth = true
+        const { body } = await statusLog()
+        assert.deepEqual([urls(body), body.ignoredExcluded], [["https://API.example.org/records/7"], 2])
+        assert.deepEqual(urls((await statusLog({ url: "orion" })).body), [ORION])
+    })
+
+    test("restored: listed again", async () => {
+        const res = await restore(IGNORED, userToken())
+        assert.deepEqual([res.status, (await res.json()).urls], [200, []])
+        config.authConfig.disableAuth = true
+        const { body } = await statusLog()
+        assert.deepEqual([body.total, body.ignoredExcluded], [3, 0])
+    })
+})

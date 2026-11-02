@@ -119,6 +119,13 @@ module.exports = {
     orion: { mongo: "datapoints", toMongo: true, postgres: "datapoints", toPostgres: false },
     minio: { mongo: "minio", toMongo: true, toPostgres: true }
   },
+  // GET /api/statuslog (the failed requests of the Source-Connector): the urls whose failures are left out unless
+  // filtered by url, besides those ignored from the frontend (collection statuslogignored). Exact values of the
+  // `url` field of the records (the url without the query params added by the connector); they cannot be restored
+  // from the frontend: remove them here.
+  statusLog: {
+    ignoredUrls: []
+  },
   // Simple search: besides the MinIO files, the APIs of apiConnectorConfig.apiUrls (same format as in the
   // Source-Connector config; an API with simpleSearch: false is skipped) and Orion are searched live.
   // What is left out is reported to the frontend, which shows it as a warning.

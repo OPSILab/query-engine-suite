@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { BeopenAPIService, StatusLogFilters, StatusLogRecord } from '../services/be-open.service';
+import { BeopenAPIService, StatusLogFilters, StatusLogIgnoredUrl, StatusLogRecord } from '../services/be-open.service';
 import { ConfigService } from '../services/config.service';
 import { saveReturnUrl } from '../auth/services/return-url';
 
@@ -18,6 +18,9 @@ export interface StatusLogDetail {
  * shows its query params, headers, body and response. The header values come hidden ("<masked>") unless the user is
  * an administrator (Query-Engine authConfig.adminRoles): the page says so, and offers the login when there is one.
  * No AuthGuard: readable without logging in (hidden values).
+ * Administrators (the answers are not masked) can ignore the url of a request: without a url filter its failures are
+ * left out (the count says how many ignored urls), with one they are listed, marked; the ignored urls are listed
+ * above, each one with the button to list its failures again.
  */
 @Component({
   selector: 'app-status-log',
@@ -38,6 +41,12 @@ export class StatusLogComponent implements OnInit {
   masked = true;
   loading: 'list' | 'more' | null = null;
   error = false;
+  ignoredExcluded = 0;
+  ignoredUrls: StatusLogIgnoredUrl[] = [];
+  ignoredOpen = false;
+  /** The url being ignored / restored. */
+  busyUrl: string | null = null;
+  actionError = false;
   readonly authEnabled: boolean;
 
   private applied: StatusLogFilters = {};
@@ -51,10 +60,55 @@ export class StatusLogComponent implements OnInit {
 
   ngOnInit(): void {
     this.search();
+    this.loadIgnored();
   }
 
   get hasMore(): boolean {
     return this.items.length < this.total;
+  }
+
+  /** Administrators only: the Query-Engine shows them the values in clear. */
+  get canManage(): boolean {
+    return !this.masked;
+  }
+
+  async loadIgnored(): Promise<void> {
+    try {
+      this.ignoredUrls = await this.api.getStatusLogIgnored();
+    } catch {
+      this.ignoredUrls = [];
+    }
+  }
+
+  /** Ignored in the Query-Engine config: restored only there. */
+  isFromConfig(url: string | undefined): boolean {
+    return this.ignoredUrls.some(ignored => ignored.fromConfig && ignored.url === url);
+  }
+
+  /** Ignores the url of a request, then the first page again (with the same filters). */
+  ignore(item: StatusLogRecord, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    return this.change(item.url, url => this.api.ignoreStatusLogUrl(url));
+  }
+
+  /** Lists the failures of an ignored url again. */
+  restore(url: string | undefined, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    return this.change(url, u => this.api.restoreStatusLogUrl(u));
+  }
+
+  private async change(url: string | undefined, action: (url: string) => Promise<StatusLogIgnoredUrl[]>): Promise<void> {
+    if (!url || this.busyUrl) return;
+    this.busyUrl = url;
+    this.actionError = false;
+    try {
+      this.ignoredUrls = await action(url);
+      await this.load(false);
+    } catch {
+      this.actionError = true;
+    } finally {
+      this.busyUrl = null;
+    }
   }
 
   /** Applies the form (the first page). */
@@ -83,6 +137,7 @@ export class StatusLogComponent implements OnInit {
       this.items = more ? [...this.items, ...page.items] : page.items;
       this.total = page.total;
       this.masked = page.masked;
+      this.ignoredExcluded = page.ignoredExcluded;
     } catch {
       if (request === this.request) this.error = true;
     } finally {

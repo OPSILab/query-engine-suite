@@ -103,6 +103,18 @@ export interface StatusLogRecord {
   /** No answer (timeout, connection refused...): the message and code of the error. */
   error?: string;
   code?: string;
+  /** Its url is ignored (listed only because of a url filter). */
+  ignored?: boolean;
+}
+
+/** An url whose failed requests the status log leaves out unless filtered by url. */
+export interface StatusLogIgnoredUrl {
+  url: string;
+  createdAt?: string;
+  /** Who ignored it ("<masked>" for non administrators). */
+  by?: string;
+  /** In the Query-Engine config (statusLog.ignoredUrls): not restored from here. */
+  fromConfig?: boolean;
 }
 
 export interface StatusLogPage {
@@ -111,6 +123,8 @@ export interface StatusLogPage {
   total: number;
   /** The header values are hidden (not an administrator, or authentication disabled). */
   masked: boolean;
+  /** Ignored urls left out of the answer (0 with a url filter). */
+  ignoredExcluded: number;
 }
 
 /** Filters of the status log: from / to (ISO dates, createdAt), part of the url. */
@@ -260,7 +274,26 @@ export class BeopenAPIService {
         items: Array.isArray(res?.items) ? res.items : [],
         total: Number.isInteger(res?.total) ? res.total : 0,
         masked: res?.masked !== false,
+        ignoredExcluded: Number.isInteger(res?.ignoredExcluded) ? res.ignoredExcluded : 0,
       }));
+  }
+
+  /** The ignored urls of the status log. */
+  getStatusLogIgnored(): Promise<StatusLogIgnoredUrl[]> {
+    return firstValueFrom(this.http.get<{ urls: StatusLogIgnoredUrl[] }>(`${this.queryEngineBaseUrl}/api/statuslog/ignored`))
+      .then(res => (Array.isArray(res?.urls) ? res.urls : []));
+  }
+
+  /** Ignores the failed requests of `url` (administrators only); the ignored urls after the change. */
+  ignoreStatusLogUrl(url: string): Promise<StatusLogIgnoredUrl[]> {
+    return firstValueFrom(this.http.post<{ urls: StatusLogIgnoredUrl[] }>(`${this.queryEngineBaseUrl}/api/statuslog/ignored`, { url }))
+      .then(res => (Array.isArray(res?.urls) ? res.urls : []));
+  }
+
+  /** Lists the failed requests of `url` again (administrators only); the ignored urls after the change. */
+  restoreStatusLogUrl(url: string): Promise<StatusLogIgnoredUrl[]> {
+    return firstValueFrom(this.http.delete<{ urls: StatusLogIgnoredUrl[] }>(`${this.queryEngineBaseUrl}/api/statuslog/ignored`, { params: { url } }))
+      .then(res => (Array.isArray(res?.urls) ? res.urls : []));
   }
 
   getSimpleSearchLimits(): Promise<QueryWarning[]> {

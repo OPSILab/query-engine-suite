@@ -143,5 +143,14 @@
   "Navigation": "Navigazione",
   "Menu": "Menu",
   "Collapse menu": "Riduci il menu",
-  "Expand menu": "Espandi il menu"
+  "Expand menu": "Espandi il menu",
+  "Ignore url": "Ignora i fallimenti di questo url (compaiono solo filtrando per url)",
+  "Restore url": "Mostra di nuovo",
+  "Ignored": "ignorato",
+  "Ignored urls": "Url ignorati",
+  "Ignored urls info": "Le loro richieste fallite non vengono mostrate, a meno di filtrare per url.",
+  "Ignored urls not shown": "{{count}} url ignorati non mostrati",
+  "Status log action error": "Non è stato possibile salvare la modifica.",
+  "Ignored in config": "config",
+  "Ignored in config info": "Ignorato nella configurazione del Query-Engine (statusLog.ignoredUrls): per mostrarne di nuovo i fallimenti, toglilo da lì."
 }

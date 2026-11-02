@@ -116,7 +116,130 @@
   border-top: 1px solid var(--ds-border);
 }
 
+.sl-row__line {
+  display: flex;
+  align-items: stretch;
+}
+
+.sl-row__action {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  border: 0;
+  border-left: 1px solid var(--ds-border);
+  background: transparent;
+  color: var(--ds-text-faint);
+  cursor: pointer;
+}
+
+.sl-row__action:hover:not(:disabled) {
+  background: var(--ds-bg-sunken);
+  color: var(--ds-text);
+}
+
+.sl-row__action:focus {
+  outline: none;
+}
+
+.sl-row__action:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: -2px;
+}
+
+.sl-row__action:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.sl-row--ignored .sl-row__head {
+  opacity: 0.65;
+}
+
+.sl-ignored-badge {
+  margin-right: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: 999px;
+  font-size: calc(11px * var(--ds-font-scale));
+}
+
+.sl-ignored {
+  margin-top: 16px;
+}
+
+.sl-ignored__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-text);
+  font: inherit;
+  font-size: calc(13px * var(--ds-font-scale));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sl-ignored__info {
+  margin: 6px 0 8px;
+  color: var(--ds-text-muted);
+  font-size: calc(12px * var(--ds-font-scale));
+}
+
+.sl-ignored__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-bg-elevated);
+}
+
+.sl-ignored__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+}
+
+.sl-ignored__item + .sl-ignored__item {
+  border-top: 1px solid var(--ds-border);
+}
+
+.sl-ignored__url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12px * var(--ds-font-scale));
+}
+
+.sl-ignored__meta {
+  color: var(--ds-text-faint);
+  font-size: calc(11px * var(--ds-font-scale));
+  white-space: nowrap;
+}
+
+.sl-ignored__restore {
+  flex: none;
+}
+
+.sl-ignored__config {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: 999px;
+  color: var(--ds-text-muted);
+  font-size: calc(11px * var(--ds-font-scale));
+}
+
 .sl-row__head {
+  flex: 1;
+  min-width: 0;
   display: grid;
   grid-template-columns: 128px 56px minmax(0, 1fr) minmax(0, 180px) 170px 16px;
   align-items: center;

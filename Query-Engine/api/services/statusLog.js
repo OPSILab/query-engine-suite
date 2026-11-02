@@ -9,7 +9,15 @@
 // body and the response data (JSON or form fields; a cut JSON text by pattern). E.g. a token request keeps client_id
 // and grant_type, not client_secret, and its response expires_in, not access_token. The records in the database are
 // not changed.
+//
+// Ignored urls (collection "statuslogignored", POST / DELETE /api/statuslog/ignored, admins only; and
+// statusLog.ignoredUrls in the config, fixed: not restored by DELETE): without a url filter, the records whose url is
+// one of them are left out (the date filters do not bring them back); with a url filter they are listed too, with
+// ignored: true. GET /api/statuslog/ignored: the list, those of the config first (fromConfig: true), urls masked as
+// above for non admins.
+const config = require("../../config")
 const StatusLog = require("../models/StatusLog")
+const StatusLogIgnored = require("../models/StatusLogIgnored")
 const { timeLimit, httpStatus } = require("./queryGuards")
 
 const MASK = "<masked>"
@@ -139,35 +147,117 @@ function masked(item) {
     return out
 }
 
+// statusLog.ignoredUrls of the config: the strings, once each
+function configIgnored() {
+    const urls = config.statusLog?.ignoredUrls
+    return Array.isArray(urls) ? [...new Set(urls.filter(url => typeof url == "string" && url.trim()))] : []
+}
+
+async function ignoredUrls() {
+    const saved = (await StatusLogIgnored.collection.find({}, timeLimit()).toArray()).map(doc => doc.url).filter(url => typeof url == "string")
+    return [...new Set([...configIgnored(), ...saved])]
+}
+
 async function list(query, adminView) {
     const filter = filterOf(query)
     const page = pageOf(query)
+    const ignored = await ignoredUrls()
+    const urlFilter = filter.$or !== undefined
+    if (!urlFilter && ignored.length)
+        filter.url = { $nin: ignored }
     let cursor = StatusLog.collection.find(filter, timeLimit()).sort({ createdAt: -1, _id: -1 })
     if (page)
         cursor = cursor.skip(page.skip).limit(page.limit)
     const [items, total] = await Promise.all([cursor.toArray(), StatusLog.collection.countDocuments(filter, timeLimit())])
+    const ignoredSet = new Set(ignored)
+    for (const item of items)
+        if (ignoredSet.has(item.url))
+            item.ignored = true
     return {
         items: adminView ? items : items.map(masked),
         total,
+        masked: !adminView,
+        // ignored urls left out of this answer (none with a url filter)
+        ignoredExcluded: urlFilter ? 0 : ignored.length
+    }
+}
+
+// The ignored urls: those of the config, then the others oldest first (an url in both: as in the config)
+async function listIgnored(adminView) {
+    const fromConfig = configIgnored()
+    const docs = (await StatusLogIgnored.collection.find({}, timeLimit()).sort({ createdAt: 1, _id: 1 }).toArray())
+        .filter(doc => !fromConfig.includes(doc.url))
+        .map(({ _id, ...doc }) => doc)
+    const urls = [...fromConfig.map(url => ({ url, fromConfig: true })), ...docs]
+    return {
+        urls: urls.map(doc => adminView ? doc : { ...doc, url: maskUrl(doc.url), ...(doc.by ? { by: MASK } : {}) }),
         masked: !adminView
+    }
+}
+
+function urlOf(body) {
+    const url = body?.url
+    if (typeof url != "string" || !url.trim())
+        throw badRequest("url is required (the url of the failed requests, as in their url field)")
+    return url
+}
+
+// Who asked (the e-mail of the token, if any)
+function requester(req) {
+    try {
+        const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "")
+        const payload = token ? JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()) : {}
+        return payload.email || payload.preferred_username
+    }
+    catch {
+        return undefined
+    }
+}
+
+async function ignore(url, by) {
+    if (configIgnored().includes(url))
+        return // already, in the config
+    await StatusLogIgnored.collection.updateOne({ url }, { $setOnInsert: { url, createdAt: new Date(), ...(by ? { by } : {}) } }, { upsert: true })
+}
+
+async function restore(url) {
+    if (configIgnored().includes(url))
+        throw Object.assign(new Error("This url is ignored in the configuration of the Query-Engine (statusLog.ignoredUrls): remove it there"), { status: 409 })
+    await StatusLogIgnored.collection.deleteMany({ url })
+}
+
+const handle = action => async (req, res) => {
+    try {
+        res.send(await action(req))
+    }
+    catch (error) {
+        const status = httpStatus(error) // 400 bad filters, 504 too slow (queryOptions.mongoMaxTimeMS)
+        res.status(status).send(status == 500 ? "Status log not available" : error.message)
     }
 }
 
 module.exports = {
     list,
+    listIgnored,
+    ignore,
+    restore,
     maskHeaders,
     maskText,
     maskUrl,
     maskSensitive,
     MASK,
 
-    endpoint: async (req, res) => {
-        try {
-            res.send(await list(req.query, req.adminView === true))
-        }
-        catch (error) {
-            const status = httpStatus(error) // 400 bad filters, 504 too slow (queryOptions.mongoMaxTimeMS)
-            res.status(status).send(status == 500 ? "Status log not available" : error.message)
-        }
-    }
+    endpoint: handle(req => list(req.query, req.adminView === true)),
+    // GET /api/statuslog/ignored (adminView)
+    ignoredEndpoint: handle(req => listIgnored(req.adminView === true)),
+    // POST /api/statuslog/ignored { url } (auth, adminOnly): the list after the change
+    ignoreEndpoint: handle(async req => {
+        await ignore(urlOf(req.body), requester(req))
+        return listIgnored(true)
+    }),
+    // DELETE /api/statuslog/ignored?url= (auth, adminOnly): the list after the change
+    restoreEndpoint: handle(async req => {
+        await restore(urlOf(req.query))
+        return listIgnored(true)
+    })
 }

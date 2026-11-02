@@ -282,8 +282,30 @@ describe('getStatusLog', () => {
     const api = new BeopenAPIService(http as any, fakeConfig({ beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }) as any);
     const page = await api.getStatusLog({ from: '2026-11-01T00:00:00.000Z', url: 'example' }, { limit: 50, skip: 100 });
     expect(calls).toEqual([{ url: 'http://qe/api/statuslog', options: { params: { limit: '50', skip: '100', from: '2026-11-01T00:00:00.000Z', url: 'example' } } }]);
-    expect(page).toEqual({ items: [{ createdAt: 'x' }], total: 7, masked: false });
+    expect(page).toEqual({ items: [{ createdAt: 'x' }], total: 7, masked: false, ignoredExcluded: 0 });
     const empty = new BeopenAPIService({ get: () => of(null) } as any, fakeConfig({ beopenApiBaseUrl: 'http://be' }) as any);
-    expect(await empty.getStatusLog({}, { limit: 50, skip: 0 })).toEqual({ items: [], total: 0, masked: true });
+    expect(await empty.getStatusLog({}, { limit: 50, skip: 0 })).toEqual({ items: [], total: 0, masked: true, ignoredExcluded: 0 });
+  });
+});
+
+
+describe('status log ignored urls', () => {
+  it('GET / POST { url } / DELETE ?url= on /api/statuslog/ignored: the list of the answer', async () => {
+    const calls: any[] = [];
+    const answer = { urls: [{ url: 'https://api.example/x' }] };
+    const http = {
+      get: (url: string) => { calls.push(['GET', url]); return of(answer); },
+      post: (url: string, body: any) => { calls.push(['POST', url, body]); return of(answer); },
+      delete: (url: string, options: any) => { calls.push(['DELETE', url, options]); return of({ urls: [] }); },
+    };
+    const api = new BeopenAPIService(http as any, fakeConfig({ beopenApiBaseUrl: 'http://be', queryEngineBaseUrl: 'http://qe' }) as any);
+    expect(await api.getStatusLogIgnored()).toEqual(answer.urls);
+    expect(await api.ignoreStatusLogUrl('https://api.example/x')).toEqual(answer.urls);
+    expect(await api.restoreStatusLogUrl('https://api.example/x')).toEqual([]);
+    expect(calls).toEqual([
+      ['GET', 'http://qe/api/statuslog/ignored'],
+      ['POST', 'http://qe/api/statuslog/ignored', { url: 'https://api.example/x' }],
+      ['DELETE', 'http://qe/api/statuslog/ignored', { params: { url: 'https://api.example/x' } }],
+    ]);
   });
 });

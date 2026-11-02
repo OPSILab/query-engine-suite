@@ -24,6 +24,10 @@ router.post(encodeURI("/resetBackup"), auth, adminOnly, controller.resetBackup)
 router.get(encodeURI("/listCache"), auth, adminOnly, controller.listCache)
 // failed HTTP requests of the Source-Connector: readable by everyone, header values only for admins (adminView)
 router.get(encodeURI("/statuslog"), adminView, statusLog.endpoint)
+// the urls whose failures the list leaves out unless filtered by url: read by everyone, changed by admins
+router.get(encodeURI("/statuslog/ignored"), adminView, statusLog.ignoredEndpoint)
+router.post(encodeURI("/statuslog/ignored"), auth, adminOnly, statusLog.ignoreEndpoint)
+router.delete(encodeURI("/statuslog/ignored"), auth, adminOnly, statusLog.restoreEndpoint)
 //router.get('/manage-collections', controller.manageCollections);
 //router.delete('/delete-collection', controller.deleteCollection);
 

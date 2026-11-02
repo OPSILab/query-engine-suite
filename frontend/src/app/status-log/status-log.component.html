@@ -46,6 +46,41 @@
       }
     </div>
     }
+
+    @if (ignoredUrls.length) {
+    <div class="sl-ignored">
+      <button type="button" class="sl-ignored__toggle" (click)="ignoredOpen = !ignoredOpen" [attr.aria-expanded]="ignoredOpen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path [attr.d]="ignoredOpen ? 'M6 9l6 6 6-6' : 'M9 6l6 6-6 6'" />
+        </svg>
+        {{ 'Ignored urls' | translate }}
+        <span class="ds-badge">{{ ignoredUrls.length }}</span>
+      </button>
+      @if (ignoredOpen) {
+      <p class="sl-ignored__info">{{ 'Ignored urls info' | translate }}</p>
+      <ul class="sl-ignored__list">
+        @for (ignored of ignoredUrls; track ignored.url) {
+        <li class="sl-ignored__item">
+          <span class="sl-ignored__url ds-mono" [title]="ignored.url">{{ ignored.url }}</span>
+          @if (ignored.createdAt) {
+          <span class="sl-ignored__meta">{{ ignored.createdAt | date: 'yyyy-MM-dd HH:mm' }}{{ ignored.by ? ' · ' + ignored.by : '' }}</span>
+          }
+          @if (ignored.fromConfig) {
+          <span class="sl-ignored__config" [title]="'Ignored in config info' | translate">{{ 'Ignored in config' | translate }}</span>
+          } @else if (canManage) {
+          <button type="button" class="ds-ghost-button sl-ignored__restore" [disabled]="!!busyUrl"
+            (click)="restore(ignored.url)">{{ 'Restore url' | translate }}</button>
+          }
+        </li>
+        }
+      </ul>
+      }
+    </div>
+    }
+    @if (actionError) {
+    <p class="sl-message sl-message--error" role="alert">{{ 'Status log action error' | translate }}</p>
+    }
   </section>
 
   <section class="sl-results" [class.sl-results--stale]="loading === 'list'" [attr.aria-busy]="!!loading">
@@ -56,22 +91,55 @@
     }
 
     @if (items.length) {
-    <div class="sl-count">{{ 'Status log count' | translate: { shown: items.length, total: total } }}</div>
+    <div class="sl-count">
+      {{ 'Status log count' | translate: { shown: items.length, total: total } }}
+      @if (ignoredExcluded) {
+      · {{ 'Ignored urls not shown' | translate: { count: ignoredExcluded } }}
+      }
+    </div>
     <div class="sl-list">
       @for (item of items; track item) {
-      <div class="sl-row" [class.sl-row--open]="isOpen(item)">
+      <div class="sl-row" [class.sl-row--open]="isOpen(item)" [class.sl-row--ignored]="item.ignored">
+        <div class="sl-row__line">
         <button type="button" class="sl-row__head" (click)="toggle(item)" [attr.aria-expanded]="isOpen(item)">
           <span class="sl-status" [class.sl-status--client]="statusKind(item) === 'client'"
             [class.sl-status--server]="statusKind(item) === 'server'" [title]="item.error || item.statusText || ''">{{ statusLabel(item) }}</span>
           <span class="sl-method ds-mono">{{ item.method }}</span>
           <span class="sl-url ds-mono" [title]="item.fullUrl || item.url">{{ item.fullUrl || item.url }}</span>
-          <span class="sl-source">{{ item.api || item.host }}</span>
+          <span class="sl-source">
+            @if (item.ignored) {
+            <span class="sl-ignored-badge">{{ 'Ignored' | translate }}</span>
+            }
+            {{ item.api || item.host }}
+          </span>
           <span class="sl-time">{{ item.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</span>
           <svg class="sl-row__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 9l6 6 6-6" />
           </svg>
         </button>
+        <!-- administrators: hide the failures of this url (or list them again) -->
+        @if (canManage && item.url && !isFromConfig(item.url)) {
+        @if (item.ignored) {
+        <button type="button" class="sl-row__action" [disabled]="!!busyUrl" (click)="restore(item.url, $event)"
+          [title]="'Restore url' | translate" [attr.aria-label]="'Restore url' | translate">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+        } @else {
+        <button type="button" class="sl-row__action" [disabled]="!!busyUrl" (click)="ignore(item, $event)"
+          [title]="'Ignore url' | translate" [attr.aria-label]="'Ignore url' | translate">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.7 3.6M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.7-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+          </svg>
+        </button>
+        }
+        }
+        </div>
         @if (isOpen(item)) {
         <dl class="sl-details">
           @for (part of detailOf(item); track part.label) {

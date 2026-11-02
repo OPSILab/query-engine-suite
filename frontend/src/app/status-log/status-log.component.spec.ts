@@ -10,7 +10,7 @@ function fakeApi(answer: (call: any) => Promise<StatusLogPage>) {
   const calls: any[] = [];
   return { calls, api: { getStatusLog: (filters: any, page: any) => { const call = { filters, page }; calls.push(call); return answer(call); } } };
 }
-const page = (items: StatusLogRecord[], total = items.length, masked = true): Promise<StatusLogPage> => Promise.resolve({ items, total, masked });
+const page = (items: StatusLogRecord[], total = items.length, masked = true): Promise<StatusLogPage> => Promise.resolve({ items, total, masked, ignoredExcluded: 0 });
 const config = (auth = false) => ({ getSettings: (key: string, def?: any) => key === 'enableAuthentication' ? auth : def });
 
 function create(answer: (call: any) => Promise<StatusLogPage>, auth = false) {
@@ -66,7 +66,7 @@ describe('StatusLogComponent', () => {
   it('the answer of a request replaced by a newer one is dropped', async () => {
     let releaseFirst!: () => void;
     const { component } = create(call => call.filters.url === 'old'
-      ? new Promise(resolve => releaseFirst = () => resolve({ items: [record(1)], total: 1, masked: true }))
+      ? new Promise(resolve => releaseFirst = () => resolve({ items: [record(1)], total: 1, masked: true, ignoredExcluded: 0 }))
       : page([record(2)]));
     component.url = 'old';
     const first = component.search();
@@ -127,5 +127,53 @@ describe('StatusLogComponent', () => {
     expect(navigated).toEqual([['/keycloak-auth']]);
     expect(sessionStorage.getItem('qe.returnUrl')).toBe('/status-log');
     expect(component.authEnabled).toBe(true);
+  });
+
+  it('ignore: the url saved, the ignored urls updated, the first page again with the same filters', async () => {
+    const changes: any[] = [];
+    const { component, calls } = create(call => page(call.page.skip ? [] : [record(1)], 1, false));
+    Object.assign((component as any).api, {
+      getStatusLogIgnored: () => Promise.resolve([]),
+      ignoreStatusLogUrl: (url: string) => { changes.push(['ignore', url]); return Promise.resolve([{ url }]); },
+      restoreStatusLogUrl: (url: string) => { changes.push(['restore', url]); return Promise.resolve([]); },
+    });
+    component.url = 'api';
+    await component.search();
+    expect(component.canManage).toBe(true);
+    const stopped: string[] = [];
+    await component.ignore(component.items[0], { stopPropagation: () => stopped.push('x') } as any);
+    expect(stopped).toEqual(['x']); // the row does not open
+    expect(changes).toEqual([['ignore', 'https://api.example/1']]);
+    expect(component.ignoredUrls).toEqual([{ url: 'https://api.example/1' }]);
+    expect(calls.length).toBe(2);
+    expect(calls[1]).toEqual({ filters: { url: 'api' }, page: { limit: StatusLogComponent.PAGE_SIZE, skip: 0 } });
+    expect(component.busyUrl).toBeNull();
+    await component.restore('https://api.example/1');
+    expect(changes[1]).toEqual(['restore', 'https://api.example/1']);
+    expect(component.ignoredUrls).toEqual([]);
+  });
+
+  it('a change refused (not an administrator): actionError, nothing else changes', async () => {
+    const { component } = create(() => page([record(1)], 1, true));
+    Object.assign((component as any).api, { ignoreStatusLogUrl: () => Promise.reject(new Error('403')) });
+    await component.search();
+    expect(component.canManage).toBe(false);
+    await component.ignore(component.items[0]);
+    expect(component.actionError).toBe(true);
+    expect(component.busyUrl).toBeNull();
+  });
+
+  it('the ignored urls left out of the answer: from the page', async () => {
+    const { component } = create(() => Promise.resolve({ items: [record(1)], total: 1, masked: false, ignoredExcluded: 2 }));
+    await component.search();
+    expect(component.ignoredExcluded).toBe(2);
+  });
+
+  it('urls ignored in the Query-Engine config: recognized, not restored from here', async () => {
+    const { component } = create(() => page([]));
+    component.ignoredUrls = [{ url: 'https://a.example', fromConfig: true }, { url: 'https://b.example' }];
+    expect(component.isFromConfig('https://a.example')).toBe(true);
+    expect(component.isFromConfig('https://b.example')).toBe(false);
+    expect(component.isFromConfig(undefined)).toBe(false);
   });
 });
