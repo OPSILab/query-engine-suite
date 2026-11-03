@@ -48,6 +48,14 @@
   flex-direction: column;
   gap: 6px;
   min-width: 160px;
+  margin: 0; // <label>: no margin of the global styles, aligned with the pills and the buttons
+}
+
+// the outcome pills, as tall as the inputs next to them
+.sl-outcomes {
+  display: flex; // not inline: no line box below
+  min-height: 40px;
+  align-items: center;
 }
 
 .sl-field--wide {
@@ -288,7 +296,12 @@
   white-space: nowrap;
 }
 
-// client errors (4xx): amber; server errors (5xx) and no answer: red
+// successes: green; client errors (4xx): amber; server errors (5xx) and no answer: red
+.sl-status--success {
+  background: rgba(21, 128, 61, 0.12);
+  color: #15803D;
+}
+
 .sl-status--client {
   background: rgba(180, 83, 9, 0.12);
   color: #B45309;

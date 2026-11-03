@@ -27,6 +27,15 @@
         <input class="ds-input ds-mono" type="search" name="url" [(ngModel)]="url"
           [placeholder]="'Part of the url' | translate" />
       </label>
+      <div class="sl-field">
+        <span class="ds-field-label" id="sl-outcome-label">{{ 'Outcome' | translate }}</span>
+        <div class="ds-pills sl-outcomes" role="group" aria-labelledby="sl-outcome-label">
+          @for (o of outcomes; track o.value) {
+          <button type="button" class="ds-pill" [class.ds-pill--active]="outcome === o.value"
+            [attr.aria-pressed]="outcome === o.value" (click)="setOutcome(o.value)">{{ o.label | translate }}</button>
+          }
+        </div>
+      </div>
       <div class="sl-filters__actions">
         <button type="submit" class="ds-primary-button" [disabled]="loading === 'list'">{{ 'Apply filters' | translate }}</button>
         <button type="button" class="ds-ghost-button" (click)="reset()">{{ 'Reset' | translate }}</button>
@@ -102,7 +111,8 @@
       <div class="sl-row" [class.sl-row--open]="isOpen(item)" [class.sl-row--ignored]="item.ignored">
         <div class="sl-row__line">
         <button type="button" class="sl-row__head" (click)="toggle(item)" [attr.aria-expanded]="isOpen(item)">
-          <span class="sl-status" [class.sl-status--client]="statusKind(item) === 'client'"
+          <span class="sl-status" [class.sl-status--success]="statusKind(item) === 'success'"
+            [class.sl-status--client]="statusKind(item) === 'client'"
             [class.sl-status--server]="statusKind(item) === 'server'" [title]="item.error || item.statusText || ''">{{ statusLabel(item) }}</span>
           <span class="sl-method ds-mono">{{ item.method }}</span>
           <span class="sl-url ds-mono" [title]="item.fullUrl || item.url">{{ item.fullUrl || item.url }}</span>
@@ -118,7 +128,7 @@
             <path d="M6 9l6 6 6-6" />
           </svg>
         </button>
-        <!-- administrators: hide the failures of this url (or list them again) -->
+        <!-- administrators: hide the requests of this url (or list them again) -->
         @if (canManage && item.url && !isFromConfig(item.url)) {
         @if (item.ignored) {
         <button type="button" class="sl-row__action" [disabled]="!!busyUrl" (click)="restore(item.url, $event)"

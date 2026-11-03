@@ -52,11 +52,21 @@ export const ADVANCED_SEARCH_PAGE_SIZE = 50;
 export interface UnwrapOptions {
   unwrap: boolean;
   onlyArrayOfObjects?: boolean;
+  /**
+   * ?unwrapPath: another level than the top of the documents, a dotted path of fields: an object (its arrays) or an
+   * array (only that one). The context is relative: "../" the object holding the arrays, "../../" the one above...
+   */
+  path?: string;
 }
 
 export interface ResultsPage {
   limit: number;
   skip: number | Record<string, number>;
+  /**
+   * With unwrap the limit counts the unwrapped results, and a document can be cut between two pages: the rows of
+   * its first document already shown, per collection (the answer's `nextRows`).
+   */
+  skipRows?: Record<string, number>;
 }
 
 /**
@@ -86,7 +96,8 @@ export interface QueryExamples {
 export const DEFAULT_COLLECTION_LABELS: Record<string, string> = { api: "Sources", orion: "Datapoints", minio: "MinIO" };
 
 /**
- * A failed HTTP request of the Source-Connector (its statuslog collection, GET /api/statuslog of the Query-Engine).
+ * An HTTP request of the Source-Connector, failed or successful (its statuslog collection, GET /api/statuslog of the
+ * Query-Engine).
  * body / data: text (JSON for objects), cut at the Source-Connector's statusLog.maxDataSize (bodyTruncated /
  * dataTruncated, with the original length). headers: values "<masked>" unless the user is an administrator; saved as
  * JSON text when MongoDB refused their field names.
@@ -113,6 +124,12 @@ export interface StatusLogRecord {
   /** No answer (timeout, connection refused...): the message and code of the error. */
   error?: string;
   code?: string;
+  /** "success" / "error" (records saved before the successes were logged have none: errors). */
+  outcome?: StatusLogOutcome;
+  /** From the request to its answer (or error), in milliseconds. */
+  durationMs?: number;
+  /** When MongoDB deletes it (the successes, statusLog.successRetentionDays of the Source-Connector). */
+  expiresAt?: string;
   /** Its url is ignored (listed only because of a url filter). */
   ignored?: boolean;
 }
@@ -138,10 +155,14 @@ export interface StatusLogPage {
 }
 
 /** Filters of the status log: from / to (ISO dates, createdAt), part of the url. */
+export type StatusLogOutcome = 'error' | 'success';
+
 export interface StatusLogFilters {
   from?: string;
   to?: string;
   url?: string;
+  /** Only the failed / successful requests (none: all). */
+  outcome?: StatusLogOutcome;
 }
 
 export interface SuggestionsPage<T> {
@@ -257,6 +278,7 @@ export class BeopenAPIService {
         if (unwrap?.unwrap) {
           params["unwrap"] = "true";
           if (unwrap.onlyArrayOfObjects) params["unwrapOnlyArrayOfObjects"] = "true";
+          if (unwrap.path) params["unwrapPath"] = unwrap.path;
         }
         return { method: "POST", url, params, headers: { visibility }, body: { mongoQuery, ...(page ? { page } : {}), ...(collections ? { collections } : {}) } };
       }
@@ -281,10 +303,10 @@ export class BeopenAPIService {
   }
 
   /** What the configuration leaves out of the Simple search ([] with a Query-Engine that doesn't report it). */
-  /** A page of the failed requests of the Source-Connector, newest first (empty filters left out). */
+  /** A page of the requests of the Source-Connector, newest first (empty filters left out). */
   getStatusLog(filters: StatusLogFilters, page: { limit: number; skip: number }): Promise<StatusLogPage> {
     const params: Record<string, string> = { limit: String(page.limit), skip: String(page.skip) };
-    for (const key of ['from', 'to', 'url'] as const)
+    for (const key of ['from', 'to', 'url', 'outcome'] as const)
       if (filters[key]) params[key] = filters[key]!;
     return firstValueFrom(this.http.get<StatusLogPage>(`${this.queryEngineBaseUrl}/api/statuslog`, { params }))
       .then(res => ({

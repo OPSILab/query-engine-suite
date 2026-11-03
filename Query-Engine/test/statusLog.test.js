@@ -1,5 +1,5 @@
 // GET /api/statuslog (services/statusLog.js) through the real router and auth, on a real MongoDB (see helpers/db.js):
-// the failed requests of the Source-Connector, filtered by date / url, the header values hidden unless admin.
+// the requests of the Source-Connector, filtered by date / url / outcome, the header values hidden unless admin.
 const { stub, load, config, resetConfig } = require("./helpers/env")
 const db = require("./helpers/db")
 const { publicKey, makeToken } = require("./helpers/jwt")
@@ -122,8 +122,25 @@ describe("filters and pages", () => {
         assert.deepEqual(urls(second), ["https://api.example.org/records"])
     })
 
+    test("outcome: success / error (records without outcome: errors)", async () => {
+        const SUCCESS = { createdAt: new Date("2026-10-20T09:00:00Z"), outcome: "success", method: "GET", url: "https://api.example.org/ok", fullUrl: "https://api.example.org/ok", status: 200, durationMs: 12 }
+        const ERROR = { createdAt: new Date("2026-10-21T09:00:00Z"), outcome: "error", method: "GET", url: "https://api.example.org/ko", fullUrl: "https://api.example.org/ko", status: 503 }
+        await StatusLog.collection.insertMany([{ ...SUCCESS }, { ...ERROR }])
+        try {
+            const success = (await statusLog({ outcome: "success" })).body
+            assert.deepEqual([urls(success), success.total], [["https://api.example.org/ok"], 1])
+            assert.equal(success.items[0].durationMs, 12)
+            assert.deepEqual(urls((await statusLog({ outcome: "error" })).body), ["https://API.example.org/records/7", "https://api.example.org/ko", "https://orion.example/ngsi-ld/v1/entities", "https://api.example.org/records"])
+            assert.equal((await statusLog()).body.total, 5)
+            assert.deepEqual(urls((await statusLog({ outcome: "success", url: "records" })).body), [])
+        }
+        finally {
+            await StatusLog.collection.deleteMany({ url: { $in: [SUCCESS.url, ERROR.url] } })
+        }
+    })
+
     test("invalid filters: 400", async () => {
-        for (const query of [{ from: "yesterday" }, { to: "2026-13-45" }, { limit: 0 }, { limit: 1001 }, { limit: 5, skip: -1 }])
+        for (const query of [{ from: "yesterday" }, { to: "2026-13-45" }, { limit: 0 }, { limit: 1001 }, { limit: 5, skip: -1 }, { outcome: "ok" }])
             assert.equal((await statusLog(query)).status, 400, JSON.stringify(query))
     })
 })

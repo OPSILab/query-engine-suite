@@ -40,6 +40,22 @@ describe('StatusLogComponent', () => {
     expect(filters.url).toBe('api.example');
     expect(StatusLogComponent.filtersOf('', '', '  ')).toEqual({});
     expect(StatusLogComponent.filtersOf('not a date', '', '')).toEqual({});
+    expect(StatusLogComponent.filtersOf('', '', '', 'success')).toEqual({ outcome: 'success' });
+    expect(StatusLogComponent.filtersOf('', '', '', '')).toEqual({});
+  });
+
+  it('outcome pills: applied at once with the rest of the form; reset back to all', async () => {
+    const { component, calls } = create(() => page([]));
+    expect(component.outcomes.map(o => o.value)).toEqual(['', 'error', 'success']);
+    component.url = 'example';
+    await component.setOutcome('error');
+    expect(calls[0].filters).toEqual({ url: 'example', outcome: 'error' });
+    await component.setOutcome('');
+    expect(calls[1].filters).toEqual({ url: 'example' });
+    component.outcome = 'success';
+    await component.reset();
+    expect(component.outcome).toBe('');
+    expect(calls[2].filters).toEqual({});
   });
 
   it('search applies the form; load more asks the next page and appends it', async () => {
@@ -57,9 +73,9 @@ describe('StatusLogComponent', () => {
 
   it('reset empties the form and searches again', async () => {
     const { component, calls } = create(() => page([]));
-    Object.assign(component, { from: '2026-11-01', to: '2026-11-02', url: 'x' });
+    Object.assign(component, { from: '2026-11-01', to: '2026-11-02', url: 'x', outcome: 'error' });
     await component.reset();
-    expect([component.from, component.to, component.url]).toEqual(['', '', '']);
+    expect([component.from, component.to, component.url, component.outcome]).toEqual(['', '', '', '']);
     expect(calls[0].filters).toEqual({});
   });
 
@@ -97,8 +113,11 @@ describe('StatusLogComponent', () => {
     expect(component.isOpen(item)).toBe(false);
   });
 
-  it('status: the code, or the error code without answer; 4xx client, the rest server', () => {
+  it('status: the code, or the error code without answer; below 400 success, 4xx client, the rest server', () => {
     const { component } = create(() => page([]));
+    expect([component.statusLabel(record(1, { status: 200, outcome: 'success' })), component.statusKind(record(1, { status: 200, outcome: 'success' }))]).toEqual(['200', 'success']);
+    expect(component.statusKind(record(1, { status: 304 }))).toBe('success');
+    expect(component.statusKind(record(1, { status: 200, outcome: 'error' }))).toBe('server'); // failed after the answer (e.g. a client validateStatus)
     expect([component.statusLabel(record(1, { status: 404 })), component.statusKind(record(1, { status: 404 }))]).toEqual(['404', 'client']);
     expect([component.statusLabel(record(1, { status: 502 })), component.statusKind(record(1, { status: 502 }))]).toEqual(['502', 'server']);
     const refused = record(1, { status: undefined, code: 'ECONNREFUSED', error: 'connect ECONNREFUSED' });
@@ -119,6 +138,8 @@ describe('StatusLogComponent', () => {
     expect(parts[5]).toEqual({ label: 'Response data', text: '{"message":"bo', cutAt: 900 }); // cut JSON: as it is
     const refused = StatusLogComponent.detailsOf({ createdAt: '', url: 'u', error: 'connect ECONNREFUSED', code: 'ECONNREFUSED' });
     expect(refused.map(p => p.text)).toEqual(['u', 'ECONNREFUSED: connect ECONNREFUSED']);
+    const success = StatusLogComponent.detailsOf({ createdAt: '', url: 'u', status: 200, statusText: 'OK', outcome: 'success', durationMs: 42 });
+    expect(success.map(p => [p.label, p.text])).toEqual([['URL', 'u'], ['Response', '200 OK'], ['Duration', '42 ms']]);
   });
 
   it('login: back to this page afterwards', () => {

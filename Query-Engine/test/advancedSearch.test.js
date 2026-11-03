@@ -149,12 +149,28 @@ describe("unwrap", () => {
         assert.deepEqual(onlyObjects.map(item => [item.name, item.unWrappedFrom]), [["Datapoint", undefined]])
     })
 
-    test("the options are not fields of the search; a page is unwrapped, still counted in documents", async () => {
+    test("unwrapPath: another level; a bad path: 400", async () => {
+        const unwrapped = (await search({ name: "map.geojson" }, { collections: ["minio"], query: { unwrap: "true", unwrapPath: "features" } })).body
+        assert.deepEqual(unwrapped.map(item => [item.unWrappedFrom, item.properties?.city, item["../name"]]), [["features", "Rome", "map.geojson"]])
+        assert.equal((await search({ name: "map.geojson" }, { collections: ["minio"], query: { unwrap: "true", unwrapPath: "features." } })).status, 400)
+    })
+
+    test("the options are not fields of the search; the limit of a page counts the unwrapped results", async () => {
         assert.equal((await search({ kind: "item" }, { collections: ["api"], query: { unwrap: "false" } })).body.length, 7)
-        const { body } = await search({ city: "Rome" }, { format: "JSON", collections: ["minio"], page: { limit: 1, skip: 0 }, query: { unwrap: "true" } })
-        assert.equal(body.hasMore, true) // one document per page: its rows
-        assert.equal(new Set(body.results.map(row => row["../name"])).size, 1)
-        assert.ok(body.results.every(item => item.unWrappedFrom == "json"))
+        // public-a.json has two rows: one per page, the document cut between them
+        const rowsOf = async page => (await search({ name: "public-a.json" }, { format: "JSON", collections: ["minio"], page, query: { unwrap: "true" } }))
+        const first = (await rowsOf({ limit: 1, skip: 0 })).body
+        assert.deepEqual([first.results.map(r => r.city), first.hasMore, first.next, first.nextRows], [["Rome"], true, { minio: 0 }, { minio: 1 }])
+        const second = (await rowsOf({ limit: 1, skip: first.next, skipRows: first.nextRows })).body
+        assert.deepEqual([second.results.map(r => r.city), second.hasMore], [["Oslo"], false])
+        assert.equal((await rowsOf({ limit: 1, skip: 0, skipRows: { minio: -1 } })).status, 400)
+    })
+
+    test("without a page: at most advancedSearchMaxResults unwrapped results per collection, with the warning", async () => {
+        config.queryOptions.advancedSearchMaxResults = 2
+        const { body, warnings } = await search({ dimensions: "Lovech" }, { ...ALL, query: { unwrap: "true" } })
+        assert.equal(body.length, 2) // 3 values of dimensions
+        assert.deepEqual(warnings.map(w => [w.code, w.source]), [["RESULTS_TRUNCATED", "orion"]])
     })
 })
 

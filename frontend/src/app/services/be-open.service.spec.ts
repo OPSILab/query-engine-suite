@@ -317,6 +317,8 @@ describe('buildQueryRequest: unwrap', () => {
       .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true', unwrapOnlyArrayOfObjects: 'true' });
     expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: true })!.params)
       .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true' });
+    expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: true, path: 'data.items' })!.params)
+      .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true', unwrapPath: 'data.items' });
     expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: false, onlyArrayOfObjects: true })!.params)
       .toEqual({ format: 'JSON', city: 'Rome' });
   });

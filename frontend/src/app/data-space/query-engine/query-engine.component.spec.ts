@@ -844,4 +844,54 @@ describe('unwrap (Advanced search)', () => {
     expect(comp.extractedElements.map(e => e.name)).toEqual(['public-a.json › json', 'd1 › dimensions']);
     expect(comp.extractedElements[0].element).toEqual({ city: 'Rome', unWrappedFrom: 'json', '../name': 'public-a.json' });
   });
+
+  it('unwrapPath: sent (trimmed) only with unwrap on', async () => {
+    const { comp, http } = create({ backend: { query: () => [] } });
+    comp.unwrapPath = ' data.items ';
+    comp.minioQuery(true);
+    await flush();
+    comp.toggleUnwrap();
+    comp.minioQuery(true);
+    await flush();
+    const paths = http.requests.filter(r => r.method === 'POST').map(r => r.options.params.get('unwrapPath'));
+    expect(paths).toEqual([null, 'data.items']);
+    expect(comp.unwrapOptions).toEqual({ unwrap: true, onlyArrayOfObjects: false, path: 'data.items' });
+  });
+
+  it('a result unwrapped at a deeper level: named after the top of its document, its MinIO metadata left out', async () => {
+    expect(QueryEngineComponent.unwrappedDocument({ a: 1, unWrappedFrom: 'x', '../k': 1, '../../name': 'doc', '../name': 'inner' }))
+      .toEqual({ prefix: '../../', name: 'doc' });
+    expect(QueryEngineComponent.unwrappedDocument({ value: 1, unWrappedFrom: 'x' })).toEqual({ prefix: '../', name: '?' });
+    const { comp } = create({ backend: { query: () => [
+      { v: 1, unWrappedFrom: 'data.items', '../k': 'kv', '../../name': 'f.json', '../../record': { bucketName: 'public-data' }, _collection: 'minio' },
+    ] } });
+    comp.minioQuery(true);
+    await flush();
+    expect(comp.extractedElements.map(e => e.name)).toEqual(['f.json › data.items']);
+    expect(comp.extractedElements[0].element).toEqual({ v: 1, unWrappedFrom: 'data.items', '../k': 'kv', '../../name': 'f.json' });
+  });
+
+  it('"Load more results" with unwrap: skipRows from the nextRows of the previous page', async () => {
+    const pages = [
+      { results: [{ i: 0, unWrappedFrom: 'a' }], hasMore: true, next: { api: 0 }, nextRows: { api: 1 } },
+      { results: [{ i: 1, unWrappedFrom: 'a' }], hasMore: true, next: { api: 1 }, nextRows: {} },
+      { results: [{ i: 2, unWrappedFrom: 'a' }], hasMore: false },
+    ];
+    let n = 0;
+    const { comp, http } = create({ backend: { query: () => pages[n++] } });
+    comp.toggleUnwrap();
+    comp.minioQuery(true);
+    await flush();
+    comp.loadMoreResults();
+    await flush();
+    comp.loadMoreResults();
+    await flush();
+    const sent = http.requests.filter(r => r.method === 'POST').map(r => r.options.body.page);
+    expect(sent).toEqual([
+      { limit: 50, skip: 0 },
+      { limit: 50, skip: { api: 0 }, skipRows: { api: 1 } },
+      { limit: 50, skip: { api: 1 } },
+    ]);
+    expect(comp.extractedElements.length).toBe(3);
+  });
 });

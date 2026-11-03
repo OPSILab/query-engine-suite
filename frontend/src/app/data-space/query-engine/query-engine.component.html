@@ -179,6 +179,17 @@
               [disabled]="!unwrap"
               (click)="toggleUnwrapOnlyArrayOfObjects()"
             >{{ 'Only arrays of objects' | translate }}</button>
+            <input
+              class="ds-input ds-mono ds-unwrap-path"
+              type="text"
+              [(ngModel)]="unwrapPath"
+              (ngModelChange)="refreshSnippet()"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="!unwrap"
+              [placeholder]="'Unwrap path' | translate"
+              [attr.aria-label]="'Unwrap path' | translate"
+              [title]="'Unwrap path info' | translate"
+            />
           </div>
         </div>
         <div class="ds-filters">

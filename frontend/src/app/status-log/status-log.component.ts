@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { BeopenAPIService, StatusLogFilters, StatusLogIgnoredUrl, StatusLogRecord } from '../services/be-open.service';
+import { BeopenAPIService, StatusLogFilters, StatusLogIgnoredUrl, StatusLogOutcome, StatusLogRecord } from '../services/be-open.service';
 import { ConfigService } from '../services/config.service';
 import { saveReturnUrl } from '../auth/services/return-url';
 
-/** One part of the detail of a failed request: a label and its text (JSON pretty printed). */
+/** One part of the detail of a request: a label and its text (JSON pretty printed). */
 export interface StatusLogDetail {
   label: string;
   text: string;
@@ -13,12 +13,13 @@ export interface StatusLogDetail {
 }
 
 /**
- * /status-log: the failed HTTP requests of the Source-Connector (its statuslog collection, through GET /api/statuslog
- * of the Query-Engine), newest first, filtered by day and by part of the url, a page at a time. A click on a request
- * shows its query params, headers, body and response. The header values come hidden ("<masked>") unless the user is
+ * /status-log: the HTTP requests of the Source-Connector, failed and successful (its statuslog collection, through
+ * GET /api/statuslog of the Query-Engine), newest first, filtered by day, by part of the url and by outcome (all /
+ * errors / successes), a page at a time. A click on a request shows its query params, headers, body, response and
+ * duration. The header values come hidden ("<masked>") unless the user is
  * an administrator (Query-Engine authConfig.adminRoles): the page says so, and offers the login when there is one.
  * No AuthGuard: readable without logging in (hidden values).
- * Administrators (the answers are not masked) can ignore the url of a request: without a url filter its failures are
+ * Administrators (the answers are not masked) can ignore the url of a request: without a url filter its requests are
  * left out (the count says how many ignored urls), with one they are listed, marked; the ignored urls are listed
  * above, each one with the button to list its failures again.
  */
@@ -31,10 +32,18 @@ export interface StatusLogDetail {
 export class StatusLogComponent implements OnInit {
   static readonly PAGE_SIZE = 50;
 
-  // the form: days (YYYY-MM-DD, <input type="date">) and part of the url
+  static readonly OUTCOMES: { value: StatusLogOutcome | ''; label: string }[] = [
+    { value: '', label: 'All requests' },
+    { value: 'error', label: 'Errors' },
+    { value: 'success', label: 'Successes' },
+  ];
+
+  // the form: days (YYYY-MM-DD, <input type="date">), part of the url, outcome ('': all)
   from = '';
   to = '';
   url = '';
+  outcome: StatusLogOutcome | '' = '';
+  readonly outcomes = StatusLogComponent.OUTCOMES;
 
   items: StatusLogRecord[] = [];
   total = 0;
@@ -91,7 +100,7 @@ export class StatusLogComponent implements OnInit {
     return this.change(item.url, url => this.api.ignoreStatusLogUrl(url));
   }
 
-  /** Lists the failures of an ignored url again. */
+  /** Lists the requests of an ignored url again. */
   restore(url: string | undefined, event?: Event): Promise<void> {
     event?.stopPropagation();
     return this.change(url, u => this.api.restoreStatusLogUrl(u));
@@ -113,12 +122,18 @@ export class StatusLogComponent implements OnInit {
 
   /** Applies the form (the first page). */
   search(): Promise<void> {
-    this.applied = StatusLogComponent.filtersOf(this.from, this.to, this.url);
+    this.applied = StatusLogComponent.filtersOf(this.from, this.to, this.url, this.outcome);
     return this.load(false);
   }
 
+  /** A pill of the outcome: applied at once (with the rest of the form). */
+  setOutcome(outcome: StatusLogOutcome | ''): Promise<void> {
+    this.outcome = outcome;
+    return this.search();
+  }
+
   reset(): Promise<void> {
-    this.from = this.to = this.url = '';
+    this.from = this.to = this.url = this.outcome = '';
     return this.search();
   }
 
@@ -165,8 +180,9 @@ export class StatusLogComponent implements OnInit {
     return item.status ? String(item.status) : item.code || 'error';
   }
 
-  /** client: 4xx; server: 5xx and no answer. */
-  statusKind(item: StatusLogRecord): 'client' | 'server' {
+  /** success: an answer below 400 (outcome success, or none with such a status); client: 4xx; server: 5xx and no answer. */
+  statusKind(item: StatusLogRecord): 'success' | 'client' | 'server' {
+    if (item.status && item.status < 400 && item.outcome !== 'error') return 'success';
     return item.status && item.status >= 400 && item.status < 500 ? 'client' : 'server';
   }
 
@@ -193,6 +209,7 @@ export class StatusLogComponent implements OnInit {
     add('Response', item.status ? `${item.status} ${item.statusText ?? ''}`.trim() : undefined);
     add('Response data', item.data, item.dataTruncated ? item.dataLength : undefined);
     add('Error', item.error ? (item.code ? `${item.code}: ${item.error}` : item.error) : undefined);
+    add('Duration', typeof item.durationMs === 'number' ? `${item.durationMs} ms` : undefined);
     return parts;
   }
 
@@ -209,8 +226,8 @@ export class StatusLogComponent implements OnInit {
     return JSON.stringify(value, null, 2);
   }
 
-  /** The filters of the form: whole local days as ISO dates (the times shown are local), the url trimmed. */
-  static filtersOf(from: string, to: string, url: string): StatusLogFilters {
+  /** The filters of the form: whole local days as ISO dates (the times shown are local), the url trimmed, the outcome. */
+  static filtersOf(from: string, to: string, url: string, outcome: StatusLogOutcome | '' = ''): StatusLogFilters {
     const filters: StatusLogFilters = {};
     const day = (value: string, time: string) => {
       const date = new Date(`${value}T${time}`); // no offset: local time
@@ -219,6 +236,7 @@ export class StatusLogComponent implements OnInit {
     if (from) filters.from = day(from, '00:00:00');
     if (to) filters.to = day(to, '23:59:59.999');
     if (url?.trim()) filters.url = url.trim();
+    if (outcome) filters.outcome = outcome;
     for (const key of Object.keys(filters) as (keyof StatusLogFilters)[])
       if (filters[key] === undefined) delete filters[key];
     return filters;

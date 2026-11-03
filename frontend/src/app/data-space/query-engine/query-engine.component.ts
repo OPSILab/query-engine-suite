@@ -98,16 +98,34 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   hasMoreResults = false;
   @Output() hasMoreResultsChange = new EventEmitter<boolean>();
   // next: the skip of each collection with more results (the answer's `next`); collections: those searched
-  private resultsRequest?: { mongoQuery: any; type: string; visibility: string; kind: 'query' | 'all'; page: ResultsPage; collections?: string[]; next?: Record<string, number>; unwrap?: UnwrapOptions };
+  private resultsRequest?: { mongoQuery: any; type: string; visibility: string; kind: 'query' | 'all'; page: ResultsPage; collections?: string[]; next?: Record<string, number>; nextRows?: Record<string, number>; unwrap?: UnwrapOptions };
 
   // Advanced search: the arrays of the results unwrapped by the Query-Engine (one result per element, see
   // UnwrapOptions); onlyArrayOfObjects: the arrays of values left as they are
   unwrap = false;
   unwrapOnlyArrayOfObjects = false;
+  // the level to unwrap (dotted path, e.g. data or data.items); empty: the top of the documents
+  unwrapPath = '';
 
   /** The unwrap options of a request (Advanced search only). */
   get unwrapOptions(): UnwrapOptions | undefined {
-    return this.mode === "Advanced search" && this.unwrap ? { unwrap: true, onlyArrayOfObjects: this.unwrapOnlyArrayOfObjects } : undefined;
+    if (this.mode !== "Advanced search" || !this.unwrap) return undefined;
+    const path = this.unwrapPath.trim();
+    return { unwrap: true, onlyArrayOfObjects: this.unwrapOnlyArrayOfObjects, ...(path ? { path } : {}) };
+  }
+
+  /**
+   * An unwrapped result (unWrappedFrom): the prefix of the fields of its document, the most "../" among its fields
+   * (one for the top of the document, more with an unwrap path), and the name of the document ("?" if none).
+   */
+  static unwrappedDocument(obj: any): { prefix: string; name: string } {
+    let depth = 1;
+    for (const key of Object.keys(obj)) {
+      const ups = key.match(/^(\.\.\/)+/)?.[0].length ?? 0;
+      depth = Math.max(depth, ups / 3);
+    }
+    const prefix = '../'.repeat(depth);
+    return { prefix, name: String(obj[prefix + 'name'] ?? obj[prefix + '_id'] ?? '?') };
   }
 
   toggleUnwrap(): void {
@@ -551,7 +569,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     const collections = this.collectionsFor();
     const unwrap = this.unwrapOptions;
     this.pendingQuery = this.track(kind, this.beopenAPI.minioQuery(this.mode, this.searchValue(all), mongoQuery, this.sqlQuery, this.visibility, this.type, page, collections, unwrap)).subscribe(queryResult => {
-      this.resultsRequest = page ? { mongoQuery, type: this.type, visibility: this.visibility, kind, page, collections, next: queryResult?.next, unwrap } : undefined;
+      this.resultsRequest = page ? { mongoQuery, type: this.type, visibility: this.visibility, kind, page, collections, next: queryResult?.next, nextRows: queryResult?.nextRows, unwrap } : undefined;
       this.showQueryResult(queryResult, false);
     }, err => {
       console.error("Query error", err);
@@ -571,14 +589,17 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     }
     const next = request.next && typeof request.next === 'object' && Object.keys(request.next).length ? request.next : undefined;
     // a Query-Engine without `next`: one skip for everything
+    // unwrap: a document cut by the previous page goes on from its next row (nextRows)
+    const nextRows = next && request.nextRows && typeof request.nextRows === 'object' && Object.keys(request.nextRows).length ? request.nextRows : undefined;
     const page: ResultsPage = next
-      ? { limit: request.page.limit, skip: next }
+      ? { limit: request.page.limit, skip: next, ...(nextRows ? { skipRows: nextRows } : {}) }
       : { limit: request.page.limit, skip: (typeof request.page.skip === 'number' ? request.page.skip : 0) + request.page.limit };
     const collections = next ? Object.keys(next) : request.collections;
     this.pendingQuery = this.track('more', this.beopenAPI.minioQuery("Advanced search", "", request.mongoQuery, "", request.visibility, request.type, page, collections, request.unwrap)).subscribe(queryResult => {
       if (this.resultsRequest !== request) return; // a new query was sent meanwhile
       request.page = page;
       request.next = queryResult?.next;
+      request.nextRows = queryResult?.nextRows;
       this.showQueryResult(queryResult, true);
     }, err => {
       console.error("Query error", err);
@@ -632,8 +653,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
         // `record` for those (as this used to) showed the metadata and never
         // the data itself.
         // `_collection`: the collection of an Advanced search result (shown as a label, not as data)
-        // an unwrapped result (?unwrap=true): "../record" is the MinIO metadata of its document, like `record`
-        const { record: _meta, _collection, '../record': _parentMeta, ...ownData } = obj;
+        const { record: _meta, _collection, ...ownData } = obj;
+        // an unwrapped result (?unwrap=true): "../record" (or deeper) is the MinIO metadata of its document, like `record`
+        const unwrapped = typeof obj.unWrappedFrom === 'string' ? QueryEngineComponent.unwrappedDocument(obj) : undefined;
+        if (unwrapped && ownData[unwrapped.prefix + 'record']?.bucketName !== undefined)
+          delete ownData[unwrapped.prefix + 'record'];
         delete obj._collection;
         const collection = typeof _collection === 'string' ? this.beopenAPI.collectionLabel(_collection) : undefined;
         obj.objectPath = record.name;
@@ -689,8 +713,8 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
             ? obj.raw
             : (Object.keys(ownData).length ? ownData.json || ownData.csv || ownData : record);
           // an unwrapped result: named after its document and the array it comes from
-          const name = typeof obj.unWrappedFrom === 'string'
-            ? `${obj['../name'] ?? obj['../_id'] ?? '?'} › ${obj.unWrappedFrom}`
+          const name = unwrapped
+            ? `${unwrapped.name} › ${obj.unWrappedFrom}`
             : record._id || obj.name || record.name || "?";
           this.extractedElements.push({ name, element: rawData, collection });
         }

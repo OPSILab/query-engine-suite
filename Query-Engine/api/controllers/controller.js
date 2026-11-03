@@ -3,7 +3,7 @@ const logger = require('percocologger')
 const config = require('../../config')
 const fs = require("fs")
 const simpleSearch = require("../services/simpleSearch")
-const { CONNECTORS, collectionSettings, defaultCollections, parseCollections } = require("../services/collections")
+const { CONNECTORS, collectionSettings, defaultCollections, storedCollections, parseCollections } = require("../services/collections")
 const manageCollectionsView = fs.readFileSync("api/view/manage-collections.html", "utf-8")
 
 // ?limit=&skip= of the keys / values / entries suggestions: a page ({ items, hasMore }), else undefined (legacy list)
@@ -17,7 +17,7 @@ function suggestionsPage(query) {
     return { limit, skip }
 }
 const isTrue = value => value === "true" || value === true
-const { unwrapAnswer } = require("../services/unwrap")
+const { unwrapPage, unwrapCapped, pathSegments } = require("../services/unwrap")
 const { checkFilter, httpStatus } = require('../services/queryGuards')
 
 // format of the suggestions: the Advanced search file type (JSON / CSV / GeoJSON, any case), or object (no file
@@ -31,7 +31,23 @@ function suggestionsFormat(query) {
     return format
 }
 
-// Advanced search page: body.page = { limit, skip } - in the body, the query string carries the searched fields.
+// unwrap pages only: { <collection>: n } the rows already given of the first document (the `nextRows` of the
+// previous page, see services/unwrap.unwrapPage)
+function skipRowsOf(raw, error) {
+    if (raw === undefined || raw === null)
+        return {}
+    if (typeof raw !== "object" || Array.isArray(raw))
+        throw error()
+    const skipRows = {}
+    for (const [c, n] of Object.entries(raw)) {
+        if (!CONNECTORS.includes(c) || !Number.isInteger(Number(n)) || Number(n) < 0)
+            throw error()
+        skipRows[c] = Number(n)
+    }
+    return { skipRows }
+}
+
+// Advanced search page: body.page = { limit, skip, skipRows } - in the body, the query string carries the searched fields.
 // skip: a number (every collection) or { <collection>: n } (the `next` of the previous page).
 // Without it: the first queryOptions.advancedSearchMaxResults results of each collection (see service.mongoQuery).
 function advancedSearchPage(body) {
@@ -50,12 +66,12 @@ function advancedSearchPage(body) {
                 throw error()
             skip[c] = Number(n)
         }
-        return { limit, skip }
+        return { limit, skip, ...skipRowsOf(body.page.skipRows, error) }
     }
     const skip = raw === undefined ? 0 : Number(raw)
     if (!validSkip(skip))
         throw error()
-    return { limit, skip }
+    return { limit, skip, ...skipRowsOf(body.page.skipRows, error) }
 }
 
 const queryMongo = async (req, res) => {
@@ -80,15 +96,18 @@ const queryMongo = async (req, res) => {
     const warnings = []
     let page, collections
     try {
+        if (isTrue(req.query.unwrap))
+            pathSegments(req.query.unwrapPath) // a bad path: 400 before the search
         page = advancedSearchPage(req.body)
         collections = parseCollections(req.body.collections) // in the body too: the query string has the fields
     }
     catch (error) {
         return res.status(400).send(error.message)
     }
-    // ?unwrap=true (&unwrapOnlyArrayOfObjects=true): the arrays of the results unwrapped (services/unwrap.js). Options,
+    // ?unwrap=true (&unwrapOnlyArrayOfObjects=true, &unwrapPath=data.items): the arrays of the results unwrapped
+    // (services/unwrap.js; unwrapPath: another level than the top of the documents). Options,
     // not fields: taken out of the query string (the fields of the body stay as they are)
-    const { unwrap, unwrapOnlyArrayOfObjects, ...queryFields } = req.query
+    const { unwrap, unwrapOnlyArrayOfObjects, unwrapPath, ...queryFields } = req.query
     // "JSON" file type: the fields at the top level or in the rows of JSON arrays (one query: it used to be two
     // queries whose results were concatenated, so a document matching both came twice)
     const query = req.query.format == "JSON"
@@ -99,9 +118,19 @@ const queryMongo = async (req, res) => {
         // the searched fields: read operators only (no $where, $expr, ...), see queryGuards
         const { format, ...fields } = query
         checkFilter(fields, 0, "query")
-        result = await service.mongoQuery(query, req.body.prefix, req.body.bucketName, req.headers.visibility, page, warnings, collections)
-        if (isTrue(unwrap))
-            result = unwrapAnswer(result, { onlyArrayOfObjects: isTrue(unwrapOnlyArrayOfObjects) })
+        if (isTrue(unwrap)) {
+            // the limits apply to the unwrapped results: the documents of each collection (with _collection) unwrapped,
+            // then cut at the limit of the page (or at advancedSearchMaxResults), see services/unwrap
+            const options = { onlyArrayOfObjects: isTrue(unwrapOnlyArrayOfObjects), path: unwrapPath }
+            const searched = (collections || defaultCollections()).filter(c => storedCollections().includes(c))
+            const documents = await service.mongoQuery(query, req.body.prefix, req.body.bucketName, req.headers.visibility, page && { limit: page.limit, skip: page.skip }, warnings, searched)
+            result = page ? unwrapPage(documents, page, searched, options) : unwrapCapped(documents, service.ADVANCED_SEARCH_MAX(), searched, options, warnings)
+            if (!collections) // older clients: the results as they were, without _collection
+                for (const row of page ? result.results : result)
+                    delete row._collection
+        }
+        else
+            result = await service.mongoQuery(query, req.body.prefix, req.body.bucketName, req.headers.visibility, page, warnings, collections)
     }
     catch (error) {
         logger.error(error)

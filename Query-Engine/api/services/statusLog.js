@@ -1,7 +1,8 @@
-// GET /api/statuslog: the failed HTTP requests of the Source-Connector (collection "statuslog", written by its
-// utils/requestLog.js), newest first.
+// GET /api/statuslog: the HTTP requests of the Source-Connector, failed and successful (collection "statuslog",
+// written by its utils/requestLog.js), newest first.
 //   from / to   createdAt from / to (ISO dates; a date alone, YYYY-MM-DD, is that whole day for `to`)
 //   url         part of the url (case insensitive), looked for in url and fullUrl
+//   outcome     error / success (records saved before the successes were logged have no outcome: errors)
 //   limit, skip a page (limit 1-1000); without limit: every matching record
 // Answer { items, total, masked }. Unless req.adminView (auth.adminView: a token with one of authConfig.adminRoles),
 // the credentials are hidden ("<masked>"; the keys stay): every value of the request headers, and the values of the
@@ -22,6 +23,7 @@ const { timeLimit, httpStatus } = require("./queryGuards")
 
 const MASK = "<masked>"
 const MAX_LIMIT = 1000
+const OUTCOMES = ["error", "success"]
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
@@ -49,6 +51,11 @@ function filterOf(query) {
             throw badRequest("url must be a text")
         const part = { $regex: escapeRegex(query.url), $options: "i" }
         filter.$or = [{ url: part }, { fullUrl: part }]
+    }
+    if (query.outcome !== undefined && query.outcome !== "") {
+        if (!OUTCOMES.includes(query.outcome))
+            throw badRequest(`outcome must be one of ${OUTCOMES.join(", ")}`)
+        filter.outcome = query.outcome == "success" ? "success" : { $ne: "success" }
     }
     return filter
 }
@@ -198,7 +205,7 @@ async function listIgnored(adminView) {
 function urlOf(body) {
     const url = body?.url
     if (typeof url != "string" || !url.trim())
-        throw badRequest("url is required (the url of the failed requests, as in their url field)")
+        throw badRequest("url is required (the url of the requests, as in their url field)")
     return url
 }
 
