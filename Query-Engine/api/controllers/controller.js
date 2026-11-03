@@ -17,6 +17,7 @@ function suggestionsPage(query) {
     return { limit, skip }
 }
 const isTrue = value => value === "true" || value === true
+const { unwrapAnswer } = require("../services/unwrap")
 const { checkFilter, httpStatus } = require('../services/queryGuards')
 
 // format of the suggestions: the Advanced search file type (JSON / CSV / GeoJSON, any case), or object (no file
@@ -85,17 +86,22 @@ const queryMongo = async (req, res) => {
     catch (error) {
         return res.status(400).send(error.message)
     }
+    // ?unwrap=true (&unwrapOnlyArrayOfObjects=true): the arrays of the results unwrapped (services/unwrap.js). Options,
+    // not fields: taken out of the query string (the fields of the body stay as they are)
+    const { unwrap, unwrapOnlyArrayOfObjects, ...queryFields } = req.query
     // "JSON" file type: the fields at the top level or in the rows of JSON arrays (one query: it used to be two
     // queries whose results were concatenated, so a document matching both came twice)
     const query = req.query.format == "JSON"
-        ? { ...JSON.parse(JSON.stringify(req.body.mongoQuery || req.query)), format: "json+object" }
-        : { ...req.body.mongoQuery, ...req.query }
+        ? { ...JSON.parse(JSON.stringify(req.body.mongoQuery || queryFields)), format: "json+object" }
+        : { ...req.body.mongoQuery, ...queryFields }
     let result
     try {
         // the searched fields: read operators only (no $where, $expr, ...), see queryGuards
         const { format, ...fields } = query
         checkFilter(fields, 0, "query")
         result = await service.mongoQuery(query, req.body.prefix, req.body.bucketName, req.headers.visibility, page, warnings, collections)
+        if (isTrue(unwrap))
+            result = unwrapAnswer(result, { onlyArrayOfObjects: isTrue(unwrapOnlyArrayOfObjects) })
     }
     catch (error) {
         logger.error(error)

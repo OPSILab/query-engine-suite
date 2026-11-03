@@ -795,3 +795,53 @@ describe('ready searches (config.json "presetSearches")', () => {
     expect(comp.presetSearches).toEqual([{ label: 'ok', filters: [{ key: 'k', value: '' }] }]);
   });
 });
+
+describe('unwrap (Advanced search)', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+  const queryParams = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query'))
+    .map(r => [r.options.params.get('unwrap'), r.options.params.get('unwrapOnlyArrayOfObjects')]);
+
+  it('unwrap=true (and unwrapOnlyArrayOfObjects=true) in the query string, "Load more results" included', async () => {
+    const { comp, http } = create({ backend: { query: (_f, body) => ({ results: [], hasMore: body.page.skip === 0, next: { api: 50 } }) } });
+    comp.lines = [{ key: 'city', value: 'Rome', type: 'String' }];
+    comp.minioQuery(false);
+    await flush();
+    comp.toggleUnwrap();
+    comp.minioQuery(false);
+    await flush();
+    comp.toggleUnwrapOnlyArrayOfObjects();
+    comp.minioQuery(false);
+    await flush();
+    comp.toggleUnwrap(); // off: the second option is not sent either
+    comp.loadMoreResults(); // the next page of the query on screen: with its options
+    await flush();
+    expect(queryParams(http.requests)).toEqual([[null, null], ['true', null], ['true', 'true'], ['true', 'true']]);
+    comp.minioQuery(false);
+    await flush();
+    expect(queryParams(http.requests).pop()).toEqual([null, null]);
+  });
+
+  it('only in Advanced search; the generated snippet has it too', () => {
+    const { comp } = create();
+    comp.toggleUnwrap();
+    expect(comp.unwrapOptions).toEqual({ unwrap: true, onlyArrayOfObjects: false });
+    comp.setMode('Query SQL');
+    expect(comp.unwrapOptions).toBeUndefined();
+    comp.setMode('Advanced search');
+    comp.snippetLang = 'curl';
+    comp.refreshSnippet();
+    expect(comp.snippetCode).toContain('unwrap=true');
+  });
+
+  it('an unwrapped result: named after its document and its array, without the MinIO metadata of the document', async () => {
+    const { comp } = create({ backend: { query: () => [
+      { city: 'Rome', unWrappedFrom: 'json', '../name': 'public-a.json', '../record': { bucketName: 'public-data' }, _collection: 'minio' },
+      { value: 'Lovech', unWrappedFrom: 'dimensions', '../_id': 'd1' },
+    ] } });
+    comp.lines = [{ key: 'city', value: 'Rome', type: 'String' }];
+    comp.minioQuery(false);
+    await flush();
+    expect(comp.extractedElements.map(e => e.name)).toEqual(['public-a.json › json', 'd1 › dimensions']);
+    expect(comp.extractedElements[0].element).toEqual({ city: 'Rome', unWrappedFrom: 'json', '../name': 'public-a.json' });
+  });
+});

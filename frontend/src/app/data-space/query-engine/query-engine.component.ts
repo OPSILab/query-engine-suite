@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input
 import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
-import { BeopenAPIService, CollectionInfo, QueryWarning, ResultsPage, SuggestionsPage } from '../../services/be-open.service';
+import { BeopenAPIService, UnwrapOptions, CollectionInfo, QueryWarning, ResultsPage, SuggestionsPage } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
 import { UntypedFormGroup, UntypedFormControl } from '@angular/forms';
@@ -98,7 +98,27 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   hasMoreResults = false;
   @Output() hasMoreResultsChange = new EventEmitter<boolean>();
   // next: the skip of each collection with more results (the answer's `next`); collections: those searched
-  private resultsRequest?: { mongoQuery: any; type: string; visibility: string; kind: 'query' | 'all'; page: ResultsPage; collections?: string[]; next?: Record<string, number> };
+  private resultsRequest?: { mongoQuery: any; type: string; visibility: string; kind: 'query' | 'all'; page: ResultsPage; collections?: string[]; next?: Record<string, number>; unwrap?: UnwrapOptions };
+
+  // Advanced search: the arrays of the results unwrapped by the Query-Engine (one result per element, see
+  // UnwrapOptions); onlyArrayOfObjects: the arrays of values left as they are
+  unwrap = false;
+  unwrapOnlyArrayOfObjects = false;
+
+  /** The unwrap options of a request (Advanced search only). */
+  get unwrapOptions(): UnwrapOptions | undefined {
+    return this.mode === "Advanced search" && this.unwrap ? { unwrap: true, onlyArrayOfObjects: this.unwrapOnlyArrayOfObjects } : undefined;
+  }
+
+  toggleUnwrap(): void {
+    this.unwrap = !this.unwrap;
+    this.refreshSnippet();
+  }
+
+  toggleUnwrapOnlyArrayOfObjects(): void {
+    this.unwrapOnlyArrayOfObjects = !this.unwrapOnlyArrayOfObjects;
+    this.refreshSnippet();
+  }
 
   // ---- Collections searched: one per Source-Connector connector (api: Sources, orion: Datapoints, minio: Files).
   // The Query-Engine says which ones exist (GET /api/collections), the labels come from config.json
@@ -529,8 +549,9 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     const kind = all ? 'all' : 'query';
     const page = this.mode === "Advanced search" ? { limit: this.beopenAPI.advancedSearchPageSize(), skip: 0 } : undefined;
     const collections = this.collectionsFor();
-    this.pendingQuery = this.track(kind, this.beopenAPI.minioQuery(this.mode, this.searchValue(all), mongoQuery, this.sqlQuery, this.visibility, this.type, page, collections)).subscribe(queryResult => {
-      this.resultsRequest = page ? { mongoQuery, type: this.type, visibility: this.visibility, kind, page, collections, next: queryResult?.next } : undefined;
+    const unwrap = this.unwrapOptions;
+    this.pendingQuery = this.track(kind, this.beopenAPI.minioQuery(this.mode, this.searchValue(all), mongoQuery, this.sqlQuery, this.visibility, this.type, page, collections, unwrap)).subscribe(queryResult => {
+      this.resultsRequest = page ? { mongoQuery, type: this.type, visibility: this.visibility, kind, page, collections, next: queryResult?.next, unwrap } : undefined;
       this.showQueryResult(queryResult, false);
     }, err => {
       console.error("Query error", err);
@@ -554,7 +575,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       ? { limit: request.page.limit, skip: next }
       : { limit: request.page.limit, skip: (typeof request.page.skip === 'number' ? request.page.skip : 0) + request.page.limit };
     const collections = next ? Object.keys(next) : request.collections;
-    this.pendingQuery = this.track('more', this.beopenAPI.minioQuery("Advanced search", "", request.mongoQuery, "", request.visibility, request.type, page, collections)).subscribe(queryResult => {
+    this.pendingQuery = this.track('more', this.beopenAPI.minioQuery("Advanced search", "", request.mongoQuery, "", request.visibility, request.type, page, collections, request.unwrap)).subscribe(queryResult => {
       if (this.resultsRequest !== request) return; // a new query was sent meanwhile
       request.page = page;
       request.next = queryResult?.next;
@@ -611,7 +632,8 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
         // `record` for those (as this used to) showed the metadata and never
         // the data itself.
         // `_collection`: the collection of an Advanced search result (shown as a label, not as data)
-        const { record: _meta, _collection, ...ownData } = obj;
+        // an unwrapped result (?unwrap=true): "../record" is the MinIO metadata of its document, like `record`
+        const { record: _meta, _collection, '../record': _parentMeta, ...ownData } = obj;
         delete obj._collection;
         const collection = typeof _collection === 'string' ? this.beopenAPI.collectionLabel(_collection) : undefined;
         obj.objectPath = record.name;
@@ -666,7 +688,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
           const rawData = obj.raw !== undefined
             ? obj.raw
             : (Object.keys(ownData).length ? ownData.json || ownData.csv || ownData : record);
-          this.extractedElements.push({ name: record._id || obj.name || record.name || "?", element: rawData, collection });
+          // an unwrapped result: named after its document and the array it comes from
+          const name = typeof obj.unWrappedFrom === 'string'
+            ? `${obj['../name'] ?? obj['../_id'] ?? '?'} › ${obj.unWrappedFrom}`
+            : record._id || obj.name || record.name || "?";
+          this.extractedElements.push({ name, element: rawData, collection });
         }
       } catch (itemErr) {
         skipped++;
@@ -737,7 +763,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
       return this.beopenAPI.buildGraphqlRequest(this.graphqlText, this.visibility);
     const all = (this.mode === "Advanced search" || this.mode === "Simple search") && this.snippetFindAll;
     const page = this.mode === "Advanced search" ? { limit: this.beopenAPI.advancedSearchPageSize(), skip: 0 } : undefined;
-    return this.beopenAPI.buildQueryRequest(this.mode, this.searchValue(all), this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type, page, this.collectionsFor());
+    return this.beopenAPI.buildQueryRequest(this.mode, this.searchValue(all), this.buildMongoQuery(all), this.sqlQuery, this.visibility, this.type, page, this.collectionsFor(), this.unwrapOptions);
   }
 
   /** Simple search text: none for "Find all" (the backend then returns everything the user may see). */

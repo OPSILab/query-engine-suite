@@ -152,5 +152,9 @@
   "Ignored urls not shown": "{{count}} url ignorati non mostrati",
   "Status log action error": "Non è stato possibile salvare la modifica.",
   "Ignored in config": "config",
-  "Ignored in config info": "Ignorato nella configurazione del Query-Engine (statusLog.ignoredUrls): per mostrarne di nuovo i fallimenti, toglilo da lì."
+  "Ignored in config info": "Ignorato nella configurazione del Query-Engine (statusLog.ignoredUrls): per mostrarne di nuovo i fallimenti, toglilo da lì.",
+  "Unwrap": "Srotola",
+  "Unwrap info": "Ogni array dei risultati diventa un risultato per elemento (le righe di un file JSON o CSV, le feature di un GeoJSON...): i suoi campi, unWrappedFrom (l'array) e gli altri campi del documento come ../<campo>. Solo gli array al primo livello; con \"Solo array di oggetti\" gli array di valori restano come sono.",
+  "Unwrap arrays": "Srotola gli array",
+  "Only arrays of objects": "Solo array di oggetti"
 }

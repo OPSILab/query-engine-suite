@@ -56,8 +56,8 @@ beforeEach(() => {
 })
 
 // as the frontend sends it: the fields in the body and in the query string (with the file type as format)
-async function search(mongoQuery, { format, page, collections, visibility = "public", token } = {}) {
-    const params = new URLSearchParams({ ...(format ? { format } : {}), ...Object.fromEntries(Object.entries(mongoQuery).map(([k, v]) => [k, typeof v == "string" ? v : JSON.stringify(v)])) })
+async function search(mongoQuery, { format, page, collections, visibility = "public", token, query = {} } = {}) {
+    const params = new URLSearchParams({ ...(format ? { format } : {}), ...Object.fromEntries(Object.entries(mongoQuery).map(([k, v]) => [k, typeof v == "string" ? v : JSON.stringify(v)])), ...query })
     const res = await fetch(`${baseUrl}/query?${params}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", visibility, ...(token ? { Authorization: "Bearer " + token } : {}) },
@@ -124,6 +124,37 @@ describe("file types", () => {
     test("MinIO results carry fileName / path / fileType", async () => {
         const [doc] = (await search({ city: "Rome" }, { format: "CSV" })).body
         assert.deepEqual([doc.fileName, doc.path, doc.fileType], [undefined, "public.csv", "csv"])
+    })
+})
+
+describe("unwrap", () => {
+    test("?unwrap=true: the rows of the JSON arrays one by one, with the document's fields as ../<field>", async () => {
+        const { body } = await search({ city: "Rome" }, { format: "JSON", collections: ["minio"], query: { unwrap: "true" } })
+        const rows = body.filter(item => item["../name"] == "public-a.json")
+        const pick = row => ({ city: row.city, n: row.n, unWrappedFrom: row.unWrappedFrom, record: row["../record"], path: row["../path"], _collection: row._collection })
+        assert.deepEqual(rows.map(pick), [
+            { city: "Rome", n: 1, unWrappedFrom: "json", record: { bucketName: "public-data" }, path: "public-a.json", _collection: "minio" },
+            { city: "Oslo", n: undefined, unWrappedFrom: "json", record: { bucketName: "public-data" }, path: "public-a.json", _collection: "minio" }
+        ])
+        assert.ok(rows.every(row => !("json" in row) && !("../json" in row))) // the array itself is not repeated
+        // a document without arrays: as it is
+        assert.ok(body.some(item => item.name == "bob@demetrix.it/data model mapper/b.json" && !item.unWrappedFrom))
+    })
+
+    test("arrays of values too, unless unwrapOnlyArrayOfObjects=true", async () => {
+        const unwrapped = (await search({ dimensions: "Lovech" }, { ...ALL, query: { unwrap: "true" } })).body
+        assert.deepEqual(unwrapped.map(item => [item.value, item.unWrappedFrom, item["../name"]]),
+            [["Lovech", "dimensions", "Datapoint"], ["Euro per inhabitant", "dimensions", "Datapoint"], ["2020", "dimensions", "Datapoint"]])
+        const onlyObjects = (await search({ dimensions: "Lovech" }, { ...ALL, query: { unwrap: "true", unwrapOnlyArrayOfObjects: "true" } })).body
+        assert.deepEqual(onlyObjects.map(item => [item.name, item.unWrappedFrom]), [["Datapoint", undefined]])
+    })
+
+    test("the options are not fields of the search; a page is unwrapped, still counted in documents", async () => {
+        assert.equal((await search({ kind: "item" }, { collections: ["api"], query: { unwrap: "false" } })).body.length, 7)
+        const { body } = await search({ city: "Rome" }, { format: "JSON", collections: ["minio"], page: { limit: 1, skip: 0 }, query: { unwrap: "true" } })
+        assert.equal(body.hasMore, true) // one document per page: its rows
+        assert.equal(new Set(body.results.map(row => row["../name"])).size, 1)
+        assert.ok(body.results.every(item => item.unWrappedFrom == "json"))
     })
 })
 

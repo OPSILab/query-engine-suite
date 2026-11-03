@@ -309,3 +309,15 @@ describe('status log ignored urls', () => {
     ]);
   });
 });
+
+describe('buildQueryRequest: unwrap', () => {
+  it('Advanced search: unwrap / unwrapOnlyArrayOfObjects after the fields (they win over a field of the same name)', () => {
+    const { api } = service();
+    expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome', unwrap: 'x' }, '', 'public', 'JSON', undefined, undefined, { unwrap: true, onlyArrayOfObjects: true })!.params)
+      .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true', unwrapOnlyArrayOfObjects: 'true' });
+    expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: true })!.params)
+      .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true' });
+    expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: false, onlyArrayOfObjects: true })!.params)
+      .toEqual({ format: 'JSON', city: 'Rome' });
+  });
+});

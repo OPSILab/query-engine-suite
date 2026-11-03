@@ -44,6 +44,16 @@ export const ADVANCED_SEARCH_PAGE_SIZE = 50;
  * A page of results: { limit, skip } in the request, { results, hasMore, next } in the response. The limit applies
  * to each collection; skip is a number (every collection) or the `next` of the previous page ({ <collection>: n }).
  */
+/**
+ * Advanced search: the arrays of the results unwrapped by the Query-Engine (?unwrap=true): one result per element,
+ * with unWrappedFrom (the array) and the other fields of the document as "../<field>". onlyArrayOfObjects
+ * (?unwrapOnlyArrayOfObjects=true): only the arrays of objects, the arrays of values stay fields.
+ */
+export interface UnwrapOptions {
+  unwrap: boolean;
+  onlyArrayOfObjects?: boolean;
+}
+
 export interface ResultsPage {
   limit: number;
   skip: number | Record<string, number>;
@@ -213,9 +223,10 @@ export class BeopenAPIService {
     visibility: string,
     type: string,
     page?: ResultsPage,
-    collections?: string[]
+    collections?: string[],
+    unwrap?: UnwrapOptions
   ): Observable<any> {
-    const request = this.buildQueryRequest(mode, value, mongoQuery, sqlQuery, visibility, type, page, collections);
+    const request = this.buildQueryRequest(mode, value, mongoQuery, sqlQuery, visibility, type, page, collections, unwrap);
     return request ? this.send(request) : undefined;
   }
 
@@ -224,6 +235,7 @@ export class BeopenAPIService {
    * "Generate curl / fetch / axios" dialog turns it into code, so the two always match.
    * Advanced search with a page: the response is { results, hasMore, skip, limit, next } instead of the list.
    * collections: the collections searched by Advanced / Simple search (undefined: all of them).
+   * unwrap: Advanced search only, options in the query string (after the fields: they win over a field of the same name).
    */
   public buildQueryRequest(
     mode: string,
@@ -233,7 +245,8 @@ export class BeopenAPIService {
     visibility: string,
     type: string,
     page?: ResultsPage,
-    collections?: string[]
+    collections?: string[],
+    unwrap?: UnwrapOptions
   ): QueryRequest | undefined {
     const url = `${this.queryEngineBaseUrl}/api/query`;
     switch (mode) {
@@ -241,6 +254,10 @@ export class BeopenAPIService {
         const params: Record<string, string> = {};
         if (type !== undefined && type !== null) params["format"] = String(type);
         for (let key in mongoQuery) params[key] = String(mongoQuery[key] ?? "");
+        if (unwrap?.unwrap) {
+          params["unwrap"] = "true";
+          if (unwrap.onlyArrayOfObjects) params["unwrapOnlyArrayOfObjects"] = "true";
+        }
         return { method: "POST", url, params, headers: { visibility }, body: { mongoQuery, ...(page ? { page } : {}), ...(collections ? { collections } : {}) } };
       }
       case "Query SQL":
