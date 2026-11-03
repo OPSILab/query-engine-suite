@@ -12,9 +12,12 @@
 // not changed.
 //
 // Ignored urls (collection "statuslogignored", POST / DELETE /api/statuslog/ignored, admins only; and
-// statusLog.ignoredUrls in the config, fixed: not restored by DELETE): without a url filter, the records whose url is
-// one of them are left out (the date filters do not bring them back); with a url filter they are listed too, with
-// ignored: true. GET /api/statuslog/ignored: the list, those of the config first (fromConfig: true), urls masked as
+// statusLog.ignoredUrls / statusLog.ignoredPrefixes in the config, fixed: not restored by DELETE): an exact url, or a
+// prefix (match: "prefix"; not "prefix": auth sets body.prefix) - the urls that begin with it, e.g. "https://dx-lab.eng.it/" for the whole domain (a prefix
+// ending with "/" also covers the url without it: "https://dx-lab.eng.it"). Compared with the url field of the
+// records (case sensitive). Without a url filter, the records whose url is ignored are left out (the date filters do
+// not bring them back); with a url filter they are listed too, with ignored: true (and ignoredPrefix: the prefix, if
+// that is why). GET /api/statuslog/ignored: the list, those of the config first (fromConfig: true), urls masked as
 // above for non admins.
 const config = require("../../config")
 const StatusLog = require("../models/StatusLog")
@@ -154,48 +157,77 @@ function masked(item) {
     return out
 }
 
-// statusLog.ignoredUrls of the config: the strings, once each
-function configIgnored() {
-    const urls = config.statusLog?.ignoredUrls
-    return Array.isArray(urls) ? [...new Set(urls.filter(url => typeof url == "string" && url.trim()))] : []
+// A prefix: at least the scheme and the host ("https://dx-lab.eng.it"), so that it cannot hide every record
+const VALID_PREFIX = /^[a-z][a-z0-9+.-]*:\/\/[^/?#\s]+/i
+const validPrefix = prefix => typeof prefix == "string" && VALID_PREFIX.test(prefix)
+
+const strings = list => Array.isArray(list) ? [...new Set(list.filter(url => typeof url == "string" && url.trim()))] : []
+
+// statusLog.ignoredUrls / ignoredPrefixes of the config: the strings, once each (prefixes without scheme and host:
+// left out)
+const configIgnored = () => strings(config.statusLog?.ignoredUrls)
+const configPrefixes = () => strings(config.statusLog?.ignoredPrefixes).filter(validPrefix)
+const fromConfig = (url, prefix) => (prefix ? configPrefixes() : configIgnored()).includes(url)
+
+// The saved ones: { url } exact, { url, match: "prefix" } prefixes
+const isPrefix = doc => doc.match === "prefix"
+const kindFilter = (url, prefix) => prefix ? { url, match: "prefix" } : { url, match: { $ne: "prefix" } }
+
+// Every ignored url and prefix (config and saved)
+async function ignoredRules() {
+    const saved = (await StatusLogIgnored.collection.find({}, timeLimit()).toArray()).filter(doc => typeof doc.url == "string")
+    return {
+        exact: [...new Set([...configIgnored(), ...saved.filter(doc => !isPrefix(doc)).map(doc => doc.url)])],
+        prefixes: [...new Set([...configPrefixes(), ...saved.filter(isPrefix).map(doc => doc.url).filter(validPrefix)])]
+    }
 }
 
-async function ignoredUrls() {
-    const saved = (await StatusLogIgnored.collection.find({}, timeLimit()).toArray()).map(doc => doc.url).filter(url => typeof url == "string")
-    return [...new Set([...configIgnored(), ...saved])]
+// The urls that begin with one of the prefixes (or equal one ending with "/" without it)
+function prefixRegex(prefixes) {
+    const alternatives = prefixes.flatMap(prefix => [escapeRegex(prefix),
+        ...(prefix.endsWith("/") ? [escapeRegex(prefix.slice(0, -1)) + "$"] : [])])
+    return new RegExp("^(?:" + alternatives.join("|") + ")")
 }
+
+// The prefix that ignores a url, if any (the longest)
+const prefixOf = (url, prefixes) => typeof url != "string" ? undefined :
+    prefixes.filter(prefix => url.startsWith(prefix) || (prefix.endsWith("/") && url === prefix.slice(0, -1))).sort((a, b) => b.length - a.length)[0]
 
 async function list(query, adminView) {
     const filter = filterOf(query)
     const page = pageOf(query)
-    const ignored = await ignoredUrls()
+    const { exact, prefixes } = await ignoredRules()
     const urlFilter = filter.$or !== undefined
-    if (!urlFilter && ignored.length)
-        filter.url = { $nin: ignored }
+    if (!urlFilter && (exact.length || prefixes.length))
+        filter.url = { ...(exact.length ? { $nin: exact } : {}), ...(prefixes.length ? { $not: prefixRegex(prefixes) } : {}) }
     let cursor = StatusLog.collection.find(filter, timeLimit()).sort({ createdAt: -1, _id: -1 })
     if (page)
         cursor = cursor.skip(page.skip).limit(page.limit)
     const [items, total] = await Promise.all([cursor.toArray(), StatusLog.collection.countDocuments(filter, timeLimit())])
-    const ignoredSet = new Set(ignored)
-    for (const item of items)
-        if (ignoredSet.has(item.url))
+    const ignoredSet = new Set(exact)
+    for (const item of items) {
+        const prefix = prefixOf(item.url, prefixes)
+        if (ignoredSet.has(item.url) || prefix)
             item.ignored = true
+        if (prefix && !ignoredSet.has(item.url))
+            item.ignoredPrefix = prefix
+    }
     return {
         items: adminView ? items : items.map(masked),
         total,
         masked: !adminView,
-        // ignored urls left out of this answer (none with a url filter)
-        ignoredExcluded: urlFilter ? 0 : ignored.length
+        // ignored urls and prefixes left out of this answer (none with a url filter)
+        ignoredExcluded: urlFilter ? 0 : exact.length + prefixes.length
     }
 }
 
-// The ignored urls: those of the config, then the others oldest first (an url in both: as in the config)
+// The ignored urls and prefixes: those of the config (urls, then prefixes), then the others oldest first (in both: as
+// in the config)
 async function listIgnored(adminView) {
-    const fromConfig = configIgnored()
     const docs = (await StatusLogIgnored.collection.find({}, timeLimit()).sort({ createdAt: 1, _id: 1 }).toArray())
-        .filter(doc => !fromConfig.includes(doc.url))
+        .filter(doc => typeof doc.url == "string" && !fromConfig(doc.url, isPrefix(doc)) && (!isPrefix(doc) || validPrefix(doc.url)))
         .map(({ _id, ...doc }) => doc)
-    const urls = [...fromConfig.map(url => ({ url, fromConfig: true })), ...docs]
+    const urls = [...configIgnored().map(url => ({ url, fromConfig: true })), ...configPrefixes().map(url => ({ url, match: "prefix", fromConfig: true })), ...docs]
     return {
         urls: urls.map(doc => adminView ? doc : { ...doc, url: maskUrl(doc.url), ...(doc.by ? { by: MASK } : {}) }),
         masked: !adminView
@@ -207,6 +239,17 @@ function urlOf(body) {
     if (typeof url != "string" || !url.trim())
         throw badRequest("url is required (the url of the requests, as in their url field)")
     return url
+}
+
+// match: "prefix" / "exact" (default), in the body or the query string
+function ruleOf(source) {
+    const url = urlOf(source)
+    if (source.match !== undefined && source.match !== "prefix" && source.match !== "exact")
+        throw badRequest("match must be exact or prefix")
+    const prefix = source.match === "prefix"
+    if (prefix && !validPrefix(url))
+        throw badRequest("A prefix must have at least the scheme and the host, e.g. https://dx-lab.eng.it/")
+    return { url, prefix }
 }
 
 // Who asked (the e-mail of the token, if any)
@@ -221,16 +264,18 @@ function requester(req) {
     }
 }
 
-async function ignore(url, by) {
-    if (configIgnored().includes(url))
+async function ignore(url, by, prefix = false) {
+    if (fromConfig(url, prefix))
         return // already, in the config
-    await StatusLogIgnored.collection.updateOne({ url }, { $setOnInsert: { url, createdAt: new Date(), ...(by ? { by } : {}) } }, { upsert: true })
+    if (await StatusLogIgnored.collection.countDocuments(kindFilter(url, prefix)))
+        return // already
+    await StatusLogIgnored.collection.insertOne({ url, ...(prefix ? { match: "prefix" } : {}), createdAt: new Date(), ...(by ? { by } : {}) })
 }
 
-async function restore(url) {
-    if (configIgnored().includes(url))
-        throw Object.assign(new Error("This url is ignored in the configuration of the Query-Engine (statusLog.ignoredUrls): remove it there"), { status: 409 })
-    await StatusLogIgnored.collection.deleteMany({ url })
+async function restore(url, prefix = false) {
+    if (fromConfig(url, prefix))
+        throw Object.assign(new Error(`This ${prefix ? "prefix" : "url"} is ignored in the configuration of the Query-Engine (statusLog.${prefix ? "ignoredPrefixes" : "ignoredUrls"}): remove it there`), { status: 409 })
+    await StatusLogIgnored.collection.deleteMany(kindFilter(url, prefix))
 }
 
 const handle = action => async (req, res) => {
@@ -257,14 +302,16 @@ module.exports = {
     endpoint: handle(req => list(req.query, req.adminView === true)),
     // GET /api/statuslog/ignored (adminView)
     ignoredEndpoint: handle(req => listIgnored(req.adminView === true)),
-    // POST /api/statuslog/ignored { url } (auth, adminOnly): the list after the change
+    // POST /api/statuslog/ignored { url, match: "prefix" | "exact" } (auth, adminOnly): the list after the change
     ignoreEndpoint: handle(async req => {
-        await ignore(urlOf(req.body), requester(req))
+        const { url, prefix } = ruleOf(req.body)
+        await ignore(url, requester(req), prefix)
         return listIgnored(true)
     }),
-    // DELETE /api/statuslog/ignored?url= (auth, adminOnly): the list after the change
+    // DELETE /api/statuslog/ignored?url=&match=prefix (auth, adminOnly): the list after the change
     restoreEndpoint: handle(async req => {
-        await restore(urlOf(req.query))
+        const { url, prefix } = ruleOf(req.query)
+        await restore(url, prefix)
         return listIgnored(true)
     })
 }

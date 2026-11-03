@@ -132,15 +132,21 @@ export interface StatusLogRecord {
   expiresAt?: string;
   /** Its url is ignored (listed only because of a url filter). */
   ignored?: boolean;
+  /** Ignored because its url begins with this prefix (not as an exact url). */
+  ignoredPrefix?: string;
 }
 
-/** An url whose failed requests the status log leaves out unless filtered by url. */
+export type StatusLogIgnoreMatch = 'exact' | 'prefix';
+
+/** An url (or a prefix: the urls that begin with it) whose requests the status log leaves out unless filtered by url. */
 export interface StatusLogIgnoredUrl {
   url: string;
+  /** "prefix": every url that begins with `url`; none: that url only. */
+  match?: 'prefix';
   createdAt?: string;
   /** Who ignored it ("<masked>" for non administrators). */
   by?: string;
-  /** In the Query-Engine config (statusLog.ignoredUrls): not restored from here. */
+  /** In the Query-Engine config (statusLog.ignoredUrls / ignoredPrefixes): not restored from here. */
   fromConfig?: boolean;
 }
 
@@ -323,15 +329,18 @@ export class BeopenAPIService {
       .then(res => (Array.isArray(res?.urls) ? res.urls : []));
   }
 
-  /** Ignores the failed requests of `url` (administrators only); the ignored urls after the change. */
-  ignoreStatusLogUrl(url: string): Promise<StatusLogIgnoredUrl[]> {
-    return firstValueFrom(this.http.post<{ urls: StatusLogIgnoredUrl[] }>(`${this.queryEngineBaseUrl}/api/statuslog/ignored`, { url }))
+  /** Ignores the requests of `url` (match "prefix": of every url that begins with it) (administrators only); the
+   *  ignored urls after the change. */
+  ignoreStatusLogUrl(url: string, match: StatusLogIgnoreMatch = 'exact'): Promise<StatusLogIgnoredUrl[]> {
+    const body = match === 'prefix' ? { url, match } : { url };
+    return firstValueFrom(this.http.post<{ urls: StatusLogIgnoredUrl[] }>(`${this.queryEngineBaseUrl}/api/statuslog/ignored`, body))
       .then(res => (Array.isArray(res?.urls) ? res.urls : []));
   }
 
-  /** Lists the failed requests of `url` again (administrators only); the ignored urls after the change. */
-  restoreStatusLogUrl(url: string): Promise<StatusLogIgnoredUrl[]> {
-    return firstValueFrom(this.http.delete<{ urls: StatusLogIgnoredUrl[] }>(`${this.queryEngineBaseUrl}/api/statuslog/ignored`, { params: { url } }))
+  /** Lists the requests of `url` (or of the prefix) again (administrators only); the ignored urls after the change. */
+  restoreStatusLogUrl(url: string, match: StatusLogIgnoreMatch = 'exact'): Promise<StatusLogIgnoredUrl[]> {
+    const params: Record<string, string> = match === 'prefix' ? { url, match } : { url };
+    return firstValueFrom(this.http.delete<{ urls: StatusLogIgnoredUrl[] }>(`${this.queryEngineBaseUrl}/api/statuslog/ignored`, { params }))
       .then(res => (Array.isArray(res?.urls) ? res.urls : []));
   }
 

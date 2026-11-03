@@ -181,8 +181,8 @@ describe("credentials in params, urls, body and response", () => {
 
 describe("ignored urls", () => {
     const IGNORED = "https://api.example.org/records"
-    const ignore = (url, token, headers = {}) => fetch(`${baseUrl}/statuslog/ignored`, {
-        method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}), ...headers }, body: JSON.stringify({ url })
+    const ignore = (url, token, headers = {}, match) => fetch(`${baseUrl}/statuslog/ignored`, {
+        method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}), ...headers }, body: JSON.stringify({ url, match })
     })
     const restore = (url, token, headers = {}) => fetch(`${baseUrl}/statuslog/ignored?${new URLSearchParams({ url })}`, {
         method: "DELETE", headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...headers }
@@ -239,6 +239,56 @@ describe("ignored urls", () => {
         const { body } = await statusLog()
         assert.deepEqual([urls(body), body.ignoredExcluded], [["https://API.example.org/records/7"], 2])
         assert.deepEqual(urls((await statusLog({ url: "orion" })).body), [ORION])
+    })
+
+    test("a prefix: every url that begins with it (and the url without the final /), marked with it when filtered by url", async () => {
+        const PREFIX = "https://api.example.org/"
+        const prefixRequest = (method, prefix, token) => fetch(`${baseUrl}/statuslog/ignored` + (method == "DELETE" ? `?${new URLSearchParams({ url: prefix, match: "prefix" })}` : ""), {
+            method, headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, ...(method == "POST" ? { body: JSON.stringify({ url: prefix, match: "prefix" }) } : {})
+        })
+        // at least scheme and host
+        for (const bad of ["https://", "api.example.org/", "h"])
+            assert.equal((await prefixRequest("POST", bad, userToken())).status, 400, bad)
+        const res = await prefixRequest("POST", PREFIX, userToken())
+        assert.equal(res.status, 200)
+        assert.deepEqual((await res.json()).urls.map(doc => [doc.url, doc.match === "prefix"]), [[IGNORED, false], [PREFIX, true]])
+        await prefixRequest("POST", PREFIX, userToken()) // twice: still once
+        assert.equal((await ignore(PREFIX + "x", userToken(), {}, "regex")).status, 400) // match: exact / prefix only
+        const extra = { createdAt: new Date("2026-10-25T09:00:00Z"), method: "GET", url: "https://api.example.org", fullUrl: "https://api.example.org", status: 503 }
+        await StatusLog.collection.insertOne({ ...extra })
+        try {
+            config.authConfig.disableAuth = true
+            let { body } = await statusLog()
+            // "https://API.example.org/records/7": case sensitive, not ignored
+            assert.deepEqual([urls(body), body.ignoredExcluded], [["https://API.example.org/records/7", "https://orion.example/ngsi-ld/v1/entities"], 2])
+            body = (await statusLog({ url: "example.org" })).body
+            assert.deepEqual(body.items.map(item => [item.url, item.ignored === true, item.ignoredPrefix]),
+                [["https://API.example.org/records/7", false, undefined], ["https://api.example.org", true, PREFIX], [IGNORED, true, undefined]])
+            // the exact url restored: still left out by the prefix
+            config.authConfig.disableAuth = false
+            assert.equal((await restore(IGNORED, userToken())).status, 200)
+            assert.deepEqual((await ignoredList(userToken())).urls.map(doc => [doc.url, doc.match === "prefix"]), [[PREFIX, true]])
+            config.authConfig.disableAuth = true
+            assert.deepEqual(urls((await statusLog()).body), ["https://API.example.org/records/7", "https://orion.example/ngsi-ld/v1/entities"])
+            // the prefix restored (match=prefix: not the exact url)
+            config.authConfig.disableAuth = false
+            assert.equal((await prefixRequest("DELETE", PREFIX, userToken())).status, 200)
+            assert.deepEqual((await ignoredList(userToken())).urls, [])
+            assert.equal((await ignore(IGNORED, userToken())).status, 200) // as before, for the next test
+        }
+        finally {
+            await StatusLog.collection.deleteMany({ url: extra.url })
+        }
+    })
+
+    test("statusLog.ignoredPrefixes of the config: left out too, listed with the urls of the config, not restored from the API", async () => {
+        config.statusLog.ignoredPrefixes = ["https://orion.example/", "orion", 7]
+        const list = (await ignoredList(userToken())).urls
+        assert.deepEqual(list.map(doc => [doc.url, doc.match === "prefix", doc.fromConfig === true]), [["https://orion.example/", true, true], [IGNORED, false, false]])
+        const res = await fetch(`${baseUrl}/statuslog/ignored?${new URLSearchParams({ url: "https://orion.example/", match: "prefix" })}`, { method: "DELETE", headers: { Authorization: "Bearer " + userToken() } })
+        assert.equal(res.status, 409)
+        config.authConfig.disableAuth = true
+        assert.deepEqual(urls((await statusLog()).body), ["https://API.example.org/records/7"])
     })
 
     test("restored: listed again", async () => {

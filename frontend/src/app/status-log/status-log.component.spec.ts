@@ -142,6 +142,15 @@ describe('StatusLogComponent', () => {
     expect(success.map(p => [p.label, p.text])).toEqual([['URL', 'u'], ['Response', '200 OK'], ['Duration', '42 ms']]);
   });
 
+  it('statusLogSince of config.json: the valid days only; none: {}', () => {
+    expect(StatusLogComponent.sinceOf({ errors: '2026-11-02', successes: '2026-11-03' })).toEqual({ errors: '2026-11-02', successes: '2026-11-03' });
+    expect(StatusLogComponent.sinceOf({ errors: '2/11', successes: '2026-11-03' })).toEqual({ successes: '2026-11-03' });
+    expect(StatusLogComponent.sinceOf(null)).toEqual({});
+    expect(StatusLogComponent.sinceOf('2026-11-02')).toEqual({});
+    const { component } = create(() => page([]));
+    expect(component.since).toEqual({});
+  });
+
   it('login: back to this page afterwards', () => {
     const { component, navigated } = create(() => page([]), true);
     component.login();
@@ -196,5 +205,36 @@ describe('StatusLogComponent', () => {
     expect(component.isFromConfig('https://a.example')).toBe(true);
     expect(component.isFromConfig('https://b.example')).toBe(false);
     expect(component.isFromConfig(undefined)).toBe(false);
+    component.ignoredUrls = [{ url: 'https://a.example/', match: 'prefix', fromConfig: true }];
+    expect(component.isFromConfig('https://a.example/', 'prefix')).toBe(true);
+    expect(component.isFromConfig('https://a.example/')).toBe(false); // the same text as an exact url: not that one
+  });
+
+  it('prefixes: at least scheme and host; ignored and restored as prefixes; the form emptied after it', async () => {
+    const changes: any[] = [];
+    const { component, calls } = create(() => page([record(1)], 1, false));
+    Object.assign((component as any).api, {
+      ignoreStatusLogUrl: (url: string, match?: string) => { changes.push(['ignore', url, match]); return Promise.resolve([{ url, match: 'prefix' }]); },
+      restoreStatusLogUrl: (url: string, match?: string) => { changes.push(['restore', url, match]); return Promise.resolve([]); },
+    });
+    await component.search();
+    for (const bad of ['', 'dx-lab.eng.it', 'https://'])
+      await component.ignorePrefix(bad);
+    expect(component.prefixInvalid).toBe(true);
+    expect(changes).toEqual([]);
+    component.prefixInput = ' https://dx-lab.eng.it/ ';
+    await component.ignorePrefix(component.prefixInput);
+    expect(changes).toEqual([['ignore', 'https://dx-lab.eng.it/', 'prefix']]);
+    expect([component.prefixInvalid, component.prefixInput]).toEqual([false, '']);
+    expect(calls.length).toBe(2); // the first page again
+    await component.restore('https://dx-lab.eng.it/', 'prefix');
+    expect(changes[1]).toEqual(['restore', 'https://dx-lab.eng.it/', 'prefix']);
+  });
+
+  it('the domain of a request as a prefix', () => {
+    expect(StatusLogComponent.domainPrefix('https://dx-lab.eng.it/api/v1/x?y=1')).toBe('https://dx-lab.eng.it/');
+    expect(StatusLogComponent.domainPrefix('http://localhost:5500/api/map')).toBe('http://localhost:5500/');
+    expect(StatusLogComponent.domainPrefix('/relative')).toBeUndefined();
+    expect(StatusLogComponent.domainPrefix(undefined)).toBeUndefined();
   });
 });

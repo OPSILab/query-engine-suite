@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { BeopenAPIService, StatusLogFilters, StatusLogIgnoredUrl, StatusLogOutcome, StatusLogRecord } from '../services/be-open.service';
+import { BeopenAPIService, StatusLogFilters, StatusLogIgnoreMatch, StatusLogIgnoredUrl, StatusLogOutcome, StatusLogRecord } from '../services/be-open.service';
 import { ConfigService } from '../services/config.service';
 import { saveReturnUrl } from '../auth/services/return-url';
 
@@ -19,9 +19,13 @@ export interface StatusLogDetail {
  * duration. The header values come hidden ("<masked>") unless the user is
  * an administrator (Query-Engine authConfig.adminRoles): the page says so, and offers the login when there is one.
  * No AuthGuard: readable without logging in (hidden values).
+ * A note says that the list is not every request: the successes are deleted after the retention period of the
+ * Source-Connector (statusLog.successRetentionDays), the errors are kept; with config.json "statusLogSince"
+ * ({ "errors": "YYYY-MM-DD", "successes": "YYYY-MM-DD" }) also since when each kind is collected.
  * Administrators (the answers are not masked) can ignore the url of a request: without a url filter its requests are
  * left out (the count says how many ignored urls), with one they are listed, marked; the ignored urls are listed
- * above, each one with the button to list its failures again.
+ * above, each one with the button to list its requests again. They can also ignore a prefix (every url that begins
+ * with it, e.g. a whole domain: the form of the list, or "Ignore domain" in the detail of a request).
  */
 @Component({
   selector: 'app-status-log',
@@ -56,7 +60,12 @@ export class StatusLogComponent implements OnInit {
   /** The url being ignored / restored. */
   busyUrl: string | null = null;
   actionError = false;
+  /** The prefix to ignore (form of the ignored urls). */
+  prefixInput = '';
+  prefixInvalid = false;
   readonly authEnabled: boolean;
+  /** Since when the failed / successful requests are collected (config.json "statusLogSince"), if configured. */
+  readonly since: { errors?: string; successes?: string };
 
   private applied: StatusLogFilters = {};
   private request = 0; // the answers of a request replaced by a newer one are dropped
@@ -65,6 +74,18 @@ export class StatusLogComponent implements OnInit {
 
   constructor(private api: BeopenAPIService, configService: ConfigService, private router?: Router) {
     this.authEnabled = !!configService.getSettings('enableAuthentication', false);
+    this.since = StatusLogComponent.sinceOf(configService.getSettings('statusLogSince', null));
+  }
+
+  /** The valid days (YYYY-MM-DD) of config.json "statusLogSince"; the rest left out. */
+  static sinceOf(value: any): { errors?: string; successes?: string } {
+    const since: { errors?: string; successes?: string } = {};
+    const day = (text: any) => typeof text === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(text) && !isNaN(new Date(text).getTime()) ? text : undefined;
+    if (value && typeof value === 'object') {
+      if (day(value.errors)) since.errors = value.errors;
+      if (day(value.successes)) since.successes = value.successes;
+    }
+    return since;
   }
 
   ngOnInit(): void {
@@ -90,8 +111,12 @@ export class StatusLogComponent implements OnInit {
   }
 
   /** Ignored in the Query-Engine config: restored only there. */
-  isFromConfig(url: string | undefined): boolean {
-    return this.ignoredUrls.some(ignored => ignored.fromConfig && ignored.url === url);
+  isFromConfig(url: string | undefined, match: StatusLogIgnoreMatch = 'exact'): boolean {
+    return this.ignoredUrls.some(ignored => ignored.fromConfig && ignored.url === url && StatusLogComponent.matchOf(ignored) === match);
+  }
+
+  static matchOf(ignored: StatusLogIgnoredUrl): StatusLogIgnoreMatch {
+    return ignored.match === 'prefix' ? 'prefix' : 'exact';
   }
 
   /** Ignores the url of a request, then the first page again (with the same filters). */
@@ -100,10 +125,39 @@ export class StatusLogComponent implements OnInit {
     return this.change(item.url, url => this.api.ignoreStatusLogUrl(url));
   }
 
-  /** Lists the requests of an ignored url again. */
-  restore(url: string | undefined, event?: Event): Promise<void> {
+  /** Ignores every url that begins with `prefix` (at least scheme and host, as the Query-Engine wants). */
+  ignorePrefix(prefix: string | undefined): Promise<void> {
+    const value = prefix?.trim() ?? '';
+    this.prefixInvalid = !StatusLogComponent.validPrefix(value);
+    if (this.prefixInvalid) return Promise.resolve();
+    return this.change(value, url => this.api.ignoreStatusLogUrl(url, 'prefix')).then(() => {
+      if (!this.actionError && value === this.prefixInput.trim()) this.prefixInput = '';
+    });
+  }
+
+  /** Lists the requests of an ignored url (or prefix) again. */
+  restore(url: string | undefined, match: StatusLogIgnoreMatch = 'exact', event?: Event): Promise<void> {
     event?.stopPropagation();
-    return this.change(url, u => this.api.restoreStatusLogUrl(u));
+    return this.change(url, u => this.api.restoreStatusLogUrl(u, match));
+  }
+
+  domainOf(url: string | undefined): string | undefined {
+    return StatusLogComponent.domainPrefix(url);
+  }
+
+  /** The prefix of the whole domain of a request ("https://dx-lab.eng.it/"), if its url has one. */
+  static domainPrefix(url: string | undefined): string | undefined {
+    try {
+      const origin = url ? new URL(url).origin : undefined;
+      return origin && origin !== 'null' ? origin + '/' : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** At least the scheme and the host: "https://dx-lab.eng.it". */
+  static validPrefix(prefix: string): boolean {
+    return /^[a-z][a-z0-9+.-]*:\/\/[^/?#\s]+/i.test(prefix);
   }
 
   private async change(url: string | undefined, action: (url: string) => Promise<StatusLogIgnoredUrl[]>): Promise<void> {

@@ -120,11 +120,13 @@ module.exports = {
     minio: { mongo: "minio", toMongo: true, toPostgres: true }
   },
   // GET /api/statuslog (the requests of the Source-Connector, failed and successful): the urls whose requests are left
-  // out unless filtered by url, besides those ignored from the frontend (collection statuslogignored). Exact values of the
-  // `url` field of the records (the url without the query params added by the connector); they cannot be restored
-  // from the frontend: remove them here.
+  // out unless filtered by url, besides those ignored from the frontend (collection statuslogignored). Compared with
+  // the `url` field of the records (the url without the query params added by the connector), case sensitive:
+  // ignoredUrls exact values, ignoredPrefixes the beginning (at least scheme and host, e.g. "https://dx-lab.eng.it/"
+  // for the whole domain). They cannot be restored from the frontend: remove them here.
   statusLog: {
-    ignoredUrls: []
+    ignoredUrls: [],
+    ignoredPrefixes: []
   },
   // Simple search: besides the MinIO files, the APIs of apiConnectorConfig.apiUrls (same format as in the
   // Source-Connector config; an API with simpleSearch: false is skipped) and Orion are searched live.

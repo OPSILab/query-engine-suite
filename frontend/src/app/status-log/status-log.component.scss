@@ -84,6 +84,17 @@
   color: var(--ds-accent);
 }
 
+// the note on what the list holds: neutral, it is not about the user
+.sl-notice--info {
+  border-color: var(--ds-border);
+  background: transparent;
+  color: var(--ds-text-muted);
+}
+
+.sl-notice--info svg {
+  color: var(--ds-text-muted);
+}
+
 .sl-notice__login {
   margin-left: auto;
 }
@@ -195,6 +206,28 @@
   margin: 6px 0 8px;
   color: var(--ds-text-muted);
   font-size: calc(12px * var(--ds-font-scale));
+}
+
+.sl-prefix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.sl-prefix__field {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.sl-details__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 14px 0;
 }
 
 .sl-ignored__list {

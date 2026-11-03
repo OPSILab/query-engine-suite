@@ -42,6 +42,25 @@
       </div>
     </form>
 
+    <!-- not every request: the successes expire, and the collection started on some day -->
+    <div class="sl-notice sl-notice--info" role="note">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8h.01M11 12h1v5h1" />
+      </svg>
+      <span>
+        {{ 'Status log retention' | translate }}
+        @if (since.errors && since.successes) {
+        {{ 'Status log since' | translate: { errors: since.errors, successes: since.successes } }}
+        } @else if (since.errors) {
+        {{ 'Status log errors since' | translate: { errors: since.errors } }}
+        } @else if (since.successes) {
+        {{ 'Status log successes since' | translate: { successes: since.successes } }}
+        }
+      </span>
+    </div>
+
     @if (masked) {
     <div class="sl-notice" role="note">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -56,7 +75,7 @@
     </div>
     }
 
-    @if (ignoredUrls.length) {
+    @if (ignoredUrls.length || canManage) {
     <div class="sl-ignored">
       <button type="button" class="sl-ignored__toggle" (click)="ignoredOpen = !ignoredOpen" [attr.aria-expanded]="ignoredOpen">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -68,10 +87,28 @@
       </button>
       @if (ignoredOpen) {
       <p class="sl-ignored__info">{{ 'Ignored urls info' | translate }}</p>
+      @if (canManage) {
+      <!-- administrators: every url that begins with a prefix (e.g. a whole domain) -->
+      <form class="sl-prefix" (ngSubmit)="ignorePrefix(prefixInput)">
+        <label class="sl-prefix__field">
+          <span class="ds-field-label">{{ 'Ignore prefix label' | translate }}</span>
+          <input class="ds-input ds-mono" type="text" name="prefix" [(ngModel)]="prefixInput" (ngModelChange)="prefixInvalid = false"
+            placeholder="https://dx-lab.eng.it/" [attr.aria-invalid]="prefixInvalid" />
+        </label>
+        <button type="submit" class="ds-ghost-button" [disabled]="!!busyUrl || !prefixInput.trim()">{{ 'Ignore prefix' | translate }}</button>
+      </form>
+      @if (prefixInvalid) {
+      <p class="sl-message sl-message--error" role="alert">{{ 'Invalid prefix' | translate }}</p>
+      }
+      }
+      @if (ignoredUrls.length) {
       <ul class="sl-ignored__list">
         @for (ignored of ignoredUrls; track ignored.url) {
         <li class="sl-ignored__item">
           <span class="sl-ignored__url ds-mono" [title]="ignored.url">{{ ignored.url }}</span>
+          @if (ignored.match === 'prefix') {
+          <span class="sl-ignored__config" [title]="'Prefix info' | translate">{{ 'Prefix' | translate }}</span>
+          }
           @if (ignored.createdAt) {
           <span class="sl-ignored__meta">{{ ignored.createdAt | date: 'yyyy-MM-dd HH:mm' }}{{ ignored.by ? ' · ' + ignored.by : '' }}</span>
           }
@@ -79,11 +116,12 @@
           <span class="sl-ignored__config" [title]="'Ignored in config info' | translate">{{ 'Ignored in config' | translate }}</span>
           } @else if (canManage) {
           <button type="button" class="ds-ghost-button sl-ignored__restore" [disabled]="!!busyUrl"
-            (click)="restore(ignored.url)">{{ 'Restore url' | translate }}</button>
+            (click)="restore(ignored.url, ignored.match === 'prefix' ? 'prefix' : 'exact')">{{ 'Restore url' | translate }}</button>
           }
         </li>
         }
       </ul>
+      }
       }
     </div>
     }
@@ -118,7 +156,7 @@
           <span class="sl-url ds-mono" [title]="item.fullUrl || item.url">{{ item.fullUrl || item.url }}</span>
           <span class="sl-source">
             @if (item.ignored) {
-            <span class="sl-ignored-badge">{{ 'Ignored' | translate }}</span>
+            <span class="sl-ignored-badge" [title]="item.ignoredPrefix ? ('Ignored by prefix' | translate: { prefix: item.ignoredPrefix }) : ''">{{ 'Ignored' | translate }}</span>
             }
             {{ item.api || item.host }}
           </span>
@@ -128,11 +166,13 @@
             <path d="M6 9l6 6 6-6" />
           </svg>
         </button>
-        <!-- administrators: hide the requests of this url (or list them again) -->
-        @if (canManage && item.url && !isFromConfig(item.url)) {
+        <!-- administrators: hide the requests of this url (or list them again: its url, or the prefix that hides it) -->
+        @if (canManage && item.url && !(item.ignoredPrefix ? isFromConfig(item.ignoredPrefix, 'prefix') : isFromConfig(item.url))) {
         @if (item.ignored) {
-        <button type="button" class="sl-row__action" [disabled]="!!busyUrl" (click)="restore(item.url, $event)"
-          [title]="'Restore url' | translate" [attr.aria-label]="'Restore url' | translate">
+        <button type="button" class="sl-row__action" [disabled]="!!busyUrl"
+          (click)="item.ignoredPrefix ? restore(item.ignoredPrefix, 'prefix', $event) : restore(item.url, 'exact', $event)"
+          [title]="item.ignoredPrefix ? ('Restore prefix' | translate: { prefix: item.ignoredPrefix }) : ('Restore url' | translate)"
+          [attr.aria-label]="item.ignoredPrefix ? ('Restore prefix' | translate: { prefix: item.ignoredPrefix }) : ('Restore url' | translate)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
@@ -151,6 +191,13 @@
         }
         </div>
         @if (isOpen(item)) {
+        @if (canManage && !item.ignored && domainOf(item.url); as domain) {
+        <div class="sl-details__actions">
+          <button type="button" class="ds-ghost-button" [disabled]="!!busyUrl" (click)="ignorePrefix(domain)">
+            {{ 'Ignore domain' | translate: { domain: domain } }}
+          </button>
+        </div>
+        }
         <dl class="sl-details">
           @for (part of detailOf(item); track part.label) {
           <dt class="ds-field-label">{{ part.label | translate }}</dt>
