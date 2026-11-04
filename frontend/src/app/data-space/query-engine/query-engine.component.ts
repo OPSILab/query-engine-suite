@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
-import { Observable, Subscription, defer, finalize, firstValueFrom } from 'rxjs';
+import { Observable, Subscription, defer, finalize, firstValueFrom, take } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
 import { BeopenAPIService, UnwrapOptions, CollectionInfo, QueryWarning, ResultsPage, SuggestionsPage } from '../../services/be-open.service';
@@ -421,8 +421,23 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     return typeof key === "string" && this.keysWithValuesNotSuggested.has(key);
   }
 
+  /**
+   * The current user (beopenUser, email). config.json "userFromToken": true (a standalone frontend, without the
+   * dashboard): read from the access token of the login, no request - nobody logged in is not an error. Otherwise
+   * (default, next to the dashboard) GET {beopenApiBaseUrl}/api/user, a toast when it fails.
+   */
   getUser() {
-    this.beopenAPI.getUser().subscribe(
+    if (this.configService.getSettings('userFromToken', false)) {
+      this.nbAuth.getToken().pipe(take(1)).subscribe({
+        next: (token: any) => {
+          const user = QueryEngineComponent.userFromToken(token?.getPayload?.()?.access_token);
+          this.beopenUser = user as BeopenUser;
+          this.email = user?.email ?? null;
+        },
+        error: () => { /* no login: no user */ },
+      });
+    }
+    else this.beopenAPI.getUser().subscribe(
       (beopenUser) => {
         this.beopenUser = beopenUser;
         this.email = beopenUser.email;
@@ -439,6 +454,27 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
 
     if (this.userRoles.includes("admin")) {
       this.isAdmin = true;
+    }
+  }
+
+  /** The user in the claims of an access token (JWT); undefined without a readable token. */
+  static userFromToken(accessToken: any): Partial<BeopenUser> | undefined {
+    if (typeof accessToken !== 'string' || accessToken.split('.').length < 2) return undefined;
+    try {
+      const base64 = accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const json = decodeURIComponent(Array.from(atob(base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')),
+        c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
+      const claims = JSON.parse(json);
+      if (!claims || typeof claims !== 'object') return undefined;
+      return {
+        id: claims.sub,
+        username: claims.preferred_username ?? claims.username,
+        email: claims.email,
+        language: claims.locale,
+        pilot: claims.pilot,
+      };
+    } catch {
+      return undefined;
     }
   }
 

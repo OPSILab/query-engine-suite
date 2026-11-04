@@ -77,6 +77,31 @@ function create({ backend = {} as Backend, settings = {}, token = null as string
   return { comp, http, api, toast };
 }
 
+describe('the current user', () => {
+  const b64 = (o: any) => btoa(JSON.stringify(o)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const jwt = (claims: any) => b64({ alg: 'RS256' }) + '.' + b64(claims) + '.sig';
+
+  it('userFromToken: from the claims of the access token, no request to /api/user, no toast without login', async () => {
+    const { comp, http, toast } = create({ settings: { userFromToken: true }, token: jwt({ sub: 'u1', email: 'anna@demetrix.it', preferred_username: 'anna', locale: 'it' }) });
+    comp.getUser();
+    expect([comp.email, comp.beopenUser.username, comp.beopenUser.id]).toEqual(['anna@demetrix.it', 'anna', 'u1']);
+    expect(http.requests.some(r => /\/api\/user$/.test(r.url))).toBe(false);
+    const anonymous = create({ settings: { userFromToken: true }, token: null });
+    anonymous.comp.getUser();
+    expect([anonymous.comp.email, anonymous.comp.beopenUser]).toEqual([null, undefined]);
+    expect(anonymous.toast.show).not.toHaveBeenCalled();
+    expect(toast.show).not.toHaveBeenCalled();
+  });
+
+  it('userFromToken: unreadable tokens give no user; non ASCII claims decoded', () => {
+    for (const token of [undefined, '', 'abc', 'a.%%%.c', 'a.' + b64('x') + '.c'])
+      expect(QueryEngineComponent.userFromToken(token)).toBeUndefined();
+    const name = 'Nicolò';
+    const claims = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify({ preferred_username: name })))).replace(/=+$/, '');
+    expect(QueryEngineComponent.userFromToken('h.' + claims + '.s')?.username).toBe(name);
+  });
+});
+
 describe('startup', () => {
   const suggestionRequests = (requests: any[]) => requests.filter(r => /\/api\/(keys|values|entries)(\?|$)/.test(r.url))
     .map(r => [r.url.replace('http://qe/api/', ''), r.options.params.get('skip'), r.options.params.get('limit')]);

@@ -151,5 +151,6 @@
     "successes": "2026-11-03"
   },
   "authNotRequired": true,
-  "sourceConnectorBaseUrl" : "http://localhost:3000"
+  "sourceConnectorBaseUrl" : "http://localhost:3000",
+  "userFromToken": true
 }
