@@ -23,7 +23,8 @@ export interface CacheVersion {
  * The cache of the GraphQL datapoints queries of the Query-Engine (services/queryCache.js): versions per query, the
  * active one answered. Any logged user lists them, makes a backup (the active versions get its timestamp and are
  * kept), and chooses the active version (one, or all those of a backup); deleting a backup also needs the management
- * password.
+ * password. Deactivating the active versions (POST /minio/resetCache) needs one of authConfig.adminRoles of the
+ * Query-Engine (any logged user when it is empty).
  */
 @Injectable({ providedIn: 'root' })
 export class CacheAdminService {
@@ -44,6 +45,13 @@ export class CacheAdminService {
   backup(filter?: string): Promise<{ timestamp: number; queries: number }> {
     const params: Record<string, string> = filter ? { queriesMapFilter: filter } : {};
     return firstValueFrom(this.http.get<{ timestamp: number; queries: number }>(`${this.base}/backupCache`, { params }));
+  }
+
+  /** The active versions (of the queries matching `filter`) become previous: kept as history, the next request
+   *  computes the data again and writes a new active version. */
+  deactivate(filter?: string): Promise<{ reset: number }> {
+    const params: Record<string, string> = filter ? { queriesMapFilter: filter } : {};
+    return firstValueFrom(this.http.post<{ reset: number }>(`${this.base}/minio/resetCache`, {}, { params }));
   }
 
   /** The versions of a backup active again. */

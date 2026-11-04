@@ -249,5 +249,11 @@
   "Cache state active": "active",
   "Cache state previous": "previous",
   "Cache state building": "being written",
-  "Cache state deleting": "being deleted"
+  "Cache state deleting": "being deleted",
+  "Deactivate cache": "Deactivate active cache",
+  "Deactivate cache info": "The active versions (of the queries filtered) become previous: the next request computes the data again",
+  "Deactivate cache confirm all": "The active versions of every query become previous: the next requests compute the data again (slower) and write new versions. Nothing is deleted: they stay in the history and can be made active again. Continue?",
+  "Deactivate cache confirm filtered": "The active versions of the queries containing \"{{filter}}\" become previous: the next requests compute the data again (slower) and write new versions. Nothing is deleted: they stay in the history and can be made active again. Continue?",
+  "Deactivate": "Deactivate",
+  "Cache deactivated": "{{reset}} active versions deactivated: the next requests compute the data again."
 }

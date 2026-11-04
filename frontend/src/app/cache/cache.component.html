@@ -16,7 +16,18 @@
       <button type="submit" class="ds-primary-button" [disabled]="loading">{{ 'Apply filters' | translate }}</button>
       <button type="button" class="ds-ghost-button" [disabled]="busy" (click)="backup()"
         [title]="'Back up now info' | translate">{{ 'Back up now' | translate }}</button>
+      <button type="button" class="ds-ghost-button cache-danger" [disabled]="busy" (click)="askDeactivate()"
+        [attr.aria-pressed]="deactivating !== null" [title]="'Deactivate cache info' | translate">{{ 'Deactivate cache' | translate }}</button>
     </form>
+    @if (deactivating !== null) {
+    <div class="ap-notice ap-notice--warn cache-confirm" role="alertdialog" aria-labelledby="cache-deactivate-text">
+      <p id="cache-deactivate-text">{{ (deactivating ? 'Deactivate cache confirm filtered' : 'Deactivate cache confirm all') | translate: { filter: deactivating } }}</p>
+      <div class="ap-row">
+        <button type="button" class="ds-primary-button cache-danger-solid" [disabled]="busy" (click)="confirmDeactivate()">{{ 'Deactivate' | translate }}</button>
+        <button type="button" class="ds-ghost-button" (click)="cancelDeactivate()">{{ 'Cancel' | translate }}</button>
+      </div>
+    </div>
+    }
     @if (lastMessage) {
     <p class="ap-message" role="status">{{ lastMessage.key | translate: lastMessage.params }}</p>
     }

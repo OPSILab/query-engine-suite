@@ -11,6 +11,7 @@ function fakeApi(rows: any[]) {
     restoreBackup: async (ts: number) => { calls.push(['restoreBackup', ts]); return { restored: 1, alreadyActive: 1 }; },
     activate: async (id: string) => { calls.push(['activate', id]); return { restored: 1, alreadyActive: 0 }; },
     deleteBackup: async (ts: number, secret: string) => { calls.push(['deleteBackup', ts, secret]); return { released: 2 }; },
+    deactivate: async (filter?: string) => { calls.push(['deactivate', filter]); return { reset: 3 }; },
   };
   return { api, calls };
 }
@@ -42,6 +43,31 @@ describe('CacheComponent', () => {
     await component.activate(ROWS[0] as any);
     expect(calls).toEqual([['list', 'nama'], ['backup', 'nama'], ['list', 'nama'], ['restoreBackup', 100], ['list', 'nama'], ['activate', '{ q1 }1'], ['list', 'nama']]);
     expect(component.lastMessage).toEqual({ key: 'Cache version activated', params: { version: 1 } });
+  });
+
+  it('deactivating the active cache: after the confirmation, of the filtered queries or all; refused: the message', async () => {
+    const { api, calls } = fakeApi(ROWS);
+    const component = new CacheComponent(api);
+    component.askDeactivate();
+    expect(component.deactivating).toBe('');
+    component.cancelDeactivate();
+    await component.confirmDeactivate(); // cancelled: nothing
+    expect(calls).toEqual([]);
+    component.askDeactivate();
+    await component.confirmDeactivate();
+    expect(calls.slice(0, 1)).toEqual([['deactivate', undefined]]);
+    expect([component.deactivating, component.lastMessage]).toEqual([null, { key: 'Cache deactivated', params: { reset: 3 } }]);
+    component.filter = 'nama';
+    await component.search();
+    component.askDeactivate();
+    component.filter = 'other'; // typed but not applied: the confirmation keeps the applied filter
+    await component.confirmDeactivate();
+    expect(calls.filter(c => c[0] == 'deactivate')).toEqual([['deactivate', undefined], ['deactivate', 'nama']]);
+    api.deactivate = async () => { throw { status: 403, error: 'One of these roles is required: qe-admin' }; };
+    component.askDeactivate();
+    await component.confirmDeactivate();
+    expect(component.actionError).toBe('One of these roles is required: qe-admin');
+    expect(component.deactivating).toBe('nama');
   });
 
   it('deleting a backup: the confirmation, the password (not kept); refused: the message of the Query-Engine', async () => {

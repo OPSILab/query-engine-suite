@@ -22,6 +22,8 @@ export interface CacheBackup {
 /**
  * /cache (logged users only, LoggedInGuard): the cache of the GraphQL datapoints queries of the Query-Engine.
  *  - The queries with their versions (the active one is answered); any version can be made the active one.
+ *  - "Deactivate active cache": the active versions (of the filtered queries, or all) become previous - nothing is
+ *    deleted, the next request computes the data again; adminRoles of the Query-Engine needed, after a confirmation.
  *  - Backups: "Back up now" marks the active versions (kept until the backup is deleted); a backup can be made
  *    active again (all its versions), or deleted - with the management password (managementSecret of the
  *    Query-Engine, typed every time, never stored) and a confirmation.
@@ -45,6 +47,9 @@ export class CacheComponent implements OnInit {
   actionError: string | null = null;
   busy = false;
   readonly opened = new Set<string>();
+
+  /** Asking the confirmation of the deactivation; the filter it applies to ('' = every query). */
+  deactivating: string | null = null;
 
   // deleting a backup
   secret = '';
@@ -84,6 +89,26 @@ export class CacheComponent implements OnInit {
     return this.act(async () => {
       const { timestamp, queries } = await this.api.backup(this.applied || undefined);
       return { key: 'Cache backup done', params: { queries, timestamp: new Date(timestamp).toLocaleString() } };
+    });
+  }
+
+  /** First click: the confirmation (with the filter applied now). */
+  askDeactivate(): void {
+    this.deactivating = this.applied;
+    this.actionError = null;
+  }
+
+  cancelDeactivate(): void {
+    this.deactivating = null;
+  }
+
+  confirmDeactivate(): Promise<void> {
+    const filter = this.deactivating;
+    if (filter === null) return Promise.resolve();
+    return this.act(async () => {
+      const { reset } = await this.api.deactivate(filter || undefined);
+      this.deactivating = null;
+      return { key: 'Cache deactivated', params: { reset } };
     });
   }
 
