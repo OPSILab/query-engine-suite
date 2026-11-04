@@ -219,12 +219,21 @@ async function activate(row) {
 }
 
 // timestamp: the versions of that backup. version = "previous": per query, the newest version older than the
-// active one (or the newest one, if there is no active version).
-async function restoreCache(queriesMapFilter, cacheFilter, timestamp, version) {
+// active one (or the newest one, if there is no active version). id: that version (the _id listed by listCache),
+// active for its query.
+async function restoreCache(queriesMapFilter, cacheFilter, timestamp, version, id) {
     await ensureIndexes()
     const filter = rowsFilter(queriesMapFilter, cacheFilter)
     let chosen = []
-    if (timestamp !== undefined && timestamp !== null && timestamp !== "") {
+    if (id !== undefined && id !== null && id !== "") {
+        if (typeof id != "string" || !mongoose.Types.ObjectId.isValid(id))
+            throw Object.assign(new Error("id must be the id of a version (listCache)"), { status: 400 })
+        const row = await rows().findOne({ _id: new mongoose.Types.ObjectId(id), state: { $in: ["active", "previous"] } })
+        if (!row)
+            throw Object.assign(new Error("No version with this id (it may have been deleted)"), { status: 404 })
+        chosen = [row]
+    }
+    else if (timestamp !== undefined && timestamp !== null && timestamp !== "") {
         const ts = Number(timestamp)
         if (!Number.isFinite(ts))
             throw Object.assign(new Error("timestamp must be a number (returned by backupCache)"), { status: 400 })
@@ -244,7 +253,7 @@ async function restoreCache(queriesMapFilter, cacheFilter, timestamp, version) {
         }
     }
     else
-        throw Object.assign(new Error("Missing timestamp (or version=previous)"), { status: 400 })
+        throw Object.assign(new Error("Missing id, timestamp or version=previous"), { status: 400 })
     let restored = 0
     for (const row of chosen)
         if (await activate(row))

@@ -1,0 +1,152 @@
+<app-layout>
+<ng-container ngProjectAs="[topbar]">
+  <app-theme-picker></app-theme-picker>
+  <app-auth-link></app-auth-link>
+</ng-container>
+
+<div class="ds-page">
+  <section class="ap-panel">
+    <h1 class="ap-title">{{ 'Cache' | translate }}</h1>
+    <p class="ap-subtitle">{{ 'Cache info' | translate }}</p>
+    <form class="ap-row cache-filter" (ngSubmit)="search()">
+      <label class="ap-field cache-filter__field">
+        <span class="ds-field-label">{{ 'Filter queries' | translate }}</span>
+        <input class="ds-input ds-mono" type="search" name="filter" [(ngModel)]="filter" [placeholder]="'Part of the query' | translate" />
+      </label>
+      <button type="submit" class="ds-primary-button" [disabled]="loading">{{ 'Apply filters' | translate }}</button>
+      <button type="button" class="ds-ghost-button" [disabled]="busy" (click)="backup()"
+        [title]="'Back up now info' | translate">{{ 'Back up now' | translate }}</button>
+    </form>
+    @if (lastMessage) {
+    <p class="ap-message" role="status">{{ lastMessage.key | translate: lastMessage.params }}</p>
+    }
+    @if (actionError) {
+    <p class="ap-message ap-message--error" role="alert">{{ actionError }}</p>
+    }
+  </section>
+
+  @if (error) {
+  <p class="ap-message ap-message--error" role="alert">{{ error }}</p>
+  }
+
+  <!-- backups: active again, or deleted with the management password -->
+  <section class="ap-card">
+    <h2 class="ap-card__title">{{ 'Backups' | translate }}</h2>
+    <p class="ap-card__info">{{ 'Backups info' | translate }}</p>
+    @if (!backups.length) {
+    <p class="ap-message">{{ (loading ? 'Loading' : 'No backups') | translate }}</p>
+    } @else {
+    <div class="ap-table-wrap">
+      <table class="ap-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'When' | translate }}</th>
+            <th scope="col">{{ 'Queries' | translate }}</th>
+            <th scope="col">{{ 'State' | translate }}</th>
+            <th scope="col"><span class="ap-sr-only">{{ 'Actions' | translate }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (b of backups; track b.timestamp) {
+          <tr>
+            <td class="ap-nowrap">{{ b.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td>{{ b.queries }}</td>
+            <td>
+              @if (b.active) {
+              <span class="ap-badge ap-badge--ok">{{ 'Active' | translate }}</span>
+              } @else {
+              <span class="ap-badge ap-badge--muted">{{ 'Not active' | translate }}</span>
+              }
+            </td>
+            <td class="cache-actions">
+              <button type="button" class="ds-ghost-button" [disabled]="busy || b.active" (click)="restoreBackup(b)">{{ 'Make active' | translate }}</button>
+              <button type="button" class="ds-ghost-button cache-danger" [disabled]="busy" [attr.aria-pressed]="deleting === b.timestamp" (click)="askDelete(b)">{{ 'Delete' | translate }}</button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (deleting !== null) {
+    <form class="ap-notice ap-notice--warn cache-confirm" (ngSubmit)="confirmDelete()" autocomplete="off" role="alertdialog"
+      aria-labelledby="cache-confirm-text">
+      <p id="cache-confirm-text">{{ 'Delete backup confirm' | translate: { when: (deleting | date: 'yyyy-MM-dd HH:mm:ss') } }}</p>
+      <div class="ap-row">
+        <label class="ap-field">
+          <span class="ds-field-label">{{ 'Management password' | translate }}</span>
+          <input class="ds-input" type="password" name="secret" [(ngModel)]="secret" autocomplete="new-password" />
+        </label>
+        <button type="submit" class="ds-primary-button cache-danger-solid" [disabled]="busy || !secret">{{ 'Delete backup' | translate }}</button>
+        <button type="button" class="ds-ghost-button" (click)="cancelDelete()">{{ 'Cancel' | translate }}</button>
+      </div>
+    </form>
+    }
+    }
+  </section>
+
+  <!-- the queries and their versions: any version can be the active one -->
+  <section class="ap-card" [class.cache-stale]="loading">
+    <h2 class="ap-card__title">{{ 'Cached queries' | translate }} <span class="ap-muted">({{ queries.length }})</span></h2>
+    <p class="ap-card__info">{{ 'Cached queries info' | translate }}</p>
+    @if (!queries.length && !loading) {
+    <p class="ap-message">{{ 'No cached queries' | translate }}</p>
+    }
+    <div class="cache-list">
+      @for (q of queries; track q.query) {
+      <div class="cache-query" [class.cache-query--open]="opened.has(q.query)">
+        <button type="button" class="cache-query__head" (click)="toggle(q.query)" [attr.aria-expanded]="opened.has(q.query)">
+          <span class="cache-query__label ds-mono" [title]="q.query">{{ q.label }}</span>
+          <span class="ap-muted ap-nowrap">
+            @if (q.active) {
+            v{{ q.active.version }} · {{ q.active.count ?? '-' }} {{ 'datapoints' | translate }}
+            } @else {
+            {{ 'No active version' | translate }}
+            }
+            · {{ q.versions.length }} {{ 'versions' | translate }}
+          </span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true"><path [attr.d]="opened.has(q.query) ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'" /></svg>
+        </button>
+        @if (opened.has(q.query)) {
+        <pre class="ap-pre ds-mono">{{ q.query }}</pre>
+        <div class="ap-table-wrap">
+          <table class="ap-table">
+            <thead>
+              <tr>
+                <th scope="col">{{ 'Version' | translate }}</th>
+                <th scope="col">{{ 'State' | translate }}</th>
+                <th scope="col">{{ 'Datapoints' | translate }}</th>
+                <th scope="col">{{ 'Created' | translate }}</th>
+                <th scope="col">{{ 'Backups' | translate }}</th>
+                <th scope="col"><span class="ap-sr-only">{{ 'Actions' | translate }}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (v of q.versions; track v._id) {
+              <tr>
+                <td>v{{ v.version }}</td>
+                <td><span class="ap-badge" [class.ap-badge--ok]="v.state === 'active'" [class.ap-badge--muted]="v.state !== 'active'">{{ ('Cache state ' + v.state) | translate }}</span></td>
+                <td>{{ v.count ?? '-' }}</td>
+                <td class="ap-nowrap">{{ v.createdAt | date: 'yyyy-MM-dd HH:mm' }}</td>
+                <td class="ap-nowrap">
+                  @for (ts of v.backups || []; track ts) {
+                  <div>{{ ts | date: 'yyyy-MM-dd HH:mm' }}</div>
+                  }
+                </td>
+                <td>
+                  @if (v.state === 'previous') {
+                  <button type="button" class="ds-ghost-button" [disabled]="busy" (click)="activate(v)">{{ 'Make active' | translate }}</button>
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+      </div>
+      }
+    </div>
+  </section>
+</div>
+</app-layout>

@@ -9,7 +9,8 @@ const { auth } = load("api/middlewares/auth.js")
 const CLIENT = "query-engine"
 
 function fakeRes() {
-    const res = { statusCode: undefined, body: undefined }
+    const res = { statusCode: undefined, body: undefined, headers: {} }
+    res.set = (name, value) => { res.headers[name.toLowerCase()] = value; return res }
     res.status = code => { res.statusCode = code; return res }
     res.send = body => { res.body = body; return res }
     res.sendStatus = code => { res.statusCode = code; return res }
@@ -52,10 +53,11 @@ describe("authentication disabled", () => {
 })
 
 describe("authentication enabled", () => {
-    test("401 without a token", async () => {
+    test("401 without a token, with WWW-Authenticate: Bearer", async () => {
         const { res, next } = await run()
         assert.equal(next, false)
         assert.equal(res.statusCode, 401)
+        assert.equal(res.headers["www-authenticate"], "Bearer")
     })
 
     test("401 for GraphQL without a token", async () => {
@@ -76,23 +78,29 @@ describe("authentication enabled", () => {
         assert.equal(next, true)
     })
 
-    test("403: expired, other client, malformed", async () => {
-        for (const headers of [
-            bearer(makeToken({ azp: CLIENT }, { expiresIn: -60 })),
-            bearer(makeToken({ azp: "another-client" })),
-            bearer("not.a.jwt")
+    test("401 invalid_token (RFC 6750): expired, other client, malformed, signed with another key", async () => {
+        for (const [headers, reason] of [
+            [bearer(makeToken({ azp: CLIENT }, { expiresIn: -60 })), /jwt expired/],
+            [bearer(makeToken({ azp: "another-client" })), /not issued for this client/],
+            [bearer("not.a.jwt"), /invalid token|jwt malformed/],
+            [bearer(makeToken({ azp: CLIENT }, { key: otherPrivateKey })), /invalid signature/]
         ]) {
             const { res, next } = await run({ headers })
             assert.equal(next, false)
-            assert.equal(res.statusCode, 403)
+            assert.equal(res.statusCode, 401, String(reason))
+            assert.match(res.headers["www-authenticate"], /^Bearer error="invalid_token", error_description="/)
+            assert.match(res.headers["www-authenticate"], reason)
         }
     })
 
-    test("a token signed with another key is rejected", async () => {
-        const { res, next } = await run({ headers: bearer(makeToken({ azp: CLIENT }, { key: otherPrivateKey })) })
-        assert.equal(next, false)
-        // "invalid signature" currently answers 500 (only invalid/expired/malformed answer 403)
-        assert.ok([403, 500].includes(res.statusCode))
+    test("publicKeys: an expired token is 401 at once; a token no key validates is 401", async () => {
+        config.authConfig.publicKeys = ["-----BEGIN PUBLIC KEY-----\nnot a key\n-----END PUBLIC KEY-----", publicKey]
+        let { res } = await run({ headers: bearer(makeToken({ azp: CLIENT }, { expiresIn: -60 })) })
+        assert.equal(res.statusCode, 401)
+        config.authConfig.publicKeys = [publicKey]
+        res = (await run({ headers: bearer(makeToken({ azp: CLIENT }, { key: otherPrivateKey })) })).res
+        assert.equal(res.statusCode, 401)
+        assert.match(res.headers["www-authenticate"], /invalid signature/)
     })
 
     test("publicKeys: any of the configured keys validates the token", async () => {

@@ -8,6 +8,9 @@ import { AuthCallbackComponent } from './auth/callback/auth-callback.component';
 import { AuthLogoutComponent } from './auth/logout/auth-logout.component';
 import { AuthGuard } from './auth/services/auth.guard';
 import { StatusLogComponent } from './status-log/status-log.component';
+import { LoggedInGuard } from './auth/services/logged-in.guard';
+import { SourceConnectorComponent } from './source-connector/source-connector.component';
+import { CacheComponent } from './cache/cache.component';
 
 export const routes: Routes = [
   {
@@ -20,6 +23,17 @@ export const routes: Routes = [
   {
     path: 'status-log',
     component: StatusLogComponent,
+  },
+  // Logged users only (hidden from the menu otherwise): the management of the Source-Connector and of the cache
+  {
+    path: 'source-connector',
+    component: SourceConnectorComponent,
+    canActivate: [LoggedInGuard],
+  },
+  {
+    path: 'cache',
+    component: CacheComponent,
+    canActivate: [LoggedInGuard],
   },
   {
     path: 'keycloak-auth',

@@ -1,0 +1,183 @@
+<app-layout>
+<ng-container ngProjectAs="[topbar]">
+  <app-theme-picker></app-theme-picker>
+  <app-auth-link></app-auth-link>
+</ng-container>
+
+<div class="ds-page">
+  <section class="ap-panel">
+    <h1 class="ap-title">{{ 'Source connector' | translate }}</h1>
+    <p class="ap-subtitle">{{ 'Source connector info' | translate }}</p>
+    @if (!configured) {
+    <p class="ap-notice ap-notice--warn" role="note">{{ 'Source connector not configured' | translate }}</p>
+    }
+  </section>
+
+  @if (configured) {
+  <!-- keys, values and entries rebuilt from the stored records -->
+  <section class="ap-card" [attr.aria-busy]="!!rebuild?.running">
+    <h2 class="ap-card__title">{{ 'Rebuild entries' | translate }}</h2>
+    <p class="ap-card__info">{{ 'Rebuild entries info' | translate }}</p>
+    <div class="ap-row">
+      <div class="ap-field">
+        <span class="ds-field-label" id="sc-connector-label">{{ 'Connector' | translate }}</span>
+        <div class="ds-pills sc-pills" role="group" aria-labelledby="sc-connector-label">
+          @for (c of connectors; track c.value) {
+          <button type="button" class="ds-pill" [class.ds-pill--active]="connector === c.value" [attr.aria-pressed]="connector === c.value"
+            (click)="connector = c.value">{{ c.label | translate }}</button>
+          }
+        </div>
+      </div>
+      <button type="button" class="ds-primary-button" [disabled]="busy || rebuildStarting" (click)="startRebuild()">
+        {{ 'Start rebuild' | translate }}
+      </button>
+    </div>
+    @if (rebuildError) {
+    <p class="ap-message ap-message--error" role="alert">{{ rebuildError }}</p>
+    }
+    @if (rebuild?.running) {
+    <p class="ap-message"><span class="ap-badge">{{ 'Running' | translate }}</span>
+      {{ 'Started at' | translate }} {{ rebuild?.startedAt | date: 'yyyy-MM-dd HH:mm:ss' }}
+      · {{ rebuild?.connector || ('All connectors' | translate) }}</p>
+    } @else if (rebuild?.startedAt) {
+    <p class="ap-message">
+      @if (rebuild?.error) {
+      <span class="ap-badge ap-badge--error">{{ 'Failed' | translate }}</span>
+      } @else {
+      <span class="ap-badge ap-badge--ok">{{ 'Done' | translate }}</span>
+      }
+      {{ 'Last rebuild' | translate }}: {{ rebuild?.startedAt | date: 'yyyy-MM-dd HH:mm:ss' }} → {{ rebuild?.finishedAt | date: 'HH:mm:ss' }}
+      · {{ rebuild?.mode }} · {{ rebuild?.connector || ('All connectors' | translate) }}
+    </p>
+    @if (rebuild?.error) {
+    <p class="ap-message ap-message--error">{{ rebuild?.error }}</p>
+    } @else if (rebuild?.result) {
+    <details>
+      <summary class="ap-message">{{ 'Result' | translate }}</summary>
+      <pre class="ap-pre ds-mono">{{ pretty(rebuild?.result) }}</pre>
+    </details>
+    }
+    }
+  </section>
+
+  <!-- the incremental APIs from scratch: destructive, with the management password -->
+  <section class="ap-card" [attr.aria-busy]="!!reset?.running">
+    <h2 class="ap-card__title">{{ 'Incremental reset' | translate }}</h2>
+    <p class="ap-card__info">{{ 'Incremental reset info' | translate }}</p>
+    @if (!secretConfigured) {
+    <p class="ap-notice ap-notice--warn" role="note">{{ 'Incremental reset disabled' | translate }}</p>
+    }
+    @if (apisError) {
+    <p class="ap-message ap-message--error" role="alert">{{ apisError }}</p>
+    } @else if (!apis.length) {
+    <p class="ap-message">{{ 'No incremental APIs' | translate }}</p>
+    } @else {
+    <div class="ap-table-wrap">
+      <table class="ap-table">
+        <thead>
+          <tr>
+            <th scope="col"><span class="ap-sr-only">{{ 'Select' | translate }}</span></th>
+            <th scope="col">API</th>
+            <th scope="col">URL</th>
+            <th scope="col">{{ 'Records' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of apis; track a.name) {
+          <tr>
+            <td><input type="checkbox" [checked]="selected.has(a.name)" (change)="toggleApi(a.name)" [attr.aria-label]="a.name"
+              [disabled]="!secretConfigured" /></td>
+            <td class="ap-nowrap">{{ a.name }}</td>
+            <td class="ds-mono sc-url" [title]="a.url">{{ a.url }}</td>
+            <td class="ap-nowrap">{{ counts(a.records) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+    @if (secretConfigured && apis.length) {
+    <form class="ap-row sc-reset" (ngSubmit)="askReset()" autocomplete="off">
+      <label class="ap-field">
+        <span class="ds-field-label">{{ 'Management password' | translate }}</span>
+        <input class="ds-input" type="password" name="secret" [(ngModel)]="secret" (ngModelChange)="confirming = false" autocomplete="new-password" />
+      </label>
+      @if (!confirming) {
+      <button type="submit" class="ds-ghost-button sc-danger" [disabled]="!canReset">
+        {{ 'Reset selected' | translate: { count: selected.size } }}
+      </button>
+      }
+    </form>
+    @if (confirming) {
+    <div class="ap-notice ap-notice--warn sc-confirm" role="alertdialog" aria-labelledby="sc-confirm-text">
+      <p id="sc-confirm-text">{{ 'Incremental reset confirm' | translate: { apis: selectedNames } }}</p>
+      <div class="ap-row">
+        <button type="button" class="ds-primary-button sc-danger-solid" [disabled]="!canReset" (click)="confirmReset()">{{ 'Confirm reset' | translate }}</button>
+        <button type="button" class="ds-ghost-button" (click)="cancelReset()">{{ 'Cancel' | translate }}</button>
+      </div>
+    </div>
+    }
+    }
+    @if (resetError) {
+    <p class="ap-message ap-message--error" role="alert">{{ resetError }}</p>
+    }
+    @if (reset?.running) {
+    <p class="ap-message"><span class="ap-badge">{{ 'Running' | translate }}</span>
+      {{ (reset?.phase === 'deleting' ? 'Reset deleting' : 'Reset polling') | translate }} · {{ reset?.apis?.join(', ') }}</p>
+    }
+  </section>
+
+  <!-- every reset done, kept by the Source-Connector -->
+  <section class="ap-card">
+    <div class="ap-row sc-log-head">
+      <h2 class="ap-card__title">{{ 'Incremental reset log' | translate }}</h2>
+      <button type="button" class="ds-ghost-button" (click)="refresh(); loadApis()">{{ 'Refresh' | translate }}</button>
+    </div>
+    @if (logError) {
+    <p class="ap-message ap-message--error" role="alert">{{ logError }}</p>
+    } @else if (!log.length) {
+    <p class="ap-message">{{ 'No resets yet' | translate }}</p>
+    } @else {
+    <div class="ap-table-wrap">
+      <table class="ap-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'When' | translate }}</th>
+            <th scope="col">{{ 'Who' | translate }}</th>
+            <th scope="col">API</th>
+            <th scope="col">{{ 'Records before → after' | translate }}</th>
+            <th scope="col">{{ 'Outcome' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of log; track entry.id) {
+          <tr>
+            <td class="ap-nowrap">{{ entry.startedAt | date: 'yyyy-MM-dd HH:mm:ss' }}
+              @if (entry.finishedAt) {
+              <br /><span class="ap-muted">→ {{ entry.finishedAt | date: 'HH:mm:ss' }}</span>
+              }
+            </td>
+            <td>{{ entry.by }}</td>
+            <td>{{ entry.apis.join(', ') }}</td>
+            <td>
+              @for (r of entry.result || []; track r.name) {
+              <div class="sc-counts"><strong>{{ r.name }}</strong>: {{ counts(r.before) }} → {{ counts(r.after) }}</div>
+              }
+            </td>
+            <td>
+              <span class="ap-badge" [class.ap-badge--ok]="entry.outcome === 'done'" [class.ap-badge--error]="entry.outcome === 'error'"
+                [class.ap-badge--muted]="entry.outcome === 'interrupted'">{{ ('Outcome ' + entry.outcome) | translate }}</span>
+              @if (entry.error) {
+              <div class="ap-message ap-message--error">{{ entry.error }}</div>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+  }
+</div>
+</app-layout>

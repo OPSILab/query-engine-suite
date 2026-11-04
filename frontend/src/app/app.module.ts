@@ -60,6 +60,9 @@ import { ThemePickerComponent } from './shared/theme-picker/theme-picker.compone
 import { TopbarComponent } from './shared/topbar/topbar.component';
 import { LayoutComponent } from './shared/layout/layout.component';
 import { StatusLogComponent } from './status-log/status-log.component';
+import { AuthLinkComponent } from './shared/auth-link/auth-link.component';
+import { SourceConnectorComponent } from './source-connector/source-connector.component';
+import { CacheComponent } from './cache/cache.component';
 
 export function translateLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -84,6 +87,9 @@ export function translateLoaderFactory(http: HttpClient) {
     TopbarComponent,
     LayoutComponent,
     StatusLogComponent,
+    AuthLinkComponent,
+    SourceConnectorComponent,
+    CacheComponent,
   ],
   imports: [
     BrowserModule,

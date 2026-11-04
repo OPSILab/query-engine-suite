@@ -15,7 +15,8 @@ export class AuthGuard {
   }
 
   canActivate(route?: ActivatedRouteSnapshot, state?: RouterStateSnapshot) {
-    if (!this.configService.getSettings('enableAuthentication')) {
+    // authentication disabled, or not required ("authNotRequired": the app opens without logging in, Login in the bar)
+    if (!this.configService.getSettings('enableAuthentication') || this.configService.getSettings('authNotRequired', false)) {
       return true;
     } else {
       return this.authService.isAuthenticated()

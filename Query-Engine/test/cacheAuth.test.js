@@ -1,5 +1,6 @@
-// Cache management endpoints (reset / backup / restore): auth + adminOnly, through the real router. The service is
-// stubbed: only who gets through is tested here.
+// Cache management endpoints, through the real router: the reset with adminOnly; list / backup / restore any logged
+// user (userOnly); deleting backups also the management password. The service is stubbed: only who gets through is
+// tested here.
 const { stub, load, config, resetConfig } = require("./helpers/env")
 const { publicKey, makeToken } = require("./helpers/jwt")
 const { test, describe, before, after, beforeEach } = require("node:test")
@@ -27,10 +28,13 @@ beforeEach(() => {
     calls.length = 0
     console.debug = () => { }
     Object.assign(config.authConfig, { disableAuth: false, clientId: "query-engine", publicKey, userInfoEndpoint: "", introspect: false })
+    config.managementSecret = "pass"
 })
 
 const ENDPOINTS = [["POST", "/minio/resetCache"], ["GET", "/backupCache"], ["GET", "/restoreCache"], ["POST", "/resetBackup"], ["GET", "/listCache"]]
-const call = (method, path, token) => fetch(baseUrl + path, { method, headers: token ? { Authorization: "Bearer " + token } : {} })
+const SECRET = { "X-Management-Secret": "pass" }
+const call = (method, path, token, headers = path == "/resetBackup" ? SECRET : {}) =>
+    fetch(baseUrl + path, { method, headers: { ...(token ? { Authorization: "Bearer " + token } : {}), ...headers } })
 const userToken = (extra = {}) => makeToken({ azp: "query-engine", email: "anna@demetrix.it", ...extra })
 
 describe("cache endpoints", () => {
@@ -42,7 +46,27 @@ describe("cache endpoints", () => {
         assert.deepEqual(calls, ["resetCache", "backupCache", "restoreCache", "resetBackup", "listCache"])
     })
 
-    test("adminRoles: only tokens with one of them (realm or client roles)", async () => {
+    test("adminRoles: only for the reset; list, backup, restore and deleting backups for any logged user", async () => {
+        config.authConfig.adminRoles = ["qe-admin"]
+        const user = userToken({ realm_access: { roles: ["user"] } })
+        for (const [method, path] of ENDPOINTS)
+            assert.equal((await call(method, path, user)).status, path == "/minio/resetCache" ? 403 : 200, path)
+        assert.deepEqual(calls, ["backupCache", "restoreCache", "resetBackup", "listCache"])
+    })
+
+    test("deleting backups: 403 without the management password, with a wrong one, or when none is configured", async () => {
+        for (const headers of [{}, { "X-Management-Secret": "wrong" }]) {
+            const res = await call("POST", "/resetBackup", userToken(), headers)
+            assert.equal(res.status, 403)
+            assert.match(await res.text(), /management password/)
+        }
+        config.managementSecret = ""
+        const res = await call("POST", "/resetBackup", userToken())
+        assert.deepEqual([res.status, await res.text()], [403, "Disabled: managementSecret is not set in the configuration of the Query-Engine"])
+        assert.deepEqual(calls, [])
+    })
+
+    test("the reset: adminRoles, only tokens with one of them (realm or client roles)", async () => {
         config.authConfig.adminRoles = ["qe-admin"]
         const [method, path] = ENDPOINTS[0]
         const denied = await call(method, path, userToken({ realm_access: { roles: ["user"] } }))
@@ -66,7 +90,7 @@ describe("cache endpoints", () => {
 
     test("authentication disabled with adminToken: only with the right X-Admin-Token (adminRoles not checked)", async () => {
         Object.assign(config.authConfig, { disableAuth: true, adminRoles: ["qe-admin"], adminToken: "s3cret" })
-        const withHeader = (method, path, value) => fetch(baseUrl + path, { method, headers: { "X-Admin-Token": value } })
+        const withHeader = (method, path, value) => fetch(baseUrl + path, { method, headers: { "X-Admin-Token": value, ...(path == "/resetBackup" ? SECRET : {}) } })
         for (const [method, path] of ENDPOINTS) {
             assert.equal((await call(method, path)).status, 403, path)
             assert.equal((await withHeader(method, path, "wrong")).status, 403, path)

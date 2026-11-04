@@ -40,6 +40,15 @@ function sameSecret(given, expected) {
     return crypto.timingSafeEqual(a, b)
 }
 
+// RFC 6750 / RFC 9110: no token, or a token that is not valid (malformed, wrong signature, expired, not active, not
+// issued for this client): 401 with WWW-Authenticate - the client gets a new token and retries. 403 only for a valid
+// token without the permission (bucket, prefix, role): a new token would not change that.
+const JWT_ERRORS = new Set(["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"])
+function unauthorized(res, description) {
+    res.set("WWW-Authenticate", description ? `Bearer error="invalid_token", error_description="${String(description).replace(/["\\]/g, "'")}"` : "Bearer")
+    return res.status(401).send(description ? "Invalid token: " + description : "Authentication required")
+}
+
 module.exports = {
     auth: async (req, res, next) => {
 
@@ -90,8 +99,8 @@ module.exports = {
                             break
                         }
                         catch (err) {
-                            if (err.message == "invalid token" || err.message == "jwt expired" || err.message == "jwt malformed")
-                                return res.sendStatus(403);
+                            if (err.name == "TokenExpiredError" || err.message == "invalid token" || err.message == "jwt malformed")
+                                return unauthorized(res, err.message);
                             else {
                                 logger.warn("Still trying to validate token... ", err.message)
                                 error = err
@@ -99,8 +108,8 @@ module.exports = {
                         }
                     if (!authenticated) {
                         logger.error(error)
-                        if (error.message == "invalid token" || error.message == "jwt expired" || error.message == "jwt malformed")
-                            return res.sendStatus(403);
+                        if (JWT_ERRORS.has(error?.name))
+                            return unauthorized(res, error.message);
                         else
                             return res.sendStatus(500);
                     }
@@ -116,8 +125,8 @@ module.exports = {
                     catch (error) {
 
                         logger.error(error)
-                        if (error.message == "invalid token" || error.message == "jwt expired" || error.message == "jwt malformed")
-                            return res.sendStatus(403);
+                        if (JWT_ERRORS.has(error?.name))
+                            return unauthorized(res, error.message);
                         else
                             return res.sendStatus(500);
                     }
@@ -139,7 +148,7 @@ module.exports = {
                                 next();
                             } else {
                                 logger.error('Token not valid.');
-                                return res.sendStatus(403);
+                                return unauthorized(res, 'token not active');
                             }
                         })
                         .catch(error => {
@@ -185,11 +194,11 @@ module.exports = {
                             next();
                     }
                     else
-                        return res.sendStatus(403);
+                        return unauthorized(res, 'token not issued for this client or expired');
                 }
             }
             else
-                return res.sendStatus(401);
+                return unauthorized(res);
         }
     },
 
@@ -199,22 +208,37 @@ module.exports = {
     // disableAuth: there is no user, so these endpoints are closed (403) unless authConfig.adminToken is set and sent
     // in the X-Admin-Token header (e.g. resetBackup deletes the cache history: not for anyone who reaches the API).
     adminOnly: (req, res, next) => {
-        if (authConfig.disableAuth) {
-            const adminToken = typeof authConfig.adminToken === "string" ? authConfig.adminToken : ""
-            if (!adminToken)
-                return res.status(403).send("Cache management is disabled while authConfig.disableAuth is true: set authConfig.adminToken and send it in the X-Admin-Token header")
-            if (!sameSecret(req.headers["x-admin-token"], adminToken))
-                return res.status(403).send("X-Admin-Token missing or wrong")
-            return next()
-        }
+        if (authConfig.disableAuth)
+            return adminTokenCheck(req, res, next)
         if (hasAdminRole(req))
             return next()
         return res.status(403).send(`One of these roles is required: ${adminRoles().join(", ")}`)
     },
 
+    // After `auth`, for the cache management any logged user may do (list, backup, choose the active version - the
+    // frontend shows it only to logged users): with authentication on, any valid token (no role); disableAuth: there
+    // is no user, so as for adminOnly (X-Admin-Token).
+    userOnly: (req, res, next) => {
+        if (authConfig.disableAuth)
+            return adminTokenCheck(req, res, next)
+        next()
+    },
+
+    // For the destructive operations (deleting cache backups): besides the login, the management password
+    // (config managementSecret, the same as the Source-Connector's) in the X-Management-Secret header. Not configured:
+    // those operations are disabled (403).
+    managementSecret: (req, res, next) => {
+        const secret = typeof config.managementSecret === "string" ? config.managementSecret : ""
+        if (!secret)
+            return res.status(403).send("Disabled: managementSecret is not set in the configuration of the Query-Engine")
+        if (!sameSecret(req.headers["x-management-secret"], secret))
+            return res.status(403).send("Wrong or missing management password (X-Management-Secret)")
+        next()
+    },
+
     // For the endpoints everyone may read, whose sensitive parts only an admin sees (GET /statuslog): sets
     // req.adminView. No token, or authentication disabled: reached with adminView false. A token: checked by `auth`
-    // (invalid: 403), then adminView = an admin as for adminOnly (any authenticated user if adminRoles is empty).
+    // (invalid: 401), then adminView = an admin as for adminOnly (any authenticated user if adminRoles is empty).
     adminView: (req, res, next) => {
         req.adminView = false
         if (authConfig.disableAuth || !req.headers.authorization)
@@ -225,6 +249,16 @@ module.exports = {
         })
     }
 };
+
+// authentication disabled: the admin endpoints only with authConfig.adminToken in the X-Admin-Token header
+function adminTokenCheck(req, res, next) {
+    const adminToken = typeof authConfig.adminToken === "string" ? authConfig.adminToken : ""
+    if (!adminToken)
+        return res.status(403).send("Cache management is disabled while authConfig.disableAuth is true: set authConfig.adminToken and send it in the X-Admin-Token header")
+    if (!sameSecret(req.headers["x-admin-token"], adminToken))
+        return res.status(403).send("X-Admin-Token missing or wrong")
+    return next()
+}
 
 function adminRoles() {
     return Array.isArray(authConfig.adminRoles) ? authConfig.adminRoles.filter(r => typeof r === "string" && r) : []

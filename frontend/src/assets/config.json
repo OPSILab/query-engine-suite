@@ -1,7 +1,7 @@
 {
   "defaultTheme": "smartera",
   "fontScale": 1.15,
-  "enableAuthentication": false,
+  "enableAuthentication": true,
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",
   "queryEngineBaseUrl": "http://localhost:3001",
@@ -132,7 +132,16 @@
       "filters": [
         {
           "key": "source",
-          "value": "ttps://smartherz-be.livelyflower-1c718338.eastus.azurecontainerapps.io/api/v1/integration/kpis"
+          "value": "https://smartherz-be.livelyflower-1c718338.eastus.azurecontainerapps.io/api/v1/integration/kpis"
+        }
+      ]
+    },
+    {
+      "label": "Val di Sole Pilot - Matomo",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://egnition-smarteravaldisole.stage.municipia.eng.it/api/v1/analyticsDb/"
         }
       ]
     }
@@ -140,5 +149,7 @@
   "statusLogSince": {
     "errors": "2026-11-02",
     "successes": "2026-11-03"
-  }
+  },
+  "authNotRequired": true,
+  "sourceConnectorBaseUrl" : "http://localhost:3000"
 }

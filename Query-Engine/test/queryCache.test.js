@@ -193,7 +193,21 @@ describe("management endpoints", () => {
         assert.ok((await cache.readCache(Q)).every(d => d.tag == "v1"))
     })
 
-    test("restoreCache: timestamp or version=previous required (400), timestamp a number", async () => {
+    test("restoreCache(id): that version (listed by listCache) becomes the active one of its query", async () => {
+        await cache.writeCache(Q, points(2, "v1"))
+        await cache.writeCache(Q, points(2, "v2"))
+        await cache.writeCache(Q2, points(2, "other"))
+        const first = (await cache.listCache("nama")).find(row => row.query == Q && row.version == 1)
+        assert.deepEqual(await cache.restoreCache(undefined, undefined, undefined, undefined, String(first._id)), { restored: 1, alreadyActive: 0 })
+        assert.ok((await cache.readCache(Q)).every(d => d.tag == "v1"))
+        assert.deepEqual(await versions(), [[1, "active"], [2, "previous"]])
+        assert.ok((await cache.readCache(Q2)).every(d => d.tag == "other")) // the other queries untouched
+        assert.deepEqual(await cache.restoreCache(undefined, undefined, undefined, undefined, String(first._id)), { restored: 0, alreadyActive: 1 })
+        await assert.rejects(cache.restoreCache(undefined, undefined, undefined, undefined, "nope"), e => e.status == 400)
+        await assert.rejects(cache.restoreCache(undefined, undefined, undefined, undefined, "0123456789abcdef01234567"), e => e.status == 404)
+    })
+
+    test("restoreCache: id, timestamp or version=previous required (400), timestamp a number", async () => {
         await assert.rejects(cache.restoreCache(), e => e.status == 400)
         await assert.rejects(cache.restoreCache(undefined, undefined, "abc"), e => e.status == 400)
     })

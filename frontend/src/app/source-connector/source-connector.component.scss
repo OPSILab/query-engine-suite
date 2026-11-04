@@ -1,0 +1,40 @@
+// shared: ../shared/admin-page.scss
+.sc-pills {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+}
+
+.sc-url {
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-reset {
+  margin-top: 14px;
+}
+
+.sc-danger {
+  border-color: var(--ds-danger);
+  color: var(--ds-danger);
+}
+
+.sc-danger-solid {
+  border-color: var(--ds-danger);
+  background: var(--ds-danger);
+}
+
+.sc-confirm p {
+  margin: 0 0 10px;
+}
+
+.sc-log-head {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sc-counts {
+  min-width: 220px;
+}

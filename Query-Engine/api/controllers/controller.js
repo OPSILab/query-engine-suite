@@ -198,7 +198,7 @@ module.exports = {
     // the stringified query (case insensitive), as before.
     resetCache: cacheEndpoint(q => service.resetCache(q.queriesMapFilter, q.cacheFilter)),
     backupCache: cacheEndpoint(q => service.backupCache(q.queriesMapFilter, q.cacheFilter)),
-    restoreCache: cacheEndpoint(q => service.restoreCache(q.queriesMapFilter, q.cacheFilter, q.timestamp, q.version)),
+    restoreCache: cacheEndpoint(q => service.restoreCache(q.queriesMapFilter, q.cacheFilter, q.timestamp, q.version, q.id)),
     resetBackup: cacheEndpoint(q => service.resetBackup(q.queriesMapFilter, q.cacheFilter, q.timestamp)),
     listCache: cacheEndpoint(q => service.listCache(q.queriesMapFilter, q.cacheFilter)),
 

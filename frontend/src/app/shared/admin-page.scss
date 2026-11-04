@@ -1,0 +1,211 @@
+// The pages for logged users (Source connector, Cache): a header panel, then cards. Used through styleUrls.
+:host {
+  display: block;
+  min-height: 100vh;
+  background-color: var(--ds-bg);
+  background-image: var(--ds-bg-image);
+  background-size: var(--ds-bg-size);
+  background-attachment: fixed;
+  color: var(--ds-text);
+}
+
+.ds-page {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 28px 40px;
+}
+
+.ap-panel {
+  padding: 20px 22px;
+  border: var(--ds-panel-edge-width) solid var(--ds-panel-edge);
+  border-radius: 12px;
+  background: var(--ds-panel-bg);
+  box-shadow: 0 1px 2px var(--ds-shadow);
+}
+
+.ap-title {
+  margin: 0;
+  font-size: calc(18px * var(--ds-font-scale));
+  font-weight: 600;
+}
+
+.ap-subtitle {
+  margin: 4px 0 0;
+  color: var(--ds-text-muted);
+  font-size: calc(13px * var(--ds-font-scale));
+}
+
+.ap-card {
+  margin-top: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  background: var(--ds-bg-elevated);
+}
+
+.ap-card__title {
+  margin: 0;
+  font-size: calc(15px * var(--ds-font-scale));
+  font-weight: 600;
+}
+
+.ap-card__info {
+  margin: 4px 0 14px;
+  color: var(--ds-text-muted);
+  font-size: calc(13px * var(--ds-font-scale));
+}
+
+.ap-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+}
+
+// the buttons next to the fields: their height, at the bottom of the row (the global primary button sits at the top)
+.ap-row > .ds-primary-button {
+  align-self: auto;
+}
+
+.ap-row > .ds-ghost-button {
+  min-height: 40px;
+}
+
+.ap-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  margin: 0;
+}
+
+.ap-message {
+  margin: 10px 0 0;
+  color: var(--ds-text-muted);
+  font-size: calc(13px * var(--ds-font-scale));
+}
+
+.ap-message--error {
+  color: var(--ds-danger);
+}
+
+.ap-notice {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  color: var(--ds-text-muted);
+  font-size: calc(13px * var(--ds-font-scale));
+}
+
+.ap-notice--warn {
+  border-color: rgba(180, 83, 9, 0.4);
+  background: rgba(180, 83, 9, 0.08);
+  color: var(--ds-text);
+}
+
+.ap-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: calc(11px * var(--ds-font-scale));
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}
+
+.ap-badge--ok {
+  background: rgba(21, 128, 61, 0.12);
+  color: #15803D;
+}
+
+.ap-badge--error {
+  background: rgba(180, 35, 24, 0.12);
+  color: var(--ds-danger);
+}
+
+.ap-badge--muted {
+  background: transparent;
+  border: 1px solid var(--ds-border-strong);
+  color: var(--ds-text-muted);
+}
+
+.ap-table-wrap {
+  position: relative; // contains the .ap-sr-only texts of the headers (else they widen the page)
+  margin-top: 12px;
+  overflow-x: auto;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+}
+
+.ap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(13px * var(--ds-font-scale));
+}
+
+.ap-table th,
+.ap-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ds-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ap-table th {
+  color: var(--ds-text-muted);
+  font-weight: 600;
+  font-size: calc(12px * var(--ds-font-scale));
+  white-space: nowrap;
+}
+
+.ap-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.ap-pre {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--ds-bg-sunken);
+  font-size: calc(12px * var(--ds-font-scale));
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ap-muted {
+  color: var(--ds-text-muted);
+}
+
+// read by screen readers only
+.ap-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.ap-nowrap {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .ds-page {
+    padding: 0 12px 32px;
+  }
+
+  .ap-panel,
+  .ap-card {
+    padding: 16px 14px;
+  }
+
+  .ap-field {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}

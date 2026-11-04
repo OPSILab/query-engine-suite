@@ -86,8 +86,8 @@ describe("who sees the header values", () => {
         assert.equal((await statusLog({}, userToken({ resource_access: { "query-engine": { roles: ["qe-admin"] } } }))).body.masked, false)
     })
 
-    test("an invalid token: 403", async () => {
-        assert.equal((await statusLog({}, "not-a-token")).status, 403)
+    test("an invalid token: 401", async () => {
+        assert.equal((await statusLog({}, "not-a-token")).status, 401)
     })
 
     test("the records in the database keep their values", async () => {

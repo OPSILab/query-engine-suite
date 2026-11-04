@@ -124,6 +124,10 @@ module.exports = {
   // the `url` field of the records (the url without the query params added by the connector), case sensitive:
   // ignoredUrls exact values, ignoredPrefixes the beginning (at least scheme and host, e.g. "https://dx-lab.eng.it/"
   // for the whole domain). They cannot be restored from the frontend: remove them here.
+  // The password that the destructive operations require besides the login: deleting cache backups (POST
+  // /api/resetBackup, the frontend sends it in X-Management-Secret). Empty: disabled. The same value as
+  // managementSecret in the config of the Source-Connector (reset of the incremental APIs).
+  managementSecret: "",
   statusLog: {
     ignoredUrls: [],
     ignoredPrefixes: []

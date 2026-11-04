@@ -1,7 +1,7 @@
 const express = require("express")
 const controller = require("../controllers/controller.js")
 const router = express.Router()
-const { auth, adminOnly, adminView } = require("../middlewares/auth.js")
+const { auth, adminOnly, adminView, userOnly, managementSecret } = require("../middlewares/auth.js")
 const statusLog = require("../services/statusLog.js")
 const { bodyCheck } = require('../../utils/common.js')
 const mongoose = require('mongoose');
@@ -15,13 +15,14 @@ router.get(encodeURI("/keys/notIndexed"), auth, controller.getKeysWithValuesNotI
 router.get(encodeURI("/values"), auth, controller.getValues)
 router.get(encodeURI("/entries"), auth, controller.getEntries)
 router.get(encodeURI("/minio/listObjects"), auth, controller.minioListObjects)
-// cache management: authenticated, and with one of authConfig.adminRoles if configured
+// cache management: the reset with one of authConfig.adminRoles if configured; list / backup / choosing the active
+// version any logged user; deleting backups also the management password (managementSecret)
 router.post(encodeURI("/minio/resetCache"), auth, adminOnly, controller.resetCache)
 router.get(encodeURI("/assets/:name"), controller.assets)
-router.get(encodeURI("/backupCache"), auth, adminOnly, controller.backupCache)
-router.get(encodeURI("/restoreCache"), auth, adminOnly, controller.restoreCache)
-router.post(encodeURI("/resetBackup"), auth, adminOnly, controller.resetBackup)
-router.get(encodeURI("/listCache"), auth, adminOnly, controller.listCache)
+router.get(encodeURI("/backupCache"), auth, userOnly, controller.backupCache)
+router.get(encodeURI("/restoreCache"), auth, userOnly, controller.restoreCache)
+router.post(encodeURI("/resetBackup"), auth, userOnly, managementSecret, controller.resetBackup)
+router.get(encodeURI("/listCache"), auth, userOnly, controller.listCache)
 // failed HTTP requests of the Source-Connector: readable by everyone, header values only for admins (adminView)
 router.get(encodeURI("/statuslog"), adminView, statusLog.endpoint)
 // the urls whose failures the list leaves out unless filtered by url: read by everyone, changed by admins

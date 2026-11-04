@@ -7,7 +7,7 @@
     <!-- the column takes the whole height of the page; its content stays in view while the page scrolls -->
     <div class="ds-sidenav__inner">
     <div class="ds-sidenav__items">
-      @for (item of items; track item.link) {
+      @for (item of items$ | async; track item.link) {
       <a class="ds-sidenav__item" [routerLink]="item.link" routerLinkActive="ds-sidenav__item--active"
         [routerLinkActiveOptions]="activeOptions" ariaCurrentWhenActive="page" (click)="closeDrawer()"
         [title]="collapsed ? (item.label | translate) : ''">

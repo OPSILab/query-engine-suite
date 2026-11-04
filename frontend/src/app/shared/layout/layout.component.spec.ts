@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { of } from 'rxjs';
 import { LayoutComponent } from './layout.component';
 
 describe('LayoutComponent', () => {
@@ -25,9 +26,14 @@ describe('LayoutComponent', () => {
     expect(layout.drawerOpen).toBe(false);
   });
 
-  it('two entries: the query engine (also with link filters) and the status log', () => {
-    const layout = new LayoutComponent();
-    expect(layout.items.map(i => i.link)).toEqual(['/', '/status-log']);
-    expect(layout.activeOptions.queryParams).toBe('ignored');
+  it('the query engine (also with link filters) and the status log; source connector and cache only logged in', () => {
+    const shown = (loggedIn: boolean) => {
+      let links: string[] = [];
+      new LayoutComponent({ loggedIn$: of(loggedIn) } as any).items$.subscribe(items => links = items.map(i => i.link));
+      return links;
+    };
+    expect(shown(false)).toEqual(['/', '/status-log']);
+    expect(shown(true)).toEqual(['/', '/status-log', '/source-connector', '/cache']);
+    expect(new LayoutComponent().activeOptions.queryParams).toBe('ignored');
   });
 });

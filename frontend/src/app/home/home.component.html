@@ -7,9 +7,7 @@
     }
   </select>
   <app-theme-picker></app-theme-picker>
-  @if (authEnabled) {
-    <a class="ds-link" routerLink="/keycloak-auth/logout">{{ 'Logout' | translate }}</a>
-  }
+  <app-auth-link></app-auth-link>
 </ng-container>
 
 <div class="ds-page">
