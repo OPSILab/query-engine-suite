@@ -70,6 +70,34 @@ describe('CacheComponent', () => {
     expect(component.deactivating).toBe('nama');
   });
 
+  it('authentication disabled in the Query-Engine: asks its admin token, uses it (in memory) until leaving the page', async () => {
+    const asked = { status: 403, error: 'X-Admin-Token missing or wrong' };
+    const { api, calls } = fakeApi(ROWS);
+    api.adminToken = '';
+    api.list = async () => { calls.push(['list', api.adminToken]); if (api.adminToken !== 'tok') throw asked; return ROWS; };
+    const component = new CacheComponent(api);
+    await component.load();
+    expect([component.adminTokenNeeded, component.adminTokenWrong, component.error, component.queries]).toEqual([true, false, null, []]);
+    component.adminTokenInput = 'bad';
+    await component.useAdminToken();
+    expect([component.adminTokenNeeded, component.adminTokenWrong, component.adminTokenInput]).toEqual([true, true, '']);
+    component.adminTokenInput = ' tok ';
+    await component.useAdminToken();
+    expect([component.adminTokenNeeded, component.adminTokenWrong, component.queries.length]).toEqual([false, false, 2]);
+    expect(calls.map(c => c[1])).toEqual(['', 'bad', 'tok']);
+    component.ngOnDestroy();
+    expect(api.adminToken).toBe('');
+  });
+
+  it('no admin token configured in the Query-Engine: its message as it is, no form', async () => {
+    const { api } = fakeApi(ROWS);
+    api.list = async () => { throw { status: 403, error: 'Cache management is disabled while authConfig.disableAuth is true: set authConfig.adminToken and send it in the X-Admin-Token header' }; };
+    const component = new CacheComponent(api);
+    await component.load();
+    expect(component.adminTokenNeeded).toBe(false);
+    expect(component.error).toMatch(/set authConfig.adminToken/);
+  });
+
   it('deleting a backup: the confirmation, the password (not kept); refused: the message of the Query-Engine', async () => {
     const { api, calls } = fakeApi(ROWS);
     const component = new CacheComponent(api);

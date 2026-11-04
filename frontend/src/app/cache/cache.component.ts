@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CacheAdminService, CacheVersion } from '../services/cache-admin.service';
 
 /** The versions of one cached query. */
@@ -28,6 +28,9 @@ export interface CacheBackup {
  *    active again (all its versions), or deleted - with the management password (managementSecret of the
  *    Query-Engine, typed every time, never stored) and a confirmation.
  * An optional filter (part of the query text) narrows the list and what the backup takes.
+ * Authentication disabled in the Query-Engine: every call needs its admin token (authConfig.adminToken, X-Admin-Token
+ * header). When the Query-Engine asks for it, the page asks the user once and keeps it in memory until leaving the
+ * page (never stored); deleting a backup still needs the management password as well.
  */
 @Component({
   selector: 'app-cache',
@@ -35,7 +38,7 @@ export interface CacheBackup {
   styleUrls: ['../shared/admin-page.scss', './cache.component.scss'],
   standalone: false
 })
-export class CacheComponent implements OnInit {
+export class CacheComponent implements OnInit, OnDestroy {
   filter = '';
   private applied = '';
   queries: CachedQuery[] = [];
@@ -55,10 +58,21 @@ export class CacheComponent implements OnInit {
   secret = '';
   deleting: number | null = null;
 
+  /** The Query-Engine asked for its admin token (authentication disabled there): the form is shown. */
+  adminTokenNeeded = false;
+  /** The token given was refused. */
+  adminTokenWrong = false;
+  /** The admin token typed in the form. */
+  adminTokenInput = '';
+
   constructor(private api: CacheAdminService) { }
 
   ngOnInit(): void {
     this.load();
+  }
+
+  ngOnDestroy(): void {
+    this.api.adminToken = ''; // only while the page is open
   }
 
   async load(): Promise<void> {
@@ -68,11 +82,39 @@ export class CacheComponent implements OnInit {
       const rows = await this.api.list(this.applied || undefined);
       this.queries = CacheComponent.queriesOf(rows);
       this.backups = CacheComponent.backupsOf(rows);
+      this.adminTokenNeeded = this.adminTokenWrong = false;
     } catch (error) {
-      this.error = CacheComponent.messageOf(error);
+      if (!this.askAdminToken(error))
+        this.error = CacheComponent.messageOf(error);
     } finally {
       this.loading = false;
     }
+  }
+
+  /** The answer of the Query-Engine asks for its admin token: the form shown (true). */
+  private askAdminToken(error: any): boolean {
+    if (!CacheComponent.adminTokenAsked(error)) return false;
+    this.adminTokenWrong = this.adminTokenNeeded && !!this.api.adminToken;
+    this.adminTokenNeeded = true;
+    this.queries = [];
+    this.backups = [];
+    return true;
+  }
+
+  /** The admin token of the form used from now on (until leaving the page), then the list again. */
+  useAdminToken(): Promise<void> {
+    const token = this.adminTokenInput.trim();
+    if (!token) return Promise.resolve();
+    this.api.adminToken = token;
+    this.adminTokenInput = '';
+    this.adminTokenWrong = false;
+    return this.load();
+  }
+
+  /** 403 "X-Admin-Token missing or wrong": authentication disabled in the Query-Engine, its admin token needed. (Not
+   *  when no admin token is configured there: then the message of the Query-Engine is shown as it is.) */
+  static adminTokenAsked(error: any): boolean {
+    return error?.status === 403 && /X-Admin-Token missing or wrong/.test(CacheComponent.messageOf(error));
   }
 
   search(): Promise<void> {
@@ -156,7 +198,8 @@ export class CacheComponent implements OnInit {
     try {
       this.lastMessage = await action();
     } catch (error) {
-      this.actionError = CacheComponent.messageOf(error);
+      if (!this.askAdminToken(error))
+        this.actionError = CacheComponent.messageOf(error);
     } finally {
       this.busy = false;
     }

@@ -28,7 +28,18 @@ export interface CacheVersion {
  */
 @Injectable({ providedIn: 'root' })
 export class CacheAdminService {
+  /**
+   * Authentication disabled in the Query-Engine: its cache endpoints want authConfig.adminToken in the X-Admin-Token
+   * header. Typed by the user in the Cache page, kept only in memory while the page is open (cleared when leaving
+   * it), sent with every call below. Empty: not sent.
+   */
+  adminToken = '';
+
   constructor(private http: HttpClient, private config: ConfigService) { }
+
+  private get headers(): Record<string, string> {
+    return this.adminToken ? { 'X-Admin-Token': this.adminToken } : {};
+  }
 
   private get base(): string {
     const settings = this.config.getSettings();
@@ -38,35 +49,35 @@ export class CacheAdminService {
   /** Every version (filter: part of the query, case insensitive). */
   list(filter?: string): Promise<CacheVersion[]> {
     const params: Record<string, string> = filter ? { queriesMapFilter: filter } : {};
-    return firstValueFrom(this.http.get<CacheVersion[]>(`${this.base}/listCache`, { params })).then(rows => (Array.isArray(rows) ? rows : []));
+    return firstValueFrom(this.http.get<CacheVersion[]>(`${this.base}/listCache`, { params, headers: this.headers })).then(rows => (Array.isArray(rows) ? rows : []));
   }
 
   /** A backup of the active versions (of the queries matching `filter`). */
   backup(filter?: string): Promise<{ timestamp: number; queries: number }> {
     const params: Record<string, string> = filter ? { queriesMapFilter: filter } : {};
-    return firstValueFrom(this.http.get<{ timestamp: number; queries: number }>(`${this.base}/backupCache`, { params }));
+    return firstValueFrom(this.http.get<{ timestamp: number; queries: number }>(`${this.base}/backupCache`, { params, headers: this.headers }));
   }
 
   /** The active versions (of the queries matching `filter`) become previous: kept as history, the next request
    *  computes the data again and writes a new active version. */
   deactivate(filter?: string): Promise<{ reset: number }> {
     const params: Record<string, string> = filter ? { queriesMapFilter: filter } : {};
-    return firstValueFrom(this.http.post<{ reset: number }>(`${this.base}/minio/resetCache`, {}, { params }));
+    return firstValueFrom(this.http.post<{ reset: number }>(`${this.base}/minio/resetCache`, {}, { params, headers: this.headers }));
   }
 
   /** The versions of a backup active again. */
   restoreBackup(timestamp: number): Promise<{ restored: number; alreadyActive: number }> {
-    return firstValueFrom(this.http.get<{ restored: number; alreadyActive: number }>(`${this.base}/restoreCache`, { params: { timestamp: String(timestamp) } }));
+    return firstValueFrom(this.http.get<{ restored: number; alreadyActive: number }>(`${this.base}/restoreCache`, { params: { timestamp: String(timestamp) }, headers: this.headers }));
   }
 
   /** One version active for its query. */
   activate(id: string): Promise<{ restored: number; alreadyActive: number }> {
-    return firstValueFrom(this.http.get<{ restored: number; alreadyActive: number }>(`${this.base}/restoreCache`, { params: { id } }));
+    return firstValueFrom(this.http.get<{ restored: number; alreadyActive: number }>(`${this.base}/restoreCache`, { params: { id }, headers: this.headers }));
   }
 
   /** Deletes a backup (its versions beyond keepVersions are then deleted); the management password needed. */
   deleteBackup(timestamp: number, secret: string): Promise<{ released: number }> {
     return firstValueFrom(this.http.post<{ released: number }>(`${this.base}/resetBackup`, {},
-      { params: { timestamp: String(timestamp) }, headers: { 'X-Management-Secret': secret } }));
+      { params: { timestamp: String(timestamp) }, headers: { ...this.headers, 'X-Management-Secret': secret } }));
   }
 }

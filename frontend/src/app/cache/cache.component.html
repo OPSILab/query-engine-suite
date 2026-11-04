@@ -28,6 +28,23 @@
       </div>
     </div>
     }
+    @if (adminTokenNeeded) {
+    <!-- authentication disabled in the Query-Engine: its admin token, kept until leaving the page -->
+    <form class="ap-notice ap-notice--warn cache-confirm" (ngSubmit)="useAdminToken()" autocomplete="off">
+      <p>{{ 'Admin token needed' | translate }}</p>
+      <div class="ap-row">
+        <label class="ap-field">
+          <span class="ds-field-label">{{ 'Admin token' | translate }}</span>
+          <input class="ds-input" type="password" name="adminToken" [(ngModel)]="adminTokenInput" autocomplete="new-password"
+            [attr.aria-invalid]="adminTokenWrong" />
+        </label>
+        <button type="submit" class="ds-primary-button" [disabled]="loading || !adminTokenInput.trim()">{{ 'Use token' | translate }}</button>
+      </div>
+      @if (adminTokenWrong) {
+      <p class="ap-message ap-message--error" role="alert">{{ 'Admin token wrong' | translate }}</p>
+      }
+    </form>
+    }
     @if (lastMessage) {
     <p class="ap-message" role="status">{{ lastMessage.key | translate: lastMessage.params }}</p>
     }

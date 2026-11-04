@@ -255,5 +255,9 @@
   "Deactivate cache confirm all": "Le versioni attive di tutte le query diventano precedenti: le prossime richieste ricalcolano i dati (più lente) e scrivono nuove versioni. Non viene cancellato nulla: restano nello storico e si possono rendere di nuovo attive. Continuare?",
   "Deactivate cache confirm filtered": "Le versioni attive delle query che contengono \"{{filter}}\" diventano precedenti: le prossime richieste ricalcolano i dati (più lente) e scrivono nuove versioni. Non viene cancellato nulla: restano nello storico e si possono rendere di nuovo attive. Continuare?",
   "Deactivate": "Disattiva",
-  "Cache deactivated": "{{reset}} versioni attive disattivate: le prossime richieste ricalcolano i dati."
+  "Cache deactivated": "{{reset}} versioni attive disattivate: le prossime richieste ricalcolano i dati.",
+  "Admin token needed": "L'autenticazione è disattivata nel Query-Engine: per gestire la cache serve il suo admin token (authConfig.adminToken). Viene tenuto solo finché questa pagina è aperta.",
+  "Admin token": "Admin token",
+  "Use token": "Usa",
+  "Admin token wrong": "Admin token sbagliato."
 }
