@@ -52,7 +52,7 @@ by the private queries; the frontend does not need them.
 
 | Level | Meaning |
 |---|---|
-| anyone | no token needed: `GET /api/statuslog` (credentials masked) |
+| anyone | no token needed: `GET /api/statuslog` (credentials masked), Orion notifications (`POST /api/orion/subscribe/…`) |
 | logged user | any valid token |
 | administrator | a valid token with one of `authConfig.adminRoles` (Keycloak realm roles or roles of `clientId`); `adminRoles` empty: any logged user |
 | + management password | additionally `X-Management-Secret` |

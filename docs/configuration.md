@@ -46,7 +46,7 @@ These must have the **same value** in the Query-Engine and in the Source-Connect
 | `sessionEndpoint`, `reportEndpoint`, `feedbackEndpoint` | `…/api/output?`, `…/api/reportSync`, `…/api/feedback` | the [streamed session](orion-notifications.html#flow-of-one-notification) |
 | `dmmSessionLostTimeoutMs` | `300000` | give up when the mapper does not know the session for this long |
 | `dmmNoProgressTimeoutMs` | `1800000` | give up when the session does not move for this long |
-| `mapID` | | default map for Orion notifications |
+| `mapID` | | default map for Orion notifications (when neither the url nor the entity gives one) |
 | `orion.checkSubscriptionInterval` | `0` | ms between [recovery checks](orion-notifications.html#recovery-check-lost-notifications); `0`: only at startup |
 | `orion.datapointsNotIndexed` | `["value"]` | datapoint fields whose values are not suggested; after a change rebuild `entries` for `orion` |
 | `orion.skippingParams` | | new Orion distributions not synchronised when an attribute has one of these values |

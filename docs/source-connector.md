@@ -35,14 +35,15 @@ whatever `toMongo` / `toPostgres` say. Moving from the old single `sources` coll
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/orion/subscribe/:mapID` | Orion notification (queued) |
+| `POST /api/orion/subscribe/:mapID`, `POST /api/orion/subscribe` | Orion notification (queued); **open**, no token |
 | `GET /api/queue` | the Orion notifications waiting or being processed |
 | `PUT /api/query` | synchronise MinIO and check the Orion entities now |
 | `POST /api/rebuild`, `GET /api/rebuild` | rebuild keys / values / entries or PostgreSQL; progress |
 | `POST /api/incremental/reset`, `GET /api/incremental/reset` | reset incremental APIs; progress |
 | `GET /api/incremental/reset/log` | every reset done |
 
-All of them require a valid token, unless `authConfig.disableAuth` is true. The reset also requires the
+All of them except the Orion notifications require a valid token, unless `authConfig.disableAuth` is true (Orion
+cannot send one: see [Orion notifications](orion-notifications.html#no-token-on-the-notification-route)). The reset also requires the
 [management password](authentication.html#management-password).
 
 ## Management page

@@ -43,7 +43,7 @@ sequenceDiagram
 ```
 
 1. **mapID.** Taken from the url (`/api/orion/subscribe/<mapID>`, or `?mapID=`), from the entity, or from `mapID` in
-   the configuration. Without a mapID the dataset is downloaded and stored as it is, without the mapper.
+   the configuration (also for `POST /api/orion/subscribe`, without mapID in the url). Without a mapID the dataset is downloaded and stored as it is, without the mapper.
 2. **Map or parse.** The Source-Connector asks the mapper for a map of the dataset url. Only a 404 ("no map") means
    *parse instead*; any other error (token refused, mapper down) is an error of this attempt.
 3. **Streamed session.** The request carries `streamMode=true`, `waitForFeedback: true` and `deleteAckedParts: true`:
@@ -87,7 +87,8 @@ frontend shows the same, refreshing every 3 seconds while the queue is not empty
 ## Recovery check (lost notifications)
 
 `verifyLostSubscriptionOrion` reads every entity from Orion (or from `ngsiBrokerUrl` with `useNgsiBroker`), compares
-it with the stored copy, and sends a notification to itself for each entity that changed. It runs:
+it with the stored copy, and sends a notification to itself for each entity that changed: to its own notification
+route, with the mapID of `orion.notificationUrl` (the segment after `/orion/subscribe/`), else `config.mapID`. It runs:
 
 - at startup, if `orion.subscribe` is true;
 - every `orion.checkSubscriptionInterval` ms, if set;
@@ -115,8 +116,10 @@ updated.
 
 Every one of these requests is in the [status log](status-log.html).
 
-## Known limitation
+## No token on the notification route
 
-The notifications sent by Orion, and those the recovery check sends to itself, carry no token. With authentication
-enabled on the Source-Connector (`authConfig.disableAuth: false`) `POST /api/orion/subscribe/:mapID` answers 401 to
-them. The recovery check also posts to a fixed mapID (`6914a252ddb96948ee67b2e1`) instead of `config.mapID`.
+Orion cannot send a Keycloak token (it would expire inside the subscription), so `POST /api/orion/subscribe/:mapID`
+(and `POST /api/orion/subscribe`) is **open**, like a webhook, also with authentication enabled. Every other route of
+the Source-Connector still requires a token. Keep the Source-Connector port reachable only by Orion and the
+frontend's network: anyone who reaches the route can ask for a dataset to be mapped again (the queue serialises such
+requests, and an unchanged entity is skipped).
