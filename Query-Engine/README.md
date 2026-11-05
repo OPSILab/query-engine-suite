@@ -8,3 +8,9 @@ Send a POST request to http://localhost:3000/api/query with the beopen bearer to
 } 
 
 Note: the "-" symbols in bucket name must be not included in the query
+
+## Documentation
+
+See [`../docs/query-engine.md`](../docs/query-engine.md), [`../docs/cache.md`](../docs/cache.md),
+[`../docs/status-log.md`](../docs/status-log.md), [`../docs/authentication.md`](../docs/authentication.md),
+[`../docs/testing.md`](../docs/testing.md).

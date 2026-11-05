@@ -259,5 +259,13 @@
   "Admin token needed": "Authentication is disabled in the Query-Engine: managing the cache needs its admin token (authConfig.adminToken). It is kept only while this page is open.",
   "Admin token": "Admin token",
   "Use token": "Use",
-  "Admin token wrong": "Wrong admin token."
+  "Admin token wrong": "Wrong admin token.",
+  "Notification queue": "Orion notifications in queue",
+  "Notification queue info": "The notifications of Orion are processed one at a time, in arrival order. The queue is kept in memory: a restart of the Source-Connector loses the waiting ones (the daily check sends again the distributions that changed).",
+  "Notification queue empty": "No notifications in queue.",
+  "Processing": "processing",
+  "since": "since",
+  "Received": "Received",
+  "Datasets": "Datasets",
+  "More waiting": "… and {{count}} more waiting."
 }

@@ -8,6 +8,7 @@ function fakeApi(overrides: Record<string, any> = {}) {
     getRebuildStatus: async () => ({ running: false }),
     getResetStatus: async () => ({ running: false }),
     getResetLog: async () => ({ items: [], secretConfigured: true }),
+    getQueue: async () => ({ queue: 0, processing: null, waiting: [] }),
     incrementalApis: async () => [{ name: 'A', url: 'https://a', records: { mongo: 3 } }, { name: 'B', url: 'https://b', records: { mongo: 1, postgres: 1 } }],
     startRebuild: async (connector?: string) => { calls.push(['rebuild', connector]); return { started: true }; },
     startReset: async (names: string[], secret: string) => { calls.push(['reset', names, secret]); return { started: true, apis: names }; },
@@ -77,6 +78,25 @@ describe('SourceConnectorComponent', () => {
     component.secret = 'x';
     expect(component.canReset).toBe(false);
     component.ngOnDestroy();
+  });
+
+  it('the queue of the Orion notifications: read with the states, again while not empty; datasets on one line', async () => {
+    const queue = { queue: 13, processing: { receivedAt: 'a', startedAt: 'b', entities: [{ id: 'x', url: 'https://d/1' }] },
+      waiting: Array.from({ length: 12 }, (_, i) => ({ receivedAt: 'r' + i, entities: [{ id: 'urn:' + i }] })) };
+    const { api } = fakeApi({ getQueue: async () => queue });
+    const component = new SourceConnectorComponent(api);
+    await component.refresh();
+    expect(component.queue).toEqual(queue);
+    expect(component.waitingShown.length).toBe(SourceConnectorComponent.WAITING_SHOWN);
+    expect((component as any).timer).not.toBeNull(); // read again in a few seconds
+    component.ngOnDestroy();
+    expect(SourceConnectorComponent.datasetsOf(queue.processing)).toBe('https://d/1');
+    expect(SourceConnectorComponent.datasetsOf({ entities: [{ id: 'a' }, { url: 'u' }], moreEntities: 3 })).toBe('a, u (+3)');
+    expect(SourceConnectorComponent.datasetsOf(null)).toBe('-');
+    const { api: failing } = fakeApi({ getQueue: async () => { throw { status: 0 }; } });
+    const broken = new SourceConnectorComponent(failing);
+    await broken.refresh();
+    expect(broken.queueError).toBe('Source-Connector not reachable');
   });
 
   it('counts and messages', () => {

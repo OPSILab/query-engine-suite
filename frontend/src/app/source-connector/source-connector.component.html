@@ -127,6 +127,53 @@
     }
   </section>
 
+  <!-- the Orion notifications, processed one at a time in arrival order -->
+  <section class="ap-card" [attr.aria-busy]="(queue?.queue ?? 0) > 0">
+    <div class="ap-row sc-log-head">
+      <h2 class="ap-card__title">{{ 'Notification queue' | translate }}
+        @if (queue) {
+        <span class="ap-badge" [class.ap-badge--muted]="!queue.queue">{{ queue.queue }}</span>
+        }
+      </h2>
+      <button type="button" class="ds-ghost-button" (click)="refresh()">{{ 'Refresh' | translate }}</button>
+    </div>
+    <p class="ap-card__info">{{ 'Notification queue info' | translate }}</p>
+    @if (queueError) {
+    <p class="ap-message ap-message--error" role="alert">{{ queueError }}</p>
+    } @else if (queue && !queue.queue) {
+    <p class="ap-message">{{ 'Notification queue empty' | translate }}</p>
+    } @else if (queue) {
+    @if (queue.processing) {
+    <p class="ap-message"><span class="ap-badge">{{ 'Processing' | translate }}</span>
+      <span class="ds-mono sc-break">{{ datasetsOf(queue.processing) }}</span>
+      <span class="ap-muted"> · {{ 'since' | translate }} {{ queue.processing.startedAt | date: 'HH:mm:ss' }}</span></p>
+    }
+    @if (queue.waiting.length) {
+    <div class="ap-table-wrap">
+      <table class="ap-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'Received' | translate }}</th>
+            <th scope="col">{{ 'Datasets' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (job of waitingShown; track $index) {
+          <tr>
+            <td class="ap-nowrap">{{ job.receivedAt | date: 'HH:mm:ss' }}</td>
+            <td class="ds-mono sc-break">{{ datasetsOf(job) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (queue.waiting.length > waitingShown.length) {
+    <p class="ap-message">{{ 'More waiting' | translate: { count: queue.waiting.length - waitingShown.length } }}</p>
+    }
+    }
+    }
+  </section>
+
   <!-- every reset done, kept by the Source-Connector -->
   <section class="ap-card">
     <div class="ap-row sc-log-head">

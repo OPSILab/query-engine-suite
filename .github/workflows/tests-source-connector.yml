@@ -34,7 +34,7 @@ jobs:
           cache: npm
           cache-dependency-path: Source-Connector/package-lock.json
 
-      # Same compose file used locally (npm run test:db): MongoDB 4.4 on 27018, PostgreSQL 16 on 5433
+      # Same compose file used locally (npm run test:db): MongoDB 4.4 on 27018, PostgreSQL 16 on 5434
       - name: Start test databases
         run: npm run test:db
 

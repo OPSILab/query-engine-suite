@@ -85,7 +85,7 @@ nav a:hover {
 }
 main {
   padding: 40px 64px;
-  max-width: 900px;
+  max-width: 1040px;
   margin: 0;  
 }
 code {
@@ -126,4 +126,51 @@ button {
   cursor: pointer;
 
   transition: transform 0.2s ease, opacity 0.2s ease;
+}
+/* content: screenshots, tables, notes */
+main img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 12px 0;
+}
+main table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 0.95em;
+}
+main th, main td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+main th {
+  background: var(--code-bg);
+}
+main blockquote {
+  margin: 16px 0;
+  padding: 10px 16px;
+  border-left: 4px solid var(--primary);
+  background: var(--code-bg);
+  border-radius: 6px;
+}
+main pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+}
+main pre code {
+  border: none;
+  padding: 0;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
 }

@@ -2,15 +2,46 @@
   "defaultTheme": "system",
   "fontScale": 1.5,
   "enableAuthentication": true,
+  "authNotRequired": false,
+  "userFromToken": false,
   "dashboardBaseURL": "http://localhost:4300",
   "beopenApiBaseUrl": "http://localhost:4300",
   "queryEngineBaseUrl": "http://localhost:3001",
+  "sourceConnectorBaseUrl": "http://localhost:3000",
+  "collectionLabels": {
+    "api": "Sources",
+    "orion": "Datapoints",
+    "minio": "MinIO"
+  },
+  "advancedSearchPageSize": 50,
+  "suggestionsPageSize": 100,
+  "statusLogSince": {
+    "errors": "2026-01-01",
+    "successes": "2026-01-01"
+  },
   "presetSearches": [
-    { "label": "Example API", "filters": [{ "key": "source", "value": "https://example.com/api/data" }] },
-    { "label": "Example API, year 2026", "filters": [
-      { "key": "source", "value": "https://example.com/api/data" },
-      { "key": "year", "value": "2026" }
-    ] }
+    {
+      "label": "Example API",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://example.com/api/data"
+        }
+      ]
+    },
+    {
+      "label": "Example API, year 2026",
+      "filters": [
+        {
+          "key": "source",
+          "value": "https://example.com/api/data"
+        },
+        {
+          "key": "year",
+          "value": "2026"
+        }
+      ]
+    }
   ],
   "keycloak": {
     "authProfile": "oidc",

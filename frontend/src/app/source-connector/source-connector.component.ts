@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import {
-  IncrementalApi, RebuildStatus, ResetLogEntry, ResetStatus, SourceConnectorService,
+  IncrementalApi, NotificationQueue, RebuildStatus, ResetLogEntry, ResetStatus, SourceConnectorService,
 } from '../services/source-connector.service';
 
 /**
@@ -12,6 +12,8 @@ import {
  *    run (with their records); the reset needs the management password (managementSecret of the Source-Connector,
  *    typed every time, never stored) and a confirmation. Every reset stays in the log below (who, when, which APIs,
  *    records before / after, outcome), kept by the Source-Connector.
+ *  - The queue of the Orion notifications (GET /api/queue): how many, the one being processed (its datasets, since
+ *    when), the others; read again every few seconds while it is not empty.
  */
 @Component({
   selector: 'app-source-connector',
@@ -45,6 +47,12 @@ export class SourceConnectorComponent implements OnInit, OnDestroy {
   resetError: string | null = null;
   reset: ResetStatus | null = null;
 
+  // the queue of the Orion notifications
+  queue: NotificationQueue | null = null;
+  queueError: string | null = null;
+  /** Waiting notifications listed (the others only counted). */
+  static readonly WAITING_SHOWN = 10;
+
   // log
   log: ResetLogEntry[] = [];
   logError: string | null = null;
@@ -66,12 +74,35 @@ export class SourceConnectorComponent implements OnInit, OnDestroy {
     clearTimeout(this.timer);
   }
 
-  /** The states of rebuild and reset and the log; again in a few seconds while one of them runs. */
+  /** The states of rebuild, reset and queue, and the log; again in a few seconds while something runs or waits. */
   async refresh(): Promise<void> {
     clearTimeout(this.timer);
-    await Promise.all([this.loadRebuild(), this.loadReset(), this.loadLog()]);
-    if (this.rebuild?.running || this.reset?.running)
+    await Promise.all([this.loadRebuild(), this.loadReset(), this.loadLog(), this.loadQueue()]);
+    if (this.rebuild?.running || this.reset?.running || (this.queue?.queue ?? 0) > 0)
       this.timer = setTimeout(() => this.refresh(), SourceConnectorComponent.POLL_MS);
+  }
+
+  private async loadQueue(): Promise<void> {
+    try {
+      this.queue = await this.api.getQueue();
+      this.queueError = null;
+    } catch (error) {
+      this.queueError = SourceConnectorComponent.messageOf(error);
+    }
+  }
+
+  get waitingShown() {
+    return (this.queue?.waiting ?? []).slice(0, SourceConnectorComponent.WAITING_SHOWN);
+  }
+
+  /** The datasets of a notification, on one line (its ids when there is no url). */
+  static datasetsOf(job: { entities?: { id?: string; url?: string }[]; moreEntities?: number } | null | undefined): string {
+    const names = (job?.entities ?? []).map(e => e.url || e.id).filter(Boolean) as string[];
+    return names.join(', ') + (job?.moreEntities ? ` (+${job.moreEntities})` : '') || '-';
+  }
+
+  datasetsOf(job: any): string {
+    return SourceConnectorComponent.datasetsOf(job);
   }
 
   private async loadRebuild(): Promise<void> {

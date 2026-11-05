@@ -8,3 +8,9 @@ Send a POST request to http://localhost:3000/api/query with the beopen bearer to
 } 
 
 Note: the "-" symbols in bucket name must be not included in the query
+
+## Documentation
+
+The documentation of the suite is in [`docs/`](docs/index.md) (a Jekyll site): architecture, queries and paging,
+the query cache (versions, backups, deactivation), the status log, Orion notifications, incremental APIs,
+authentication, frontend, configuration and tests.

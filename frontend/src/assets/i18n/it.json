@@ -259,5 +259,13 @@
   "Admin token needed": "L'autenticazione è disattivata nel Query-Engine: per gestire la cache serve il suo admin token (authConfig.adminToken). Viene tenuto solo finché questa pagina è aperta.",
   "Admin token": "Admin token",
   "Use token": "Usa",
-  "Admin token wrong": "Admin token sbagliato."
+  "Admin token wrong": "Admin token sbagliato.",
+  "Notification queue": "Notifiche Orion in coda",
+  "Notification queue info": "Le notifiche di Orion vengono elaborate una alla volta, in ordine di arrivo. La coda è in memoria: un riavvio del Source-Connector perde quelle in attesa (il controllo giornaliero rimanda le distribuzioni cambiate).",
+  "Notification queue empty": "Nessuna notifica in coda.",
+  "Processing": "in elaborazione",
+  "since": "dalle",
+  "Received": "Ricevuta",
+  "Datasets": "Dataset",
+  "More waiting": "… e altre {{count}} in attesa."
 }

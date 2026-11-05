@@ -43,10 +43,28 @@ export interface ResetLogEntry {
   error?: string;
 }
 
+/** An Orion notification waiting or being processed (GET /api/queue). */
+export interface QueuedNotification {
+  receivedAt: string;
+  /** Only the one being processed. */
+  startedAt?: string;
+  entities?: { id?: string; url?: string }[];
+  /** Entities beyond the first 20, not listed. */
+  moreEntities?: number;
+}
+
+/** GET /api/queue: the Orion notifications waiting or being processed, one at a time in arrival order. */
+export interface NotificationQueue {
+  queue: number;
+  processing: QueuedNotification | null;
+  waiting: QueuedNotification[];
+}
+
 /**
  * The management API of the Source-Connector, called directly (config.json "sourceConnectorBaseUrl", e.g.
  * http://localhost:3000; the requests get the user's token from TokenInterceptor): rebuild of keys / values /
- * entries, reset of the incremental APIs (with the management password) and its log.
+ * entries, reset of the incremental APIs (with the management password) and its log, the queue of the Orion
+ * notifications.
  */
 @Injectable({ providedIn: 'root' })
 export class SourceConnectorService {
@@ -60,6 +78,15 @@ export class SourceConnectorService {
 
   private url(path: string): string {
     return `${this.baseUrl}/api${path}`;
+  }
+
+  /** The queue of the Orion notifications (an older Source-Connector answers only { queue }). */
+  getQueue(): Promise<NotificationQueue> {
+    return firstValueFrom(this.http.get<Partial<NotificationQueue>>(this.url('/queue'))).then(res => ({
+      queue: Number.isInteger(res?.queue) ? res!.queue! : 0,
+      processing: res?.processing ?? null,
+      waiting: Array.isArray(res?.waiting) ? res!.waiting! : [],
+    }));
   }
 
   getRebuildStatus(): Promise<RebuildStatus> {

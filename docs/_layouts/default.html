@@ -21,8 +21,15 @@
       <a href="{{ '/' | relative_url }}">Home</a>
       <a href="{{ '/architecture.html' | relative_url }}">Architecture</a>
       <a href="{{ '/query-engine.html' | relative_url }}">Query Engine</a>
+      <a href="{{ '/cache.html' | relative_url }}">Cache</a>
+      <a href="{{ '/status-log.html' | relative_url }}">Status log</a>
       <a href="{{ '/source-connector.html' | relative_url }}">Source Connector</a>
+      <a href="{{ '/orion-notifications.html' | relative_url }}">Orion</a>
+      <a href="{{ '/incremental-apis.html' | relative_url }}">Incremental APIs</a>
+      <a href="{{ '/frontend.html' | relative_url }}">Frontend</a>
       <a href="{{ '/authentication.html' | relative_url }}">Authentication</a>
+      <a href="{{ '/configuration.html' | relative_url }}">Configuration</a>
+      <a href="{{ '/testing.html' | relative_url }}">Testing</a>
       <a href="{{ '/docker.html' | relative_url }}">Docker</a>
       <button onclick="toggleTheme()">🌓</button>
 
@@ -60,7 +67,9 @@
     });
 
     document.addEventListener("DOMContentLoaded", async function () {
-      const mermaidBlocks = document.querySelectorAll('pre.highlight code.language-mermaid, pre code.language-mermaid');
+      // kramdown + rouge (GitHub Pages): <div class="language-mermaid highlighter-rouge"><div class="highlight"><pre><code>;
+      // without rouge: <pre><code class="language-mermaid">
+      const mermaidBlocks = document.querySelectorAll('div.language-mermaid pre code, pre code.language-mermaid');
 
       mermaidBlocks.forEach(function (codeBlock) {
         const rawCode = codeBlock.textContent;
@@ -69,10 +78,10 @@
         mermaidDiv.className = 'mermaid';
         mermaidDiv.textContent = rawCode;
 
-        const preBlock = codeBlock.closest('pre');
-        if (preBlock) {
-          preBlock.parentNode.insertBefore(mermaidDiv, preBlock);
-          preBlock.remove();
+        const block = codeBlock.closest('div.language-mermaid') || codeBlock.closest('pre');
+        if (block) {
+          block.parentNode.insertBefore(mermaidDiv, block);
+          block.remove();
         }
       });
 
