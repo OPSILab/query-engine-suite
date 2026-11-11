@@ -14,10 +14,19 @@ The Angular app of the Data Space. It reads its settings from `assets/config.jso
 |---|---|---|---|
 | Query engine | `/` | everyone who can open the app | Simple search, Advanced search, SQL, GraphQL |
 | Status log | `/status-log` | everyone (credentials hidden from non-administrators) | [Status log](status-log.html) |
+| Configuration | `/configuration` | everyone | what can be seen of the Source-Connector configuration, read only (below) |
 | Source connector | `/source-connector` | logged users | rebuild, [reset of incremental APIs](incremental-apis.html#reset), [Orion queue](orion-notifications.html#the-queue) |
 | Cache | `/cache` | logged users | [versions, backups, deactivation](cache.html) |
 
 Source connector and Cache are hidden from the menu when nobody is logged in, and their routes are guarded.
+
+**Configuration.** The sources enabled (MinIO, Orion, external APIs), how often the APIs are polled, and every API:
+url, method, how it is read (single request, paginated, batch), incremental or not and, if it is, the start date
+(`startDateValue`) and the longest window of one request (`maxWindow`; "not applied" without an end date param). It
+comes from `GET /api/config` of the Source-Connector, which shows nothing secret: no headers, keys, tokens or bodies;
+user and password dropped from the urls and the values of the credential-like query params hidden.
+
+![Configuration](assets/img/configuration.png)
 
 **Links to a search.** `/?key=source&value=<url-encoded value>` opens the Advanced search with that filter filled in
 (repeat `key` / `value` for more filters). The search starts when the user presses *Apply query*.

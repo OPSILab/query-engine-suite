@@ -32,8 +32,8 @@ describe('LayoutComponent', () => {
       new LayoutComponent({ loggedIn$: of(loggedIn) } as any).items$.subscribe(items => links = items.map(i => i.link));
       return links;
     };
-    expect(shown(false)).toEqual(['/', '/status-log']);
-    expect(shown(true)).toEqual(['/', '/status-log', '/source-connector', '/cache']);
+    expect(shown(false)).toEqual(['/', '/status-log', '/configuration']);
+    expect(shown(true)).toEqual(['/', '/status-log', '/configuration', '/source-connector', '/cache']);
     expect(new LayoutComponent().activeOptions.queryParams).toBe('ignored');
   });
 });

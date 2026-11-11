@@ -11,6 +11,7 @@ import { StatusLogComponent } from './status-log/status-log.component';
 import { LoggedInGuard } from './auth/services/logged-in.guard';
 import { SourceConnectorComponent } from './source-connector/source-connector.component';
 import { CacheComponent } from './cache/cache.component';
+import { ConfigurationComponent } from './configuration/configuration.component';
 
 export const routes: Routes = [
   {
@@ -23,6 +24,11 @@ export const routes: Routes = [
   {
     path: 'status-log',
     component: StatusLogComponent,
+  },
+  // What can be seen of the configuration of the Source-Connector (nothing secret): no AuthGuard, like the status log
+  {
+    path: 'configuration',
+    component: ConfigurationComponent,
   },
   // Logged users only (hidden from the menu otherwise): the management of the Source-Connector and of the cache
   {

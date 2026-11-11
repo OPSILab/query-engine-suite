@@ -7,7 +7,7 @@ const COLLAPSED_KEY = 'ds-sidenav-collapsed';
 
 /**
  * The frame of every page: the bar at the top (app-topbar, with the page's controls: the content marked
- * ngProjectAs="[topbar]") and, below it, the side menu on the left (query engine, status log; source connector
+ * ngProjectAs="[topbar]") and, below it, the side menu on the left (query engine, status log, configuration; source connector
  * and cache only for logged users) next to the page.
  * On desktop the menu can be reduced to its icons (remembered per browser); on phones it is a drawer opened by the
  * ☰ button of the bar, closed by a choice, a click outside or Esc. Styles: global (styles.scss, .ds-layout).
@@ -29,6 +29,10 @@ export class LayoutComponent {
     {
       link: '/status-log', label: 'Status log',
       icon: 'M3 12h4l3-8 4 16 3-8h4',
+    },
+    {
+      link: '/configuration', label: 'Configuration',
+      icon: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
     },
     {
       link: '/source-connector', label: 'Source connector', loggedInOnly: true,

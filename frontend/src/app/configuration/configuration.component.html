@@ -1,0 +1,108 @@
+<app-layout>
+<ng-container ngProjectAs="[topbar]">
+  <app-theme-picker></app-theme-picker>
+  <app-auth-link></app-auth-link>
+</ng-container>
+
+<div class="ds-page">
+  <section class="ap-panel">
+    <h1 class="ap-title">{{ 'Configuration' | translate }}</h1>
+    <p class="ap-subtitle">{{ 'Configuration info' | translate }}</p>
+    @if (!configured) {
+    <p class="ap-notice ap-notice--warn" role="note">{{ 'Source connector not configured' | translate }}</p>
+    }
+  </section>
+
+  @if (configured) {
+  @if (error) {
+  <section class="ap-card">
+    <p class="ap-message ap-message--error" role="alert">{{ error }}</p>
+    <button type="button" class="ds-ghost-button" (click)="load()">{{ 'Refresh' | translate }}</button>
+  </section>
+  } @else if (configuration) {
+  <!-- the sources the Source-Connector collects -->
+  <section class="ap-card">
+    <h2 class="ap-card__title">{{ 'Enabled sources' | translate }}</h2>
+    <ul class="cf-sources">
+      @for (source of sources; track source.key) {
+      <li>
+        <span class="ap-badge" [class.ap-badge--ok]="configuration.sources[source.key]" [class.ap-badge--muted]="!configuration.sources[source.key]">
+          {{ source.label | translate }}: {{ (configuration.sources[source.key] ? 'enabled' : 'disabled') | translate }}
+        </span>
+      </li>
+      }
+    </ul>
+  </section>
+
+  <!-- the APIs polled -->
+  <section class="ap-card">
+    <h2 class="ap-card__title">{{ 'Polled APIs' | translate }}
+      <span class="ap-badge" [class.ap-badge--muted]="!configuration.apis.length">{{ configuration.apis.length }}</span>
+    </h2>
+    <p class="ap-card__info">
+      @if (duration(configuration.pollInterval); as interval) {
+      {{ 'Poll interval' | translate: { interval: (interval.key | translate: interval.params) } }}
+      }
+      @if (!configuration.sources.api) {
+      {{ 'API connector disabled' | translate }}
+      }
+    </p>
+    @if (!configuration.apis.length) {
+    <p class="ap-message">{{ 'No polled APIs' | translate }}</p>
+    } @else {
+    <div class="ap-table-wrap">
+      <table class="ap-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'API' | translate }}</th>
+            <th scope="col">{{ 'URL' | translate }}</th>
+            <th scope="col">{{ 'Requests' | translate }}</th>
+            <th scope="col">{{ 'Incremental' | translate }}</th>
+            <th scope="col">{{ 'Start date' | translate }}</th>
+            <th scope="col">{{ 'Max window' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (api of configuration.apis; track $index) {
+          <tr>
+            <td>{{ api.name || '—' }}</td>
+            <td class="ds-mono cf-break">
+              <span class="ap-muted">{{ api.method }}</span> {{ api.url || '—' }}
+              @if (api.batch?.from) {
+              <span class="cf-batch ap-muted">{{ 'Batch from' | translate }} {{ api.batch?.from }}</span>
+              }
+            </td>
+            <td class="ap-nowrap">{{ kind(api) | translate }}</td>
+            <td>
+              @if (api.incremental) {
+              <span class="ap-badge ap-badge--ok">{{ 'Yes' | translate }}</span>
+              } @else {
+              <span class="ap-badge ap-badge--muted">{{ 'No' | translate }}</span>
+              }
+            </td>
+            <td class="ap-nowrap">{{ api.incremental ? (api.startDateValue ?? ('From the beginning' | translate)) : '—' }}</td>
+            <td class="ap-nowrap">
+              @if (api.incremental && duration(api.maxWindow); as window) {
+              {{ window.key | translate: window.params }}
+              @if (api.maxWindowIgnored) {
+              <span class="ap-muted" [title]="'Max window ignored info' | translate">({{ 'not applied' | translate }})</span>
+              }
+              } @else if (api.incremental) {
+              {{ 'No limit' | translate }}
+              } @else {
+              —
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+  } @else if (loading) {
+  <section class="ap-card"><p class="ap-message">{{ 'Loading' | translate }}</p></section>
+  }
+  }
+</div>
+</app-layout>

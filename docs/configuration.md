@@ -53,6 +53,8 @@ These must have the **same value** in the Query-Engine and in the Source-Connect
 | `statusLog.enabled`, `successes`, `successRetentionDays`, `maxDataSize` | `true`, `true`, `30`, `10000` | [recording of the requests](status-log.html#recording-source-connector) |
 | `apiConnectorConfig.apiUrls` | | the polled APIs, [incremental](incremental-apis.html) or not |
 | `apiConnectorConfig.pollInterval` | 1 day | ms between polls |
+| `apiConnectorConfig.upsertRecords` (or on each API) | `false` | non incremental APIs: every answer replaces the stored records |
+| `apiConnectorConfig.unalignedAnswer` (or on each API) | not set | [non incremental APIs](source-connector.html#non-incremental-apis): `"append"` or `"upsert"` for an answer that does not continue the stored records; not set: by count |
 
 ## Frontend
 

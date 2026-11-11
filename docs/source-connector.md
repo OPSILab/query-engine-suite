@@ -31,18 +31,44 @@ collections: {
 `queryOptions.advancedSearch: false` stops every MongoDB write, `queryOptions.SQLQuery: false` every PostgreSQL write,
 whatever `toMongo` / `toPostgres` say. Moving from the old single `sources` collection: `scripts/migrateCollections.js`.
 
+## Non incremental APIs
+
+An API without `incrementalParams` returns, at every poll, a list that may repeat what was already stored. Each record
+stored gets `datePolled`; the answer is compared with the records already stored for its url (by content: every field
+except `_id`, `datePolled` and the flags below, whatever the order of the keys):
+
+1. **By order.** The answer is taken as the continuation of the stored records, like a window sliding over the data,
+   oldest first: its first record is looked for among the stored ones; from that occurrence to the end, the stored
+   records must be the beginning of the answer (and not longer than it). Then only the rest of the answer is stored,
+   flagged `likelyIncremental: true`. An occurrence that does not fit: the next one. This also catches a repeated record
+   that went out of the window while an identical one came in.
+2. **Otherwise** (records shuffled, replaced, or removed here and there), as configured in `unalignedAnswer` on the
+   API (or for every API in `apiConnectorConfig`):
+
+| `unalignedAnswer` | What is stored |
+|---|---|
+| `"upsert"` | the records of the url replaced by the answer |
+| `"append"` | the whole answer appended, flagged `unverifiedAppend: true` (maybe duplicates, interval unknown) |
+| not set (default) | by count: of each record, only the copies beyond those already stored (3 stored, 4 in the answer: 1) |
+
+With `upsertRecords: true` (on the API, or in `apiConnectorConfig`) none of this applies: every answer replaces the
+records of the url, as it always did. The first answer of a url is stored whole, duplicates included. For a paginated API all the pages are read first, then
+compared. An answer that begins with the last stored record counts as a continuation even if they have only that
+record in common.
+
 ## Endpoints
 
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/orion/subscribe/:mapID`, `POST /api/orion/subscribe` | Orion notification (queued); **open**, no token |
 | `GET /api/queue` | the Orion notifications waiting or being processed |
+| `GET /api/config` | what can be shown of the configuration (connectors enabled, poll interval, APIs: url, paginated / batch, incremental, start date, maxWindow); **open**, nothing secret |
 | `PUT /api/query` | synchronise MinIO and check the Orion entities now |
 | `POST /api/rebuild`, `GET /api/rebuild` | rebuild keys / values / entries or PostgreSQL; progress |
 | `POST /api/incremental/reset`, `GET /api/incremental/reset` | reset incremental APIs; progress |
 | `GET /api/incremental/reset/log` | every reset done |
 
-All of them except the Orion notifications require a valid token, unless `authConfig.disableAuth` is true (Orion
+All of them except the Orion notifications and `GET /api/config` require a valid token, unless `authConfig.disableAuth` is true (Orion
 cannot send one: see [Orion notifications](orion-notifications.html#no-token-on-the-notification-route)). The reset also requires the
 [management password](authentication.html#management-password).
 

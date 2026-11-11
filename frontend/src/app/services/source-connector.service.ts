@@ -60,6 +60,30 @@ export interface NotificationQueue {
   waiting: QueuedNotification[];
 }
 
+/** An API polled by the Source-Connector, as GET /api/config shows it (nothing secret). */
+export interface PolledApi {
+  name?: string;
+  /** Credentials in the url hidden by the Source-Connector. */
+  url?: string;
+  method: string;
+  paginated: boolean;
+  batch?: { from?: string };
+  incremental: boolean;
+  startDateValue?: string | number | null;
+  /** ms */
+  maxWindow?: number | null;
+  /** Configured without an end date param: not applied. */
+  maxWindowIgnored?: boolean;
+}
+
+/** GET /api/config: what anyone may see of the configuration of the Source-Connector. */
+export interface PublicConfiguration {
+  sources: { minio: boolean; orion: boolean; api: boolean };
+  /** ms */
+  pollInterval: number | null;
+  apis: PolledApi[];
+}
+
 /**
  * The management API of the Source-Connector, called directly (config.json "sourceConnectorBaseUrl", e.g.
  * http://localhost:3000; the requests get the user's token from TokenInterceptor): rebuild of keys / values /
@@ -78,6 +102,15 @@ export class SourceConnectorService {
 
   private url(path: string): string {
     return `${this.baseUrl}/api${path}`;
+  }
+
+  /** What anyone may see of the configuration (no authentication needed). */
+  getConfiguration(): Promise<PublicConfiguration> {
+    return firstValueFrom(this.http.get<Partial<PublicConfiguration>>(this.url('/config'))).then(res => ({
+      sources: { minio: !!res?.sources?.minio, orion: !!res?.sources?.orion, api: !!res?.sources?.api },
+      pollInterval: typeof res?.pollInterval === 'number' ? res.pollInterval : null,
+      apis: Array.isArray(res?.apis) ? res!.apis! : [],
+    }));
   }
 
   /** The queue of the Orion notifications (an older Source-Connector answers only { queue }). */

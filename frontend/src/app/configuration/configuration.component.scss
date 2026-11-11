@@ -1,0 +1,18 @@
+.cf-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.cf-batch {
+  display: block;
+  margin-top: 4px;
+}
