@@ -24,6 +24,7 @@ The `apiConnector` polls the APIs of `apiConnectorConfig.apiUrls` every `pollInt
     endDateLogic: "exclusive",
     pollDelay: 0,                    // ms subtracted from both dates (data published late)
     maxWindow: 30 * 24 * 3600 * 1000, // optional: the longest span of one request (needs endDateParam)
+    alignToDays: false,              // optional: windows of whole UTC days, midnight to midnight (below)
     retryNotFound: false             // optional: ask again, at the next polls, the windows answered 404
   },
   pagination: {                      // optional
@@ -54,6 +55,15 @@ overlap nor leave a gap.
 **`maxWindow`** splits a long span (the first poll, or a poll after a long stop) into several requests of at most
 `maxWindow` ms each, contiguous like daily polls. With `YYYY-MM-DD` dates it is rounded to whole days (at least one).
 Without `endDateParam` it is ignored (warning in the log).
+
+**`alignToDays: true`** makes every window a whole UTC day (or `maxWindow` whole days), from midnight to the next
+midnight, whatever the date format, for APIs that aggregate per period (a KPI of a day). Only the days already over
+are asked: a poll at 16:00 of the 12th asks the 11th (`2026-11-11T00:00:00.000Z` – `2026-11-12T00:00:00.000Z` with
+`RFC 3339` and `endDateLogic: "exclusive"`; `…T23:59:59.999Z` with `"inclusive"`), a second poll the same day asks
+nothing, the 12th is asked on the 13th. `pollDelay` moves back the last day asked (one day: on the 12th, the 10th),
+not the bounds. The start goes back to its midnight: `startDateValue` and, after switching an API to `alignToDays`, the
+end of its last window. The poll interval does not change the windows. To align records already stored,
+[reset](#reset) the API after switching.
 
 ## Pagination
 
