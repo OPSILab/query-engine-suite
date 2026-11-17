@@ -8,6 +8,8 @@
 // is not unwrapped (it stays a field of the document). onlyArrayOfObjects (?unwrapOnlyArrayOfObjects=true): only
 // the arrays whose elements are all objects; the others (e.g. dimensions: ["Lovech", "2020"]) stay fields too.
 // A document without arrays to unwrap is returned as it is.
+// keep (row => boolean): only the results it keeps (the date filters on the elements, see services/dateFilter.js); a
+// document whose unwrapped results are all left out gives none.
 // E.g. { a: [{ k: 1 }], b: [{ k2: 2 }], c: 3 } -> [{ k: 1, unWrappedFrom: "a", "../c": 3 }, { k2: 2, unWrappedFrom: "b", "../c": 3 }]
 //
 // path (?unwrapPath=data or data.items): another level than the top of the document, as a dotted path of fields.
@@ -41,7 +43,7 @@ function pathSegments(path) {
     return path.split(".")
 }
 
-function unwrapDocument(doc, { onlyArrayOfObjects = false, path } = {}) {
+function unwrapDocument(doc, { onlyArrayOfObjects = false, path, keep } = {}) {
     if (!isPlainObject(doc))
         return [doc]
     const segments = pathSegments(path)
@@ -94,7 +96,7 @@ function unwrapDocument(doc, { onlyArrayOfObjects = false, path } = {}) {
     for (const field of arrays)
         for (const element of holder[field])
             results.push({ ...(isPlainObject(element) ? element : { value: element }), unWrappedFrom: [...holderPath, field].join("."), ...context, ...kept })
-    return results
+    return keep ? results.filter(keep) : results
 }
 
 const unwrapDocuments = (docs, options) => docs.flatMap(doc => unwrapDocument(doc, options))

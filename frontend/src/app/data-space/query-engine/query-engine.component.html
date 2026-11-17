@@ -435,6 +435,13 @@
           [ngModelOptions]="{ standalone: true }" [placeholder]="'To date' | translate" />
       </div>
     }
+    @if (item.type == 'Date') {
+      <!-- the dates typed are UTC (as the dates of the data, usually); unchecked: the time zone of the browser -->
+      <label class="ds-check ds-kv-utc" [title]="'UTC info' | translate">
+        <input type="checkbox" [(ngModel)]="item.utc" [ngModelOptions]="{ standalone: true }" />
+        UTC
+      </label>
+    }
 
     @if (lines[1]) {
       <button

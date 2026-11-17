@@ -133,6 +133,13 @@
   flex: 2 1 0;
 }
 
+// The UTC checkbox of a Date filter, after its two dates
+.ds-kv-utc {
+  flex: none;
+  align-self: center;
+  white-space: nowrap;
+}
+
 .ds-action-row {
   position: sticky;
   // Floats a little above the window's bottom edge rather than flush with it.

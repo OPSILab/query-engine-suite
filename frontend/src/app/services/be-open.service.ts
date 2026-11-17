@@ -262,7 +262,9 @@ export class BeopenAPIService {
    * "Generate curl / fetch / axios" dialog turns it into code, so the two always match.
    * Advanced search with a page: the response is { results, hasMore, skip, limit, next } instead of the list.
    * collections: the collections searched by Advanced / Simple search (undefined: all of them).
-   * unwrap: Advanced search only, options in the query string (after the fields: they win over a field of the same name).
+   * unwrap: Advanced search only, options in the query string. The filters go in the body only (mongoQuery): the
+   * Query-Engine reads them there (it also merges those of the query string, for older clients); the query string
+   * carries the file type (format) and the unwrap options, which it reads only there.
    */
   public buildQueryRequest(
     mode: string,
@@ -280,7 +282,6 @@ export class BeopenAPIService {
       case "Advanced search": {
         const params: Record<string, string> = {};
         if (type !== undefined && type !== null) params["format"] = String(type);
-        for (let key in mongoQuery) params[key] = String(mongoQuery[key] ?? "");
         if (unwrap?.unwrap) {
           params["unwrap"] = "true";
           if (unwrap.onlyArrayOfObjects) params["unwrapOnlyArrayOfObjects"] = "true";

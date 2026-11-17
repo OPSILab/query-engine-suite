@@ -50,11 +50,11 @@ describe('buildQueryRequest', () => {
   let api: BeopenAPIService;
   beforeEach(() => ({ api } = service()));
 
-  it('Advanced search: POST with mongoQuery in the body and as query params (+ format)', () => {
+  it('Advanced search: POST with mongoQuery in the body only, the file type (format) in the query string', () => {
     expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome', n: 3, empty: null }, '', 'public', 'JSON')).toEqual({
       method: 'POST',
       url: 'http://qe/api/query',
-      params: { format: 'JSON', city: 'Rome', n: '3', empty: '' },
+      params: { format: 'JSON' },
       headers: { visibility: 'public' },
       body: { mongoQuery: { city: 'Rome', n: 3, empty: null } },
     });
@@ -98,7 +98,7 @@ describe('sending', () => {
     expect(call.url).toBe('http://qe/api/query');
     expect(call.options.body).toEqual({ mongoQuery: { k: 'v' } });
     expect(call.options.params).toBeInstanceOf(HttpParams);
-    expect(call.options.params.toString()).toBe('format=JSON&k=v');
+    expect(call.options.params.toString()).toBe('format=JSON');
     expect(call.options.headers).toBeInstanceOf(HttpHeaders);
     expect(call.options.headers.has('visibility')).toBe(false);
   });
@@ -311,15 +311,15 @@ describe('status log ignored urls', () => {
 });
 
 describe('buildQueryRequest: unwrap', () => {
-  it('Advanced search: unwrap / unwrapOnlyArrayOfObjects after the fields (they win over a field of the same name)', () => {
+  it('Advanced search: unwrap / unwrapOnlyArrayOfObjects / unwrapPath in the query string (a field of the same name stays in the body)', () => {
     const { api } = service();
     expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome', unwrap: 'x' }, '', 'public', 'JSON', undefined, undefined, { unwrap: true, onlyArrayOfObjects: true })!.params)
-      .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true', unwrapOnlyArrayOfObjects: 'true' });
+      .toEqual({ format: 'JSON', unwrap: 'true', unwrapOnlyArrayOfObjects: 'true' });
     expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: true })!.params)
-      .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true' });
+      .toEqual({ format: 'JSON', unwrap: 'true' });
     expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: true, path: 'data.items' })!.params)
-      .toEqual({ format: 'JSON', city: 'Rome', unwrap: 'true', unwrapPath: 'data.items' });
+      .toEqual({ format: 'JSON', unwrap: 'true', unwrapPath: 'data.items' });
     expect(api.buildQueryRequest('Advanced search', '', { city: 'Rome' }, '', 'public', 'JSON', undefined, undefined, { unwrap: false, onlyArrayOfObjects: true })!.params)
-      .toEqual({ format: 'JSON', city: 'Rome' });
+      .toEqual({ format: 'JSON' });
   });
 });

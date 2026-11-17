@@ -22,6 +22,30 @@ Source-Connector. Every endpoint is under `/api` (`basePath` in the configuratio
 What is left out of a search (a source disabled by the configuration, an API that did not answer, results cut) is
 reported in the `X-Query-Warnings` response header (URI-encoded JSON) and shown by the frontend as a warning.
 
+### Date filters
+
+A filter of type **Date** in the Advanced search sends `{ "$gte": <from>, "$lt": <to> }` (ISO strings, UTC) for its
+key: the start included, the end **excluded**, so that from a midnight to the next one is exactly that day (the API
+also accepts `$gt` and `$lte`). The key is the path of the field from the top of the document, through arrays, as for the other filters: for an
+API answer `{ data: [{ record: { created_at, … } }, …] }`, `data.record.created_at`.
+
+- One bound is enough (from only, or to only); none: no filter.
+- The stored value is read as a date: a BSON Date, or a text beginning with `YYYY-MM-DD` in any ISO 8601 form (with
+  or without time, milliseconds, `Z` or an offset). Other values (`16/11/2026`, numbers) never match. A text without
+  `Z` or offset is read in the time zone of the Query-Engine.
+- Both bounds hold for the **same** value: a document matches when one element of `data` was created in the range,
+  not when one element is after the start and another before the end.
+- With **unwrap**, only the elements of the unwrapped arrays in the range are returned (rows of other arrays, and the
+  filters on fields outside the arrays, are checked on the document). `unwrapPath` may be empty or `data`: the key is
+  the same.
+- JSON / CSV file types: the field may be in the rows (`json.<key>`, `csv.<key>`), as the other fields. GeoJSON: the
+  bounds are compared by MongoDB as they are (as text with text values).
+
+The frontend's dates (`datetime-local`) are in the time zone of the browser, or in UTC with the **UTC** box of the
+filter checked (as the dates of the data, usually: `…Z`); either way they are sent in UTC. E.g. the records created on
+the 16th (UTC): UTC checked, from 16th 00:00 to 17th 00:00. Implementation: `api/services/dateFilter.js` (MongoDB is asked for a range one day
+wider, the documents found are then checked as dates).
+
 ### Collections
 
 The results can be restricted to some collections: `api`, `orion`, `minio` (`collections` in the body, or

@@ -19,6 +19,7 @@ function suggestionsPage(query) {
 const isTrue = value => value === "true" || value === true
 const { unwrapPage, unwrapCapped, pathSegments } = require("../services/unwrap")
 const { checkFilter, httpStatus } = require('../services/queryGuards')
+const dateFilter = require('../services/dateFilter')
 
 // format of the suggestions: the Advanced search file type (JSON / CSV / GeoJSON, any case), or object (no file
 // type); none: every suggestion
@@ -121,7 +122,13 @@ const queryMongo = async (req, res) => {
         if (isTrue(unwrap)) {
             // the limits apply to the unwrapped results: the documents of each collection (with _collection) unwrapped,
             // then cut at the limit of the page (or at advancedSearchMaxResults), see services/unwrap
-            const options = { onlyArrayOfObjects: isTrue(unwrapOnlyArrayOfObjects), path: unwrapPath }
+            // a date filter on a field inside the unwrapped arrays: only the elements in the range (services/dateFilter)
+            const lowerFormat = format?.toLowerCase()
+            const { dates } = dateFilter.splitDateFilters(fields, lowerFormat)
+            const options = {
+                onlyArrayOfObjects: isTrue(unwrapOnlyArrayOfObjects), path: unwrapPath,
+                ...(dates.length ? { keep: row => dateFilter.rowMatches(row, dates, lowerFormat) } : {})
+            }
             const searched = (collections || defaultCollections()).filter(c => storedCollections().includes(c))
             const documents = await service.mongoQuery(query, req.body.prefix, req.body.bucketName, req.headers.visibility, page && { limit: page.limit, skip: page.skip }, warnings, searched)
             result = page ? unwrapPage(documents, page, searched, options) : unwrapCapped(documents, service.ADVANCED_SEARCH_MAX(), searched, options, warnings)

@@ -5,6 +5,7 @@ const Key = require('../models/Key')
 const Entries = require('../models/Entries')
 const queryCache = require('./queryCache')
 const { timeLimit } = require('./queryGuards')
+const dateFilter = require('./dateFilter')
 const { json2csv } = require('../../utils/common')
 const config = require('../../config')
 const minioWriter = require("../../inputConnectors/minioConnector")
@@ -277,8 +278,10 @@ module.exports = {
      */
     async mongoQuery(query, prefix, bucket, visibility, page, warnings = [], collections) {
         const format = query.format?.toLowerCase()
-        const fields = { ...query }
-        delete fields.format
+        // the date filters ({ $gte, $lte } with dates): asked one day wider, the documents found checked as dates
+        // (services/dateFilter.js)
+        const { format: _format, ...searchedFields } = query
+        const { fields, dates } = dateFilter.splitDateFilters(searchedFields, format)
         for (const key in fields)
             if (!(format == "geojson" && key == "coordinates")) // compared as a number already
                 fields[key] = textOrNumber(fields[key])
@@ -291,6 +294,7 @@ module.exports = {
             const rows = await collectionModel(c).find(filter, null, timeLimit()).sort({ _id: 1 }).skip(skipOf(c)).limit(limit + 1).lean()
             const results = rows.slice(0, limit)
                 .filter(obj => visibleIn(c, obj, prefix, bucket, visibility))
+                .filter(obj => !dates.length || dateFilter.documentMatches(obj, dates, format))
                 .map(obj => c == "minio" ? withFileInfo(obj) : obj)
                 .map(obj => collections ? { ...obj, _collection: c } : obj)
             return { c, results, more: rows.length > limit }

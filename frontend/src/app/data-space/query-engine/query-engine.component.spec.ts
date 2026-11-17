@@ -202,7 +202,7 @@ describe('"Generate curl / fetch / axios"', () => {
     comp.lines = [{ key: 'city', value: 'Rome', type: 'String' }];
     comp.type = 'JSON';
     comp.refreshSnippet();
-    expect(comp.snippetCode).toContain(`curl -X POST 'http://qe/api/query?format=JSON&city=Rome'`);
+    expect(comp.snippetCode).toContain(`curl -X POST 'http://qe/api/query?format=JSON'`); // the filters in the body only
     expect(comp.snippetCode).toContain('"city": "Rome"');
     expect(comp.snippetCode).toContain('"limit": 50');   // the first page, like "Apply Query"
     expect(comp.snippetCode).not.toContain('Authorization');
@@ -918,5 +918,62 @@ describe('unwrap (Advanced search)', () => {
       { limit: 50, skip: { api: 1 } },
     ]);
     expect(comp.extractedElements.length).toBe(3);
+  });
+});
+
+describe('record and Date filters (Advanced search)', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve));
+  const mongoQueries = (requests: any[]) => requests.filter(r => r.method === 'POST' && r.url.endsWith('/api/query'))
+    .map(r => r.options.body.mongoQuery);
+
+  it('record is data for API / Orion results (unwrapped too), the metadata of the file (left out) for MinIO files', async () => {
+    const { comp } = create({ backend: { query: () => [
+      { _id: 'p1', source: 'https://agrotour.example/search', data: [{ record: { created_at: '2026-11-16' } }] },
+      { record: { created_at: '2026-11-16', name: 'Farm' }, unWrappedFrom: 'data', '../_id': 'p1', _collection: 'api' },
+      { name: 'f.json', record: { bucketName: 'public-data', name: 'f.json' }, json: [{ a: 1 }], _collection: 'minio' },
+    ] } });
+    comp.lines = [{ key: 'city', value: 'Rome', type: 'String' }];
+    comp.minioQuery(false);
+    await flush();
+    const elements = comp.extractedElements.map(e => e.element);
+    expect(elements[0].data[0].record).toEqual({ created_at: '2026-11-16' });
+    expect(elements[1]).toEqual({ record: { created_at: '2026-11-16', name: 'Farm' }, unWrappedFrom: 'data', '../_id': 'p1' });
+    expect(elements[2]).toEqual([{ a: 1 }]);
+    expect(comp.extractedElements.map(e => e.name)).toEqual(['p1', 'p1 › data', 'f.json']);
+    expect(QueryEngineComponent.isFileMetadata({ bucketName: 'x' })).toBe(true);
+    expect(QueryEngineComponent.isFileMetadata({ created_at: 'x' })).toBe(false);
+    expect(QueryEngineComponent.isFileMetadata(undefined)).toBe(false);
+  });
+
+  it('a Date filter sends only the bounds given (one is enough; the end excluded), as ISO strings; none: no filter', async () => {
+    const { comp, http } = create({ backend: { query: () => [] } });
+    comp.lines = [{ key: 'data.record.created_at', type: 'Date', from: '2026-11-16T00:00:00', to: '' }];
+    comp.minioQuery(false);
+    await flush();
+    comp.lines = [{ key: 'data.record.created_at', type: 'Date', from: '2026-11-16T00:00:00', to: '2026-11-16T23:59:59' }];
+    comp.minioQuery(false);
+    await flush();
+    comp.lines = [{ key: 'data.record.created_at', type: 'Date', from: '', to: '' }];
+    comp.minioQuery(false);
+    await flush();
+    const iso = (local: string) => new Date(local).toISOString();
+    expect(mongoQueries(http.requests)).toEqual([
+      { 'data.record.created_at': JSON.stringify({ $gte: iso('2026-11-16T00:00:00') }) },
+      { 'data.record.created_at': JSON.stringify({ $gte: iso('2026-11-16T00:00:00'), $lt: iso('2026-11-16T23:59:59') }) },
+      {},
+    ]);
+    expect(QueryEngineComponent.isoDate('not a date')).toBeUndefined();
+  });
+
+  it('UTC checked: the dates typed are UTC (a whole UTC day: from its midnight to the next one); unchecked: local time', async () => {
+    const { comp, http } = create({ backend: { query: () => [] } });
+    comp.lines = [{ key: 'data.record.created_at', type: 'Date', from: '2026-11-16T00:00', to: '2026-11-17T00:00', utc: true }];
+    comp.minioQuery(false);
+    await flush();
+    expect(mongoQueries(http.requests).pop()).toEqual(
+      { 'data.record.created_at': JSON.stringify({ $gte: '2026-11-16T00:00:00.000Z', $lt: '2026-11-17T00:00:00.000Z' }) });
+    expect(QueryEngineComponent.isoDate('2026-11-16T11:00:00', true)).toBe('2026-11-16T11:00:00.000Z');
+    expect(QueryEngineComponent.isoDate('2026-11-16T11:00:00')).toBe(new Date('2026-11-16T11:00:00').toISOString());
+    expect(QueryEngineComponent.isoDate('2026-11-16T11:00:00+01:00', true)).toBe('2026-11-16T10:00:00.000Z');
   });
 });

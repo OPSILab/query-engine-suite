@@ -128,6 +128,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     return { prefix, name: String(obj[prefix + 'name'] ?? obj[prefix + '_id'] ?? '?') };
   }
 
+  /** The `record` of a MinIO file: its metadata (it has bucketName), not data. */
+  static isFileMetadata(record: any): boolean {
+    return record !== null && typeof record === 'object' && !Array.isArray(record) && record.bucketName !== undefined;
+  }
+
   toggleUnwrap(): void {
     this.unwrap = !this.unwrap;
     this.refreshSnippet();
@@ -680,19 +685,25 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
         // { record, name, element } - fall back to the item itself so a
         // shape difference between modes doesn't throw away the whole
         // batch (see the try/catch below either way).
-        const record = obj.record || obj;
-        // The item's own data, i.e. everything except `record` - taken
+        // `record` of a MinIO file (with bucketName) is the metadata of the file:
+        // shown apart (the files list), not as data. Any other `record` (the
+        // record of an API answer, of an Orion entity...) is data, shown with
+        // the rest of the item.
+        const fileMeta = QueryEngineComponent.isFileMetadata(obj.record) ? obj.record : undefined;
+        const record = fileMeta || obj;
+        // The item's own data, i.e. everything except the file metadata - taken
         // BEFORE the lines below add objectPath/pilot/insertedBy to obj.
         // Advanced search returns the stored Source documents as they are,
-        // `{ _id, name, json | csv | <the file's own keys>, record }`, where
-        // `record` is only the MinIO/S3 metadata of the uploaded file: showing
-        // `record` for those (as this used to) showed the metadata and never
+        // `{ _id, name, json | csv | <the file's own keys>, record }` for the
+        // MinIO files: showing their `record` showed the metadata and never
         // the data itself.
         // `_collection`: the collection of an Advanced search result (shown as a label, not as data)
-        const { record: _meta, _collection, ...ownData } = obj;
+        const { _collection, ...ownData } = obj;
+        if (fileMeta)
+          delete ownData.record;
         // an unwrapped result (?unwrap=true): "../record" (or deeper) is the MinIO metadata of its document, like `record`
         const unwrapped = typeof obj.unWrappedFrom === 'string' ? QueryEngineComponent.unwrappedDocument(obj) : undefined;
-        if (unwrapped && ownData[unwrapped.prefix + 'record']?.bucketName !== undefined)
+        if (unwrapped && QueryEngineComponent.isFileMetadata(ownData[unwrapped.prefix + 'record']))
           delete ownData[unwrapped.prefix + 'record'];
         delete obj._collection;
         const collection = typeof _collection === 'string' ? this.beopenAPI.collectionLabel(_collection) : undefined;
@@ -772,16 +783,32 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     }
   }
 
+  /**
+   * A date of a "Date" filter (datetime-local: no time zone) as an ISO string (UTC); undefined if empty or invalid.
+   * utc: the date typed is UTC; otherwise it is in the time zone of the browser.
+   */
+  static isoDate(value: any, utc = false): string | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const date = new Date(utc && typeof value === 'string' && !/(Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value + 'Z' : value);
+    return isNaN(date.getTime()) ? undefined : date.toISOString();
+  }
+
   /** Advanced search filters as sent to the backend ("Find all" = no filters). */
   private buildMongoQuery(all: Boolean): any {
     let mongoQuery = {};
     if (!all)
       for (let l of this.lines) {
-        if (l.type == "Date")
-          mongoQuery[l.key] = JSON.stringify({
-            $gte: new Date(l.from),
-            $lte: new Date(l.to),
-          });
+        if (l.type == "Date") {
+          // only the bounds given (one is enough; none: no filter), as ISO strings (UTC): from included, to excluded
+          // (from a midnight to the next one: exactly that day). l.utc: the dates typed are UTC, otherwise in the
+          // time zone of the browser. The key is the path of the field (e.g. data.record.created_at), see the
+          // Query-Engine services/dateFilter.js
+          const range: Record<string, string> = {};
+          const from = QueryEngineComponent.isoDate(l.from, l.utc), to = QueryEngineComponent.isoDate(l.to, l.utc);
+          if (from) range['$gte'] = from;
+          if (to) range['$lt'] = to;
+          if (l.key && Object.keys(range).length) mongoQuery[l.key] = JSON.stringify(range);
+        }
         else mongoQuery[l.key] = l.value;
       }
     return mongoQuery;
