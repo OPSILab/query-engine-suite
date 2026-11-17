@@ -54,6 +54,7 @@ These must have the **same value** in the Query-Engine and in the Source-Connect
 | `apiConnectorConfig.apiUrls` | | the polled APIs, [incremental](incremental-apis.html) or not |
 | `apiConnectorConfig.pollInterval` | 1 day | ms between polls |
 | `apiConnectorConfig.upsertRecords` (or on each API) | `false` | non incremental APIs: every answer replaces the stored records |
+| on each API: `fhir` / `completeAnswer` | not set | [an answer without every record](incremental-apis.html#fhir-servers-without-paging) (FHIR Bundle: entries < total): an error, nothing stored |
 | `apiConnectorConfig.unalignedAnswer` (or on each API) | not set | [non incremental APIs](source-connector.html#non-incremental-apis): `"append"` or `"upsert"` for an answer that does not continue the stored records; not set: by count |
 
 ## Frontend

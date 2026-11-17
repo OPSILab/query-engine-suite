@@ -25,6 +25,7 @@ The `apiConnector` polls the APIs of `apiConnectorConfig.apiUrls` every `pollInt
     pollDelay: 0,                    // ms subtracted from both dates (data published late)
     maxWindow: 30 * 24 * 3600 * 1000, // optional: the longest span of one request (needs endDateParam)
     alignToDays: false,              // optional: windows of whole UTC days, midnight to midnight (below)
+    startDatePrefix: "", endDatePrefix: "", // optional: put before the dates (e.g. "ge" / "lt", below)
     retryNotFound: false             // optional: ask again, at the next polls, the windows answered 404
   },
   pagination: {                      // optional
@@ -64,6 +65,42 @@ nothing, the 12th is asked on the 13th. `pollDelay` moves back the last day aske
 not the bounds. The start goes back to its midnight: `startDateValue` and, after switching an API to `alignToDays`, the
 end of its last window. The poll interval does not change the windows. To align records already stored,
 [reset](#reset) the API after switching.
+
+**`startDatePrefix` / `endDatePrefix`** are put before the dates sent, in any format. **The same param for start and
+end** (`startDateParam` = `endDateParam`) sends both dates under it, start first, as a repeated param (`p=a&p=b`, not
+`p[]=a&p[]=b`). Together, for a FHIR server (`_lastUpdated=ge…&_lastUpdated=lt…`):
+
+```js
+{
+  name: "Appointments",
+  url: "https://fhir.example/baseDstu3/Appointment",
+  queryParams: { _count: 1000 },
+  incremental: true,
+  incrementalParams: {
+    startDateParam: "_lastUpdated", endDateParam: "_lastUpdated",
+    startDatePrefix: "ge", endDatePrefix: "lt",            // ge: start included, lt: end excluded
+    startDateLogic: "inclusive", endDateLogic: "exclusive", // as the prefixes say: windows contiguous, no overlap
+    startDateFormat: "RFC 3339", endDateFormat: "RFC 3339",
+    startDateValue: "2026-01-01T00:00:00Z", maxWindow: 24 * 3600 * 1000, alignToDays: true
+  }
+}
+```
+
+→ `?_count=1000&_lastUpdated=ge2026-01-01T00:00:00.000Z&_lastUpdated=lt2026-01-02T00:00:00.000Z`, then the next day.
+The logics must match the prefixes (`gt` → `startDateLogic: "exclusive"`, `le` → `endDateLogic: "inclusive"`), so
+that two windows neither overlap nor leave a gap. The records get the dates sent as they are: `_lastUpdated: ["ge…", "lt…"]`.
+
+### FHIR servers without paging
+
+Some FHIR servers ignore `_offset` and give no `next` link: a search answers only the first `_count` entries of its
+`total`, the rest cannot be read. **`fhir: true`** on the API (not paginated) checks every answer: a Bundle with
+fewer entries than its `total` is an **error and nothing of it is stored**, so that no hole is left behind. The poll
+stops at that window and the next one asks it again (until the server answers it whole: a shorter `maxWindow`, a
+bigger `_count` in `queryParams`, or paging enabled on the server); a non incremental API keeps the records it has.
+The error is in the log (`incomplete answer (total 6, received 3), nothing stored`).
+
+Any other check: **`completeAnswer: response => <boolean>`** on the API (it wins over `fhir`), on every answer with
+records (not the list of a batch API, not the 404s).
 
 ## Pagination
 
