@@ -66,7 +66,9 @@ by the private queries; the frontend does not need them.
 | deactivate the active cache | administrator |
 | delete a cache backup | logged user + management password |
 | rebuild, Orion queue | logged user |
-| reset incremental APIs | logged user + management password (not for the dry run) |
+| reset of the APIs (incremental or not) | logged user + management password (not for the dry run) |
+| list the backups of the API data | logged user |
+| backup / restore / delete the API data | logged user + management password |
 
 ## Management password
 

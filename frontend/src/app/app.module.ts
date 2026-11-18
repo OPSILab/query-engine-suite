@@ -64,6 +64,7 @@ import { AuthLinkComponent } from './shared/auth-link/auth-link.component';
 import { SourceConnectorComponent } from './source-connector/source-connector.component';
 import { CacheComponent } from './cache/cache.component';
 import { ConfigurationComponent } from './configuration/configuration.component';
+import { ApiBackupsComponent } from './source-connector/api-backups/api-backups.component';
 
 export function translateLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -92,6 +93,7 @@ export function translateLoaderFactory(http: HttpClient) {
     SourceConnectorComponent,
     CacheComponent,
     ConfigurationComponent,
+    ApiBackupsComponent,
   ],
   imports: [
     BrowserModule,

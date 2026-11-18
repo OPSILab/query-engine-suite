@@ -1,0 +1,12 @@
+// shared: ../../shared/admin-page.scss, ../source-connector.component.scss
+.bk-pending td {
+  background: var(--ds-accent-soft);
+}
+
+.bk-log {
+  margin-top: 14px;
+}
+
+td .ds-ghost-button + .ds-ghost-button {
+  margin-left: 6px;
+}

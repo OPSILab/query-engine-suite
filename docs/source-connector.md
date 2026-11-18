@@ -67,6 +67,8 @@ record in common.
 | `POST /api/rebuild`, `GET /api/rebuild` | rebuild keys / values / entries or PostgreSQL; progress |
 | `POST /api/incremental/reset`, `GET /api/incremental/reset` | reset APIs (incremental or not); progress |
 | `GET /api/incremental/reset/log` | every reset done |
+| `GET /api/backups`, `GET /api/backups/log` | the [backups of the API data](#backups-of-the-api-data), the action running, every action done |
+| `POST /api/backups`, `POST /api/backups/:id/restore`, `DELETE /api/backups/:id` | backup, restore, delete (management password) |
 
 All of them except the Orion notifications and `GET /api/config` require a valid token, unless `authConfig.disableAuth` is true (Orion
 cannot send one: see [Orion notifications](orion-notifications.html#no-token-on-the-notification-route)). The reset also requires the
@@ -104,6 +106,31 @@ Deletes every record of the chosen APIs, incremental or not, and polls them agai
 [Incremental APIs](incremental-apis.html#reset).
 
 ![Reset confirmation](assets/img/source-connector-reset-confirm.png)
+
+### Backups of the API data
+
+A backup copies the records of the APIs (`collections.api`) and the state of their incremental polls
+(`incrementalstate`) into a **MongoDB database of their own** (`apiBackup.mongoDb`, default `<main database>_backups`;
+MongoDB 4.4 or later, the copy is made by the server). The main database stays clean, and the Query-Engine never sees
+the backups: it does not know that database, and nothing is copied into PostgreSQL, where its SQL runs (with the
+reader user). The records of an interrupted poll are dropped before copying, as the next poll would do.
+
+**Restore** puts a backup in place of the data, after a backup of the data as they are (kind "before a restore": it
+can be undone): the records and the poll states are replaced (indexes kept), the pending poll marks cleared, keys /
+values / entries of the API records rebuilt, and the PostgreSQL table rebuilt from MongoDB. The polls go on from the
+date of the backup: the incremental APIs ask again what came after it. With the records in PostgreSQL only
+(`toMongo: false`), its rows are backed up and restored instead.
+
+| Detail | |
+|---|---|
+| where | Source connector page, or the endpoints above |
+| password | `managementSecret`, in `X-Management-Secret`; not configured: disabled (403) |
+| how many | `apiBackup.maxBackups` (default 10, 0: no limit): the oldest beyond it are deleted, never the one being restored |
+| refused (409) | while a poll, a rebuild, a reset or another backup action runs |
+| progress | backup and restore run in background (202), `GET /api/backups` says the action running or the last one |
+| log | every action, in `apibackuplog` of the backup database (`GET /api/backups/log`) |
+
+![Backups of the API data](assets/img/source-connector-backups.png)
 
 ### Orion notifications in queue
 

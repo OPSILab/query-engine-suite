@@ -15,7 +15,7 @@ The Angular app of the Data Space. It reads its settings from `assets/config.jso
 | Query engine | `/` | everyone who can open the app | Simple search, Advanced search, SQL, GraphQL |
 | Status log | `/status-log` | everyone (credentials hidden from non-administrators) | [Status log](status-log.html) |
 | Configuration | `/configuration` | everyone | what can be seen of the Source-Connector configuration, read only (below) |
-| Source connector | `/source-connector` | logged users | rebuild, [reset of the APIs](incremental-apis.html#reset) (incremental or not), [Orion queue](orion-notifications.html#the-queue) |
+| Source connector | `/source-connector` | logged users | rebuild, [reset of the APIs](incremental-apis.html#reset) (incremental or not), [backups of the API data](source-connector.html#backups-of-the-api-data), [Orion queue](orion-notifications.html#the-queue) |
 | Cache | `/cache` | logged users | [versions, backups, deactivation](cache.html) |
 
 Source connector and Cache are hidden from the menu when nobody is logged in, and their routes are guarded.

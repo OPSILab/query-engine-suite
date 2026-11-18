@@ -1,0 +1,133 @@
+@if (configured) {
+<section class="ap-card" [attr.aria-busy]="status.running">
+  <div class="ap-row sc-log-head">
+    <h2 class="ap-card__title">{{ 'API backups' | translate }}</h2>
+    <button type="button" class="ds-ghost-button" (click)="refresh()">{{ 'Refresh' | translate }}</button>
+  </div>
+  <p class="ap-card__info">{{ 'API backups info' | translate }}
+    @if (maxBackups) { {{ 'API backups kept' | translate: { count: maxBackups } }} }</p>
+  @if (!secretConfigured) {
+  <p class="ap-notice ap-notice--warn" role="note">{{ 'Incremental reset disabled' | translate }}</p>
+  }
+
+  <form class="ap-row sc-reset" (ngSubmit)="backUp()" autocomplete="off">
+    <label class="ap-field">
+      <span class="ds-field-label">{{ 'Backup label' | translate }}</span>
+      <input class="ds-input" type="text" name="label" maxlength="200" [(ngModel)]="label" [disabled]="!secretConfigured" />
+    </label>
+    <label class="ap-field">
+      <span class="ds-field-label">{{ 'Management password' | translate }}</span>
+      <input class="ds-input" type="password" name="secret" [(ngModel)]="secret" autocomplete="new-password" [disabled]="!secretConfigured" />
+    </label>
+    <button type="submit" class="ds-primary-button" [disabled]="!canAct">{{ 'Back up now' | translate }}</button>
+  </form>
+
+  @if (pending) {
+  <div class="ap-notice ap-notice--warn sc-confirm" role="alertdialog" aria-labelledby="bk-confirm-text">
+    <p id="bk-confirm-text">{{ (pending.action === 'restore' ? 'Restore backup confirm' : 'Delete API backup confirm') | translate: { id: pending.id } }}</p>
+    <div class="ap-row">
+      <button type="button" class="ds-primary-button sc-danger-solid" [disabled]="!canAct" (click)="confirm()">
+        {{ (pending.action === 'restore' ? 'Back up and restore' : 'Delete') | translate }}</button>
+      <button type="button" class="ds-ghost-button" (click)="cancel()">{{ 'Cancel' | translate }}</button>
+    </div>
+  </div>
+  }
+  @if (actionError) {
+  <p class="ap-message ap-message--error" role="alert">{{ actionError }}</p>
+  }
+  @if (status.running) {
+  <p class="ap-message"><span class="ap-badge">{{ 'Running' | translate }}</span>
+    {{ ('Backup action ' + status.action) | translate }}@if (status.id) { · <span class="ds-mono">{{ status.id }}</span> }
+    · {{ 'Started at' | translate }} {{ status.startedAt | date: 'HH:mm:ss' }}</p>
+  } @else if (status.error) {
+  <p class="ap-message ap-message--error">{{ ('Backup action ' + status.action) | translate }}: {{ status.error }}</p>
+  }
+
+  @if (listError) {
+  <p class="ap-message ap-message--error" role="alert">{{ listError }}</p>
+  } @else if (!backups.length) {
+  <p class="ap-message">{{ 'No API backups' | translate }}</p>
+  } @else {
+  <div class="ap-table-wrap">
+    <table class="ap-table">
+      <thead>
+        <tr>
+          <th scope="col">{{ 'When' | translate }}</th>
+          <th scope="col">{{ 'Backup label' | translate }}</th>
+          <th scope="col">{{ 'Who' | translate }}</th>
+          <th scope="col">{{ 'Records' | translate }}</th>
+          <th scope="col">{{ 'Restored' | translate }}</th>
+          <th scope="col"><span class="ap-sr-only">{{ 'Actions' | translate }}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (b of backups; track b.id) {
+        <tr [class.bk-pending]="pending?.id === b.id">
+          <td class="ap-nowrap">{{ b.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}<br /><span class="ap-muted ds-mono">{{ b.id }}</span></td>
+          <td>
+            @if (b.kind === 'before-restore') {
+            <span class="ap-badge ap-badge--muted">{{ 'Before a restore' | translate }}</span>
+            }
+            {{ b.label }}
+          </td>
+          <td>{{ b.by }}</td>
+          <td class="ap-nowrap">{{ records(b.counts) }}
+            @if (b.counts.incrementalstate) {
+            <br /><span class="ap-muted">{{ 'Poll states' | translate: { count: b.counts.incrementalstate } }}</span>
+            }
+          </td>
+          <td class="ap-nowrap">
+            @if (b.restoredAt) {
+            @if (lastRestored === b.id) { <span class="ap-badge ap-badge--ok">{{ 'Last restored' | translate }}</span><br /> }
+            {{ b.restoredAt | date: 'yyyy-MM-dd HH:mm' }} <span class="ap-muted">· {{ b.restoredBy }}</span>
+            }
+          </td>
+          <td class="ap-nowrap">
+            <button type="button" class="ds-ghost-button" [disabled]="!canAct" (click)="ask('restore', b.id)">{{ 'Restore' | translate }}</button>
+            <button type="button" class="ds-ghost-button sc-danger" [disabled]="!canAct" (click)="ask('delete', b.id)">{{ 'Delete' | translate }}</button>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+
+  @if (log.length) {
+  <details class="bk-log">
+    <summary class="ap-message">{{ 'Backups log' | translate }}</summary>
+    <div class="ap-table-wrap">
+      <table class="ap-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'When' | translate }}</th>
+            <th scope="col">{{ 'Who' | translate }}</th>
+            <th scope="col">{{ 'Action' | translate }}</th>
+            <th scope="col">Backup</th>
+            <th scope="col">{{ 'Outcome' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of log; track entry.logId) {
+          <tr>
+            <td class="ap-nowrap">{{ entry.at | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td>{{ entry.by }}</td>
+            <td>{{ ('Backup action ' + entry.action) | translate }}</td>
+            <td class="ds-mono">{{ entry.id || entry.result?.id }}
+              @if (entry.result?.before) { <br /><span class="ap-muted">{{ 'Data before' | translate }}: {{ entry.result.before }}</span> }</td>
+            <td>
+              @if (entry.outcome === 'done') {
+              <span class="ap-badge ap-badge--ok">{{ 'Done' | translate }}</span>
+              } @else {
+              <span class="ap-badge ap-badge--error">{{ 'Failed' | translate }}</span> {{ entry.error }}
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </details>
+  }
+</section>
+}

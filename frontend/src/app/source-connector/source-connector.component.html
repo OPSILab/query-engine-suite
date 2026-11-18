@@ -133,6 +133,9 @@
     }
   </section>
 
+  <!-- backups of the API data: backup, restore (after a backup of the data as they are), delete -->
+  <app-api-backups></app-api-backups>
+
   <!-- the Orion notifications, processed one at a time in arrival order -->
   <section class="ap-card" [attr.aria-busy]="(queue?.queue ?? 0) > 0">
     <div class="ap-row sc-log-head">

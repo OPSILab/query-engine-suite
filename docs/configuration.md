@@ -17,6 +17,7 @@ These must have the **same value** in the Query-Engine and in the Source-Connect
 |---|---|
 | `collections` | MongoDB collection / PostgreSQL table of each connector, and whether it is written there ([details](source-connector.html#connectors)) |
 | `managementSecret` | the [management password](authentication.html#management-password); empty: destructive operations disabled |
+| `apiBackup.mongoDb` / `apiBackup.maxBackups` | Source-Connector: the MongoDB database of the [backups of the API data](source-connector.html#backups-of-the-api-data) (empty: `<main database>_backups`) and the most kept (10; 0: no limit) |
 | `mongo`, `postgreConfig` | the same databases |
 | `authConfig.clientId`, `publicKey`, `idmHost`, `authRealm` | the same Keycloak client |
 

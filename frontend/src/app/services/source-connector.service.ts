@@ -32,6 +32,46 @@ export interface ResetStatus {
 /** An API of the Source-Connector (dry run of POST /api/incremental/reset: every API, incremental or not). */
 export interface IncrementalApi { name: string; url: string; incremental?: boolean; records: RecordCounts; }
 
+/** A backup of the apiConnector data (GET /api/backups). */
+export interface ApiBackup {
+  id: string;
+  createdAt: string;
+  by: string;
+  kind: 'manual' | 'before-restore' | string;
+  label?: string;
+  counts: { records?: number; postgres?: number; incrementalstate?: number };
+  restoredAt?: string;
+  restoredBy?: string;
+}
+
+/** The backup action running, or the last one. */
+export interface BackupStatus {
+  running: boolean;
+  action?: 'backup' | 'restore' | 'delete';
+  id?: string;
+  label?: string;
+  by?: string;
+  phase?: string;
+  before?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  error?: string;
+  result?: any;
+}
+
+/** A backup, restore or delete done (GET /api/backups/log). */
+export interface BackupLogEntry {
+  logId: string;
+  at: string;
+  action: 'backup' | 'restore' | 'delete';
+  by: string;
+  id?: string;
+  label?: string;
+  outcome: 'done' | 'error';
+  error?: string;
+  result?: any;
+}
+
 /** A reset done (GET /api/incremental/reset/log), kept by the Source-Connector. */
 export interface ResetLogEntry {
   id: string;
@@ -146,6 +186,38 @@ export class SourceConnectorService {
   /** Deletes the records of the APIs named and polls them again from the start; the management password needed. */
   startReset(names: string[], secret: string): Promise<{ started: boolean; apis: string[] }> {
     return firstValueFrom(this.http.post<{ started: boolean; apis: string[] }>(this.url('/incremental/reset'), { names },
+      { headers: { 'X-Management-Secret': secret } }));
+  }
+
+  /** The backups of the API data (newest first), the action running or the last one, the limit kept. */
+  getBackups(): Promise<{ items: ApiBackup[]; status: BackupStatus; maxBackups: number; secretConfigured: boolean }> {
+    return firstValueFrom(this.http.get<any>(this.url('/backups'))).then(res => ({
+      items: Array.isArray(res?.items) ? res.items : [],
+      status: res?.status && typeof res.status === 'object' ? res.status : { running: false },
+      maxBackups: Number.isInteger(res?.maxBackups) ? res.maxBackups : 0,
+      secretConfigured: res?.secretConfigured === true,
+    }));
+  }
+
+  getBackupLog(): Promise<BackupLogEntry[]> {
+    return firstValueFrom(this.http.get<{ items: BackupLogEntry[] }>(this.url('/backups/log'), { params: { limit: '50' } }))
+      .then(res => (Array.isArray(res?.items) ? res.items : []));
+  }
+
+  /** A backup of the API data as they are now (in background); the management password needed. */
+  createBackup(label: string, secret: string): Promise<{ started: boolean }> {
+    return firstValueFrom(this.http.post<{ started: boolean }>(this.url('/backups'), label ? { label } : {},
+      { headers: { 'X-Management-Secret': secret } }));
+  }
+
+  /** The API data replaced by a backup, after a backup of them (in background); the management password needed. */
+  restoreBackup(id: string, secret: string): Promise<{ started: boolean; id: string }> {
+    return firstValueFrom(this.http.post<{ started: boolean; id: string }>(this.url(`/backups/${encodeURIComponent(id)}/restore`), {},
+      { headers: { 'X-Management-Secret': secret } }));
+  }
+
+  deleteBackup(id: string, secret: string): Promise<{ id: string }> {
+    return firstValueFrom(this.http.delete<{ id: string }>(this.url(`/backups/${encodeURIComponent(id)}`),
       { headers: { 'X-Management-Secret': secret } }));
   }
 
