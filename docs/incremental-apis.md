@@ -105,9 +105,26 @@ records (not the list of a batch API, not the 404s).
 ## Pagination
 
 Each request (each window) is read page by page: `offsetParam` starts at `offsetValue.startFrom`, or 0 (the epoch for
-`offsetValue.type: "RFC 3339"`), and grows by `limit`, while `condition(response)` is true. With
+`offsetValue.type: "RFC 3339"`), and grows as `offsetIncrement` says, while `condition(response)` is true. With
 `offsetValue: { from: "response", value: "<field>" }` the next offset is taken from the first record of the answer
 (a cursor); reading stops when it does not change.
+
+| `offsetIncrement` | The offset grows by | For |
+|---|---|---|
+| `"limit"` (default) | `limit`: 0, 1000, 2000… | an offset counted in records (`offset`, `skip`) |
+| `"index"` | 1: 1, 2, 3… (with `offsetValue: { startFrom: 1 }`) | a page number (`page`) |
+
+```js
+pagination: {
+  offsetParam: "page", limitParam: "per_page", limit: 100,
+  offsetIncrement: "index", offsetValue: { startFrom: 1 },
+  condition: response => !!response.data.links?.next   // { data, meta, links: { next } }
+}
+```
+
+`condition` gets the answer as the API gave it (`response.data`: the list, or the object, e.g.
+`response.data.meta?.has_more`). For an answer that is not a list it is also asked with the answer as a list of one
+(`response.data[0]?.truncated`), as the conditions were written before: another page when either says so.
 
 ## Request dates on the records
 
@@ -181,9 +198,10 @@ the API was already polled that day do not retry them.
 
 ## Reset
 
-When an incremental API has wrong or duplicated records, reset it: every record of that API is deleted (MongoDB
+When an API has wrong, duplicated or incomplete records, reset it: every record of that API is deleted (MongoDB
 collection, PostgreSQL table, keys / values / entries, pending marks, state in `incrementalstate`) and the API is polled again at once, as the first
-time, from `startDateValue`, window by window, every page.
+time: an incremental API from `startDateValue`, window by window, every page; a **non incremental** API (since the same
+endpoint resets it too) its whole answer, every page.
 
 From the frontend (Source connector page): tick the APIs, type the management password, confirm. Through the API:
 
@@ -195,8 +213,8 @@ Authorization: Bearer <token>
 
 | Detail | |
 |---|---|
-| which APIs | `name` (repeatable) or `{ "names": [...] }` in the body; none: every incremental API |
-| dry run | `dryRun=true`: only the record counts, nothing deleted, no password needed |
+| which APIs | `name` (repeatable) or `{ "names": [...] }` in the body, incremental or not; none: every incremental API |
+| dry run | `dryRun=true`: only the record counts, nothing deleted, no password needed; none named: every API, with `incremental` |
 | password | `managementSecret` of the Source-Connector config, in `X-Management-Secret`; not configured: reset disabled (403) |
 | refused (409) | while a poll or a rebuild runs, or with `apiConnector` disabled (nothing would poll again) |
 | progress | runs in background (202); `GET /api/incremental/reset` |

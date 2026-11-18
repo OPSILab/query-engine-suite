@@ -65,7 +65,7 @@ record in common.
 | `GET /api/config` | what can be shown of the configuration (connectors enabled, poll interval, APIs: url, paginated / batch, incremental, start date, maxWindow); **open**, nothing secret |
 | `PUT /api/query` | synchronise MinIO and check the Orion entities now |
 | `POST /api/rebuild`, `GET /api/rebuild` | rebuild keys / values / entries or PostgreSQL; progress |
-| `POST /api/incremental/reset`, `GET /api/incremental/reset` | reset incremental APIs; progress |
+| `POST /api/incremental/reset`, `GET /api/incremental/reset` | reset APIs (incremental or not); progress |
 | `GET /api/incremental/reset/log` | every reset done |
 
 All of them except the Orion notifications and `GET /api/config` require a valid token, unless `authConfig.disableAuth` is true (Orion
@@ -98,9 +98,9 @@ POST /api/rebuild?mode=entries&connector=orion
 It runs in background (202); `GET /api/rebuild` gives the state and the result. The records themselves are not
 changed. Refused (409) while another rebuild, a reset or an API poll is running.
 
-### Reset of the incremental APIs
+### Reset of the APIs
 
-Deletes every record of the chosen incremental APIs and polls them again from the start. See
+Deletes every record of the chosen APIs, incremental or not, and polls them again from the start. See
 [Incremental APIs](incremental-apis.html#reset).
 
 ![Reset confirmation](assets/img/source-connector-reset-confirm.png)

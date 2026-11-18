@@ -29,7 +29,8 @@ export interface ResetStatus {
 }
 
 /** An incremental API with its records (dry run of the reset). */
-export interface IncrementalApi { name: string; url: string; records: RecordCounts; }
+/** An API of the Source-Connector (dry run of POST /api/incremental/reset: every API, incremental or not). */
+export interface IncrementalApi { name: string; url: string; incremental?: boolean; records: RecordCounts; }
 
 /** A reset done (GET /api/incremental/reset/log), kept by the Source-Connector. */
 export interface ResetLogEntry {

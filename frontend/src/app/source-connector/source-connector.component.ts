@@ -8,8 +8,8 @@ import {
  * (config.json "sourceConnectorBaseUrl").
  *  - Rebuild of keys, values and entries (POST /api/rebuild?mode=entries), of every connector or of one; its
  *    progress / result (GET /api/rebuild, read again every few seconds while it runs).
- *  - Reset of the incremental APIs: their records deleted and polled again from the start. The APIs come from a dry
- *    run (with their records); the reset needs the management password (managementSecret of the Source-Connector,
+ *  - Reset of the APIs, incremental or not: their records deleted and polled again from the start. The APIs come from
+ *    a dry run (every API, with its records and whether it is incremental); the reset needs the management password (managementSecret of the Source-Connector,
  *    typed every time, never stored) and a confirmation. Every reset stays in the log below (who, when, which APIs,
  *    records before / after, outcome), kept by the Source-Connector.
  *  - The queue of the Orion notifications (GET /api/queue): how many, the one being processed (its datasets, since

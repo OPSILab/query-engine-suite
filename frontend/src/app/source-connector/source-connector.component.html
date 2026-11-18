@@ -60,7 +60,7 @@
     }
   </section>
 
-  <!-- the incremental APIs from scratch: destructive, with the management password -->
+  <!-- the APIs (incremental or not) from scratch: destructive, with the management password -->
   <section class="ap-card" [attr.aria-busy]="!!reset?.running">
     <h2 class="ap-card__title">{{ 'Incremental reset' | translate }}</h2>
     <p class="ap-card__info">{{ 'Incremental reset info' | translate }}</p>
@@ -79,6 +79,7 @@
             <th scope="col"><span class="ap-sr-only">{{ 'Select' | translate }}</span></th>
             <th scope="col">API</th>
             <th scope="col">URL</th>
+            <th scope="col">{{ 'Incremental' | translate }}</th>
             <th scope="col">{{ 'Records' | translate }}</th>
           </tr>
         </thead>
@@ -89,6 +90,11 @@
               [disabled]="!secretConfigured" /></td>
             <td class="ap-nowrap">{{ a.name }}</td>
             <td class="ds-mono sc-url" [title]="a.url">{{ a.url }}</td>
+            <td class="ap-nowrap">
+              @if (a.incremental !== undefined) {
+              <span class="ap-badge" [class.ap-badge--ok]="a.incremental" [class.ap-badge--muted]="!a.incremental">{{ (a.incremental ? 'Yes' : 'No') | translate }}</span>
+              }
+            </td>
             <td class="ap-nowrap">{{ counts(a.records) }}</td>
           </tr>
           }
