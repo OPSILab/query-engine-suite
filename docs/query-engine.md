@@ -14,7 +14,7 @@ Source-Connector. Every endpoint is under `/api` (`basePath` in the configuratio
 
 | Kind | Searches | Request |
 |---|---|---|
-| **Simple search** | A word or value anywhere: MinIO files, and live the APIs of `apiConnectorConfig.apiUrls` and (if enabled) Orion, as `simpleSearchOptions` says | `GET /api/query?value=…` with header `isRawQuery: yes` |
+| **Simple search** | A word or value anywhere: MinIO files, and live the APIs of `apiConnectorConfig.apiUrls` (their [hidden fields](source-connector.html#hidden-fields-personal-data) as pseudonyms, with `hideFieldsSecret`) and (if enabled) Orion, as `simpleSearchOptions` says | `GET /api/query?value=…` with header `isRawQuery: yes` |
 | **Advanced search** | Key / value filters (text or date range) on the MongoDB collections, optionally unwrapping arrays | `POST /api/query?<key>=<value>…` with `{ mongoQuery, page, collections }` in the body |
 | **SQL** | The PostgreSQL tables (only the collections with `toPostgres`) | `POST /api/query` with `{ query }` |
 | **GraphQL** | The Orion datapoints (`datapoints` query, cached) and the sources | `POST /graphql` |

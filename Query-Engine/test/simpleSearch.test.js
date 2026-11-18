@@ -89,6 +89,21 @@ describe("APIs", () => {
         assert.deepEqual(fake.callsTo("/search")[0].body, { q: "anything" })
     })
 
+    test("hideFields: searched and shown with the pseudonyms (never the names); without hideFieldsSecret not searched", async () => {
+        const { pseudonym } = load("api/services/hideFields.js")
+        useApis({ name: "Appointments", url: fake.url + "/fhir", hideFields: ["entry.resource.participant.actor.display"] })
+        config.hideFieldsSecret = "key"
+        const [result] = await simpleSearch.searchLive("Rome")
+        assert.equal(result.raw.entry[0].resource.participant[0].actor.display, pseudonym("Mario Rossi", "key"))
+        assert.deepEqual(await simpleSearch.searchLive("Mario"), []) // the name in clear is not there to be found
+        config.hideFieldsSecret = ""
+        fake.calls.length = 0
+        const warnings = []
+        assert.deepEqual(await simpleSearch.searchLive("Rome", warnings), [])
+        assert.deepEqual(codes(warnings), ["API_HIDDEN_FIELDS"])
+        assert.equal(fake.calls.length, 0) // not even called
+    })
+
     test("batch: one request per batch value, the origin is the batch url", async () => {
         useApis({ name: "Batch", url: fake.url + "/batch/{batch}", batch: { from: fake.url + "/batch-list", pick: "items", param: ["ref", "id"] } })
         const results = await simpleSearch.searchLive("Rome")

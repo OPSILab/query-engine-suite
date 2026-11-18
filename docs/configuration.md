@@ -6,7 +6,7 @@ title: Configuration
 # Configuration
 
 Each backend reads `config.js` (template: `config.template.js`). Secrets (`authConfig.secret`, `adminToken`,
-`managementSecret`, database passwords, MinIO keys) must never be committed. Below, the keys most deployments touch,
+`managementSecret`, `hideFieldsSecret`, database passwords, MinIO keys) must never be committed. Below, the keys most deployments touch,
 and those added recently; the templates comment every key.
 
 ## Shared by both backends
@@ -17,6 +17,7 @@ These must have the **same value** in the Query-Engine and in the Source-Connect
 |---|---|
 | `collections` | MongoDB collection / PostgreSQL table of each connector, and whether it is written there ([details](source-connector.html#connectors)) |
 | `managementSecret` | the [management password](authentication.html#management-password); empty: destructive operations disabled |
+| `hideFieldsSecret` | Source-Connector and Query-Engine (same value): the key of the pseudonyms of the [hidden fields](source-connector.html#hidden-fields-personal-data) (`hideFields` on an API); long and random, never committed |
 | `apiBackup.mongoDb` / `apiBackup.maxBackups` | Source-Connector: the MongoDB database of the [backups of the API data](source-connector.html#backups-of-the-api-data) (empty: `<main database>_backups`) and the most kept (10; 0: no limit) |
 | `mongo`, `postgreConfig` | the same databases |
 | `authConfig.clientId`, `publicKey`, `idmHost`, `authRealm` | the same Keycloak client |

@@ -132,6 +132,10 @@ module.exports = {
     ignoredUrls: [],
     ignoredPrefixes: []
   },
+  // The key of the pseudonyms of the hideFields of the APIs (apiConnectorConfig.apiUrls[].hideFields): the same value as
+  // hideFieldsSecret in the config of the Source-Connector, so that the live Simple search shows the pseudonyms stored.
+  // Empty: the APIs with hideFields are not searched live.
+  hideFieldsSecret: "",
   // Simple search: besides the MinIO files, the APIs of apiConnectorConfig.apiUrls (same format as in the
   // Source-Connector config; an API with simpleSearch: false is skipped) and Orion are searched live.
   // What is left out is reported to the frontend, which shows it as a warning.

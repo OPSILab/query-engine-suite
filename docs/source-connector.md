@@ -56,6 +56,31 @@ records of the url, as it always did. The first answer of a url is stored whole,
 compared. An answer that begins with the last stored record counts as a continuation even if they have only that
 record in common.
 
+## Hidden fields (personal data)
+
+Fields of an API that must not be stored in clear (e.g. names) are listed in **`hideFields`** on the API, as dotted
+paths that go through arrays as MongoDB does: `entry.resource.participant.actor.display` is the display of the actor
+of every participant of every entry (a numeric segment is that element only, `entry.0.…`).
+
+```js
+{ name: "Appointments", url: "https://fhir.example/Appointment", fhir: true,
+  hideFields: ["entry.resource.participant.actor.display"] }
+```
+
+Each value becomes `anon:` + an HMAC-SHA256 with the key **`hideFieldsSecret`** (config), as soon as the answer
+arrives, before anything is stored: MongoDB, PostgreSQL, keys / values / entries, backups and the status log only ever
+see the pseudonyms. The same value gives the same pseudonym, so the records of the same person stay linked; without
+the key nothing leads back to the value (a plain hash of a name would be found by trying names). It is a
+pseudonymisation: the data stay personal data as long as the key exists.
+
+| Case | What happens |
+|---|---|
+| no `hideFieldsSecret` | an error, nothing of that API is stored (the status log saves `[not saved: …]` instead of its answers) |
+| an answer that is not JSON | an error, nothing stored |
+| records stored before `hideFields` | still in clear: [reset](incremental-apis.html#reset) that API |
+| another key | other pseudonyms: the records stored before keep the old ones (reset the API) |
+| Simple search of the Query-Engine | the same `hideFieldsSecret` in its config: it searches and shows the pseudonyms; without it, the API is not searched live |
+
 ## Endpoints
 
 | Endpoint | Purpose |

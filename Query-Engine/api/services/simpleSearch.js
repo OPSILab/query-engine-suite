@@ -15,6 +15,7 @@
 // incomplete: limits() for the configuration, searchLive() also for the failures and truncations of this search.
 
 const axios = require('axios')
+const { hideFields, hiddenPaths } = require('./hideFields')
 const logger = require('percocologger')
 const config = require('../../config')
 
@@ -296,10 +297,27 @@ async function searchLive(value, warnings = [], which = { api: true, orion: true
     if (o.api !== false && which.api !== false)
         for (const api of apis().filter(api => api.simpleSearch !== false))
             searches.push((async () => {
+                // hideFields: searched and shown with the pseudonyms the Source-Connector stores (the same
+                // hideFieldsSecret), never with the values in clear; without the key the API is not searched
+                let hidden
+                try {
+                    hidden = hiddenPaths(api).length > 0
+                }
+                catch (error) {
+                    warnings.push(warning("config", "API_HIDDEN_FIELDS", `API "${api.name}" is not searched: ${error.message}`, api.name))
+                    return
+                }
+                if (hidden && !config.hideFieldsSecret) {
+                    warnings.push(warning("config", "API_HIDDEN_FIELDS", `API "${api.name}" is not searched: it has hideFields and hideFieldsSecret is not set`, api.name))
+                    return
+                }
                 try {
                     for await (const { origin, items } of apiPages(api, warnings)) {
-                        for (const item of items)
-                            add(item, api.name, origin, { api: api.name })
+                        for (const item of items) {
+                            if (hidden && (typeof item != "object" || item === null))
+                                throw new Error("the answer is not JSON, hideFields cannot be applied")
+                            add(hidden ? hideFields(item, api, config.hideFieldsSecret) : item, api.name, origin, { api: api.name })
+                        }
                         if (full)
                             break
                     }

@@ -25,6 +25,7 @@ async function startFakeSources() {
     app.get("/paged", (req, res) => res.send(PAGED.slice(+req.query.offset, +req.query.offset + +req.query.limit)))
     app.get("/incremental", (req, res) => res.send([{ params: req.query, city: "Rome" }]))
     app.get("/fail", (req, res) => res.sendStatus(500))
+    app.get("/fhir", (req, res) => res.send({ resourceType: "Bundle", entry: [{ resource: { city: "Rome", participant: [{ actor: { display: "Mario Rossi" } }] } }] }))
     app.get("/static-key", (req, res) => req.headers["x-api-key"] == "k" ? res.send([{ city: "Rome" }]) : res.sendStatus(403))
 
     // ---- Orion
