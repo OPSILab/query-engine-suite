@@ -49,3 +49,12 @@ describe("json2csv / parseJwt / urlEncode", () => {
         assert.deepEqual(common.parseJwt(`h.${payload}.s`), { azp: "c" })
     })
 })
+
+describe("queryEnginePort", () => {
+    test("queryEnginePort wins over port (one config.js for both services); else port, else 3000", () => {
+        assert.equal(common.queryEnginePort({ port: 3000, queryEnginePort: 3001, sourceConnectorPort: 3002 }), 3001)
+        assert.equal(common.queryEnginePort({ port: 3005 }), 3005)
+        assert.equal(common.queryEnginePort({ queryEnginePort: "bad", port: 3005 }), 3005)
+        assert.equal(common.queryEnginePort({ sourceConnectorPort: 3002 }), 3000)
+    })
+})

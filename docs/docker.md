@@ -27,6 +27,7 @@ docker compose up -d
 - `managementSecret` has the same value in both configurations (or is empty in both: destructive operations disabled).
 - The frontend `assets/config.json` has `queryEngineBaseUrl` and `sourceConnectorBaseUrl` reachable **from the
   browser**, and `dashboardBaseURL` registered as redirect url in Keycloak.
-- `orion.notificationUrl` is reachable **from Orion** (e.g. `http://host.docker.internal:3000/api/orion/subscribe/<mapID>`).
+- `orion.notificationUrl` is reachable **from Orion** (e.g. `http://host.docker.internal:3000/api/orion/subscribe/<mapID>`),
+  on the port of the Source-Connector: `sourceConnectorPort` if set, else `port` (as published by Docker).
 - The Data Model Mapper has `sessionLocation.filesystem` or `sessionLocation.mongo` set to `true`.
 - Run a single Source-Connector instance: the [Orion queue](orion-notifications.html#the-queue) is in memory.

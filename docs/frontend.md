@@ -31,6 +31,31 @@ user and password dropped from the urls and the values of the credential-like qu
 **Links to a search.** `/?key=source&value=<url-encoded value>` opens the Advanced search with that filter filled in
 (repeat `key` / `value` for more filters). The search starts when the user presses *Apply query*.
 
+**Notices for the visitors.** `notices` in `config.json`, read when the page is opened (no rebuild):
+
+```json
+"notices": {
+  "global": [
+    { "level": "warning", "text": { "it": "Manutenzione sabato 9-12", "en": "Maintenance on Saturday 9-12" }, "to": "2026-11-22" },
+    { "level": "info", "text": "New Eurostat datasets", "link": { "url": "https://example.org/news", "text": "Details" } }
+  ],
+  "simpleSearch": [], "advancedSearch": [], "sqlQuery": [],
+  "graphqlQuery": ["The first GraphQL query of the day may be slow."]
+}
+```
+
+| Section | Where |
+|---|---|
+| `global` | a bar under the header, on every page, only when a notice is shown; the visitor can close one (it stays closed in that browser until its text changes) |
+| `simpleSearch`, `advancedSearch`, `sqlQuery`, `graphqlQuery` | in the query card, in yellow, after the notices the mode already shows (e.g. the sources not stored in MongoDB); empty: only those |
+
+A notice is a text, or `{ text, level?, from?, to?, link? }`: `text` a string or `{ "en": "…", "it": "…" }` (the
+language of the site, else English); `level` `"info"` (blue) or `"warning"` (yellow, default; the global bar only);
+`from` / `to` the period it is shown in (`YYYY-MM-DD` or a date and time; a date alone as `to` includes that day);
+`link` an http(s) url or `{ url, text }`.
+
+![Notices](assets/img/notices.png)
+
 **Ready searches.** `presetSearches` in `config.json` adds buttons that fill the Advanced search filters:
 
 ```json

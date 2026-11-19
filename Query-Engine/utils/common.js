@@ -62,7 +62,19 @@ function syncEntries(obj, visibility, entries) {
       entries[key][stringify(obj[key])].push(visibility)
 }
 
+// The port of the Query-Engine: queryEnginePort, else port (as before), else 3000. With its own key, one config.js can
+// serve both the Query-Engine and the Source-Connector (sourceConnectorPort) on the same machine.
+function queryEnginePort(cfg) {
+  for (const value of [cfg?.queryEnginePort, cfg?.port]) {
+    const port = Number(value)
+    if (value !== undefined && value !== null && value !== "" && Number.isInteger(port) && port > 0)
+      return port
+  }
+  return 3000
+}
+
 module.exports = {
+  queryEnginePort,
 
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));

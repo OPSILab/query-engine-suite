@@ -318,5 +318,6 @@
   "Backups log": "Registro dei backup",
   "Action": "Azione",
   "Data before": "i dati precedenti",
-  "Delete API backup confirm": "Il backup {{id}} verrà cancellato definitivamente. Continuare?"
+  "Delete API backup confirm": "Il backup {{id}} verrà cancellato definitivamente. Continuare?",
+  "Notices": "Avvisi"
 }

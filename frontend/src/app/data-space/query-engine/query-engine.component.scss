@@ -576,3 +576,13 @@ a.ds-external-link:hover .ds-external-link__icon {
   height: 32px;
   font-size: calc(13px * var(--ds-font-scale));
 }
+
+// The notices of config.json for the mode (notices.<mode>): the yellow of .ds-collections__hint, a link in it
+.ds-mode-notice {
+  margin-top: 6px;
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+}

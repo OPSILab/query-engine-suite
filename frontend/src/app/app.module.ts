@@ -59,6 +59,7 @@ import { JsonTableComponent } from './shared/json-table/json-table.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker.component';
 import { TopbarComponent } from './shared/topbar/topbar.component';
 import { LayoutComponent } from './shared/layout/layout.component';
+import { SiteNoticesComponent } from './shared/site-notices/site-notices.component';
 import { StatusLogComponent } from './status-log/status-log.component';
 import { AuthLinkComponent } from './shared/auth-link/auth-link.component';
 import { SourceConnectorComponent } from './source-connector/source-connector.component';
@@ -88,6 +89,7 @@ export function translateLoaderFactory(http: HttpClient) {
     ThemePickerComponent,
     TopbarComponent,
     LayoutComponent,
+    SiteNoticesComponent,
     StatusLogComponent,
     AuthLinkComponent,
     SourceConnectorComponent,

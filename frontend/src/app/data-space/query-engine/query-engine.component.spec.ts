@@ -977,3 +977,19 @@ describe('record and Date filters (Advanced search)', () => {
     expect(QueryEngineComponent.isoDate('2026-11-16T11:00:00+01:00', true)).toBe('2026-11-16T10:00:00.000Z');
   });
 });
+
+describe('notices of config.json for the mode', () => {
+  it('the notices of the mode on screen (none configured: none)', () => {
+    const notices = { simpleSearch: ['S'], advancedSearch: ['A1', { text: { en: 'A2' } }], sqlQuery: [], global: ['G'] };
+    const { comp } = create({ settings: { notices } });
+    comp.setMode('Advanced search');
+    expect(comp.modeNotices.map(n => n.text)).toEqual(['A1', 'A2']);
+    comp.setMode('Simple search');
+    expect(comp.modeNotices.map(n => n.text)).toEqual(['S']);
+    comp.setMode('Query SQL');
+    expect(comp.modeNotices).toEqual([]);
+    comp.setMode('Query GraphQL');
+    expect(comp.modeNotices).toEqual([]);
+    expect(create().comp.modeNotices).toEqual([]);
+  });
+});

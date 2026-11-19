@@ -10,3 +10,5 @@ frontend/config.json
 local/
 Source-Connector/config.local.2026-10-23.js
 Source-Connector/config.smartera.js
+common/config.js
+common/secrets.js

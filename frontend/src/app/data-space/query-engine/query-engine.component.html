@@ -95,11 +95,15 @@
             </div>
           </div>
         }
+        <!-- config.json notices.simpleSearch, after the notices above -->
+        <ng-container *ngTemplateOutlet="modeNoticesList"></ng-container>
       </div>
     }
 
     @if (mode == 'Advanced search') {
       <div class="ds-mode-panel ds-mode-panel--wide">
+        <!-- config.json notices.advancedSearch, after the notice of the sources above -->
+        <ng-container *ngTemplateOutlet="modeNoticesList"></ng-container>
         @if (presetSearches.length) {
           <div>
             <div class="ds-field-row">
@@ -219,6 +223,8 @@
         @if (collectionsNotInSql.length) {
           <p class="ds-collections__hint" role="note">{{ 'Not in SQL' | translate: { collections: collectionsNotInSql.join(', ') } }}</p>
         }
+        <!-- config.json notices.sqlQuery -->
+        <ng-container *ngTemplateOutlet="modeNoticesList"></ng-container>
         <bx-sql-editor [(value)]="sqlQuery" [examples]="sqlExamples"></bx-sql-editor>
       </div>
     }
@@ -247,6 +253,8 @@
         @if (collectionsNotInMongo.length) {
           <p class="ds-collections__hint" role="note">{{ 'Not in GraphQL' | translate: { collections: collectionsNotInMongo.join(', ') } }}</p>
         }
+        <!-- config.json notices.graphqlQuery -->
+        <ng-container *ngTemplateOutlet="modeNoticesList"></ng-container>
         <bx-graphql-editor
           [endpoint]="graphqlEndpoint"
           [(value)]="graphqlText"
@@ -468,5 +476,14 @@
       class="ds-ghost-button ds-ghost-button--add"
       (click)="line(1)"
     >+ Add filter</button>
+  }
+</ng-template>
+
+<!-- the notices of config.json for the mode on screen (modeNotices), in the yellow of the notices of the card -->
+<ng-template #modeNoticesList>
+  @for (n of modeNotices; track n.key) {
+    <p class="ds-collections__hint ds-mode-notice" role="note">{{ n.text }}
+      @if (n.link) { <a [href]="n.link.url" target="_blank" rel="noopener noreferrer">{{ n.link.text }}</a> }
+    </p>
   }
 </ng-template>

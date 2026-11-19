@@ -318,5 +318,6 @@
   "Backups log": "Log of the backups",
   "Action": "Action",
   "Data before": "the data before it",
-  "Delete API backup confirm": "Backup {{id}} will be deleted for good. Continue?"
+  "Delete API backup confirm": "Backup {{id}} will be deleted for good. Continue?",
+  "Notices": "Notices"
 }

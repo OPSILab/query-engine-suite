@@ -1,6 +1,8 @@
 <app-topbar [showMenuButton]="true" [menuOpen]="drawerOpen" (menuToggle)="toggleDrawer()">
   <ng-content select="[topbar]"></ng-content>
 </app-topbar>
+<!-- config.json notices.global: a bar under the header, only when there is a notice to show -->
+<app-site-notices></app-site-notices>
 
 <div class="ds-layout" [class.ds-layout--collapsed]="collapsed">
   <nav id="ds-sidenav" class="ds-sidenav" [class.ds-sidenav--open]="drawerOpen" [attr.aria-label]="'Navigation' | translate">

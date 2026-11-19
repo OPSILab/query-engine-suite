@@ -2,6 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input
 import { Observable, Subscription, defer, finalize, firstValueFrom, take } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
+import { MODE_NOTICES, NoticesService, SiteNotice } from '../../services/notices.service';
 import { BeopenAPIService, UnwrapOptions, CollectionInfo, QueryWarning, ResultsPage, SuggestionsPage } from '../../services/be-open.service';
 import { BucketObject } from '../../model/BucketObject';
 import { TranslateService } from '@ngx-translate/core';
@@ -1089,6 +1090,18 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     }, { rootMargin: '0px 0px -14px 0px' });
     this.stuckObserver.observe(this.panelEnd.nativeElement);
   }
+
+  /**
+   * The notices of config.json for the mode on screen ("notices.simpleSearch", "advancedSearch", "sqlQuery",
+   * "graphqlQuery"): shown in yellow after the notices the mode already has (services/notices.service.ts).
+   */
+  get modeNotices(): SiteNotice[] {
+    const section = MODE_NOTICES[this.mode];
+    if (!section) return [];
+    this.noticesService ??= new NoticesService(this.configService, this.translation);
+    return this.noticesService.notices(section);
+  }
+  private noticesService?: NoticesService;
 
   /**
    * Limits to show under the Simple search field. API / Orion records are public data, searched only with the

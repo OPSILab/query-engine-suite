@@ -1,0 +1,59 @@
+// Under the header (app-layout), full width; yellow like the notices of the query card, blue for info
+.ds-site-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.ds-site-notice {
+  --ds-notice-color: #D97706;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--ds-notice-color) 12%, var(--ds-bg));
+  color: var(--ds-text);
+  font-size: calc(13.5px * var(--ds-font-scale));
+}
+
+.ds-site-notice--info {
+  --ds-notice-color: #2563EB;
+}
+
+.ds-site-notice__icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ds-notice-color);
+}
+
+.ds-site-notice__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+
+  a {
+    margin-left: 4px;
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+}
+
+.ds-site-notice__close {
+  flex: none;
+  display: inline-flex;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, var(--ds-notice-color) 18%, transparent);
+    color: var(--ds-text);
+  }
+}

@@ -22,6 +22,17 @@ These must have the **same value** in the Query-Engine and in the Source-Connect
 | `mongo`, `postgreConfig` | the same databases |
 | `authConfig.clientId`, `publicKey`, `idmHost`, `authRealm` | the same Keycloak client |
 
+The two backends can also read **one `config.js`** (in containers, each one with its own copy, or on the same
+machine). Their keys do not clash, except the port: `port` is the port of both (3000), each in its own container.
+On the same machine, give each its own: `sourceConnectorPort` and `queryEnginePort` win over `port` (not set:
+`port`, as before).
+
+| Key | Default | Purpose |
+|---|---|---|
+| `port` | `3000` | the port of the backend (of both, with one config.js) |
+| `sourceConnectorPort` | `port` | the port of the Source-Connector: its own notification route too (recovery check), and `orion.notificationUrl` must use it |
+| `queryEnginePort` | `port` | the port of the Query-Engine |
+
 ## Query-Engine
 
 | Key | Default | Purpose |

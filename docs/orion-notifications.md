@@ -88,7 +88,8 @@ frontend shows the same, refreshing every 3 seconds while the queue is not empty
 
 `verifyLostSubscriptionOrion` reads every entity from Orion (or from `ngsiBrokerUrl` with `useNgsiBroker`), compares
 it with the stored copy, and sends a notification to itself for each entity that changed: to its own notification
-route, with the mapID of `orion.notificationUrl` (the segment after `/orion/subscribe/`), else `config.mapID`. It runs:
+route (`http://localhost:<sourceConnectorPort, else port>/api/orion/subscribe/…`), with the mapID of
+`orion.notificationUrl` (the segment after `/orion/subscribe/`), else `config.mapID`. It runs:
 
 - at startup, if `orion.subscribe` is true;
 - every `orion.checkSubscriptionInterval` ms, if set;

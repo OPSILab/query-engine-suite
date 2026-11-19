@@ -59,6 +59,10 @@ module.exports = {
   queryAllowedExtensions: ["csv", "json", "geojson"],
   parseCompatibilityMode: 0,
   port: 3000,
+  // One config.js for both services on the same machine: queryEnginePort is the port of the Query-Engine (it wins over port),
+  // sourceConnectorPort that of the other one. Not set: port.
+  // queryEnginePort: 3000,
+  // sourceConnectorPort: 3001,
   updateOwner: "later",
   writeLogsOnFile: true,
   mongo: "mongodb://localhost:22000/Minio-Mongo", // mongo url
