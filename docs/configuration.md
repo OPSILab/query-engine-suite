@@ -51,7 +51,7 @@ These must have the **same value** in the Query-Engine and in the Source-Connect
 | `mapID` | | default map for Orion notifications (when neither the url nor the entity gives one) |
 | `orion.checkSubscriptionInterval` | `0` | ms between [recovery checks](orion-notifications.html#recovery-check-lost-notifications); `0`: only at startup |
 | `orion.datapointsNotIndexed` | `["value"]` | datapoint fields whose values are not suggested; after a change rebuild `entries` for `orion` |
-| `orion.skippingParams` | | new Orion distributions not synchronised when an attribute has one of these values |
+| `orion.skippingParams` | | new Orion distributions not synchronised when an attribute matches one of these values: the exact text, `"regex:<pattern>"` or a RegExp (e.g. `accessUrl: ["regex:/sdmx/2\\.1/dataflow/"]`: every Eurostat metadata url) |
 | `statusLog.enabled`, `successes`, `successRetentionDays`, `maxDataSize` | `true`, `true`, `30`, `10000` | [recording of the requests](status-log.html#recording-source-connector) |
 | `apiConnectorConfig.apiUrls` | | the polled APIs, [incremental](incremental-apis.html) or not |
 | `apiConnectorConfig.pollInterval` | 1 day | ms between polls |

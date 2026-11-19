@@ -99,7 +99,10 @@ before the first run has finished: the runs are executed one after the other and
 dataset, so the data is not duplicated, only the work repeated.
 
 New entities whose attributes match `orion.skippingParams` are not synchronised; entities already stored keep being
-updated.
+updated (to stop them, delete them from the entities collection). A value is the exact text of the attribute, or a
+pattern, `"regex:<pattern>"` or a RegExp in `config.js`: `accessUrl: ["regex:/sdmx/2\\.1/dataflow/"]` skips every
+Eurostat metadata url (`…/dataflow/ESTAT/<dataset>?…`), also of the datasets added later. An invalid pattern never
+matches (a warning in the log).
 
 ## When something goes wrong
 
