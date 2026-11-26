@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { Subject, firstValueFrom, of } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
 import { SessionService } from './session.service';
 import { LoggedInGuard } from '../auth/services/logged-in.guard';
 import { AuthGuard } from '../auth/services/auth.guard';
 
 const config = (settings: Record<string, any>) => ({ getSettings: (key: string, def?: any) => key in settings ? settings[key] : def });
 const fakeAuth = (authenticated: boolean) => {
-  const changes = new Subject<boolean>();
-  return { auth: { isAuthenticated: () => of(authenticated), onAuthenticationChange: () => changes }, changes };
+  const changes = new BehaviorSubject<boolean>(authenticated);
+  return { auth: { authenticated$: changes }, changes };
 };
 const fakeRouter = () => ({ url: '/cache', navigated: [] as any[], navigate(to: any) { this.navigated.push(to); }, parseUrl: (url: string) => ({ url }) });
 

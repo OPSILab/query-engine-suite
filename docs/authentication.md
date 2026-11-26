@@ -8,6 +8,7 @@ title: Authentication
 Users log in with Keycloak (OIDC). The frontend sends the access token (`Authorization: Bearer <JWT>`) to the
 Query-Engine and to the Source-Connector, which verify it with the realm public key (`authConfig.publicKey`), or with
 Keycloak introspection (`authConfig.introspect`). The token must have been issued for `authConfig.clientId`.
+How the frontend logs in (code flow with PKCE, renewal, logout): [Frontend](frontend.html#login-modes).
 
 ```mermaid
 sequenceDiagram

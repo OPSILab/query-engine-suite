@@ -9,7 +9,7 @@ const dateFilter = require('./dateFilter')
 const { json2csv } = require('../../utils/common')
 const config = require('../../config')
 const minioWriter = require("../../inputConnectors/minioConnector")
-const axios = require('axios')
+const httpClient = require('../../utils/httpClient')
 const getClient = require('../../inputConnectors/postgresConnector')
 const mongoose = require("mongoose")
 let client
@@ -213,7 +213,7 @@ module.exports = {
     async updateOwner(bearer, email) {
         const Source = collectionModel("minio")
         let sources = await Source.find({ name: { $regex: email, $options: 'i' } });
-        let sourcesDetails = (await axios.get(config.minioConfig.ownerInfoEndpoint + "/user/listFiles?email=" + email,
+        let sourcesDetails = (await httpClient.get(config.minioConfig.ownerInfoEndpoint + "/user/listFiles?email=" + email,
             {
                 headers: {
                     Authorization: bearer
@@ -228,7 +228,7 @@ module.exports = {
             }
             else
                 try {
-                    owner = (await axios.get(config.minioConfig.ownerInfoEndpoint + "/createdBy?filePath=" + source.record.name + "&etag=" + source.record.etag,
+                    owner = (await httpClient.get(config.minioConfig.ownerInfoEndpoint + "/createdBy?filePath=" + source.record.name + "&etag=" + source.record.etag,
                         {
                             headers: {
                                 Authorization: bearer
@@ -324,18 +324,28 @@ module.exports = {
             bucket = "public-data"
         const options = simpleSearch.options()
         const selected = new Set(collections)
-        if (options.minio !== false && selected.has("minio"))
-            for (let obj of await minioWriter.listObjects(bucket)) {
-                try {
-                    if (obj.size && obj.isLatest) {
-                        let objectGot = await minioWriter.getObject(bucket, obj.name, obj.name?.split(".").pop())
-                        objects.push({ raw: objectGot, record: { ...obj, bucketName: bucket }, name: obj.name })
+        if (options.minio !== false && selected.has("minio")) {
+            // the latest version of each file; simpleSearchOptions.minioConcurrency files read at the same time
+            // (default 1: one after the other), the results in the order of the listing whatever the value
+            const listed = (await minioWriter.listObjects(bucket)).filter(obj => obj.size && obj.isLatest)
+            const concurrency = Math.min(64, Math.max(1, Math.floor(Number(options.minioConcurrency)) || 1))
+            const read = new Array(listed.length)
+            let next = 0
+            await Promise.all(Array.from({ length: Math.min(concurrency, listed.length) }, async () => {
+                while (next < listed.length) {
+                    const index = next++
+                    const obj = listed[index]
+                    try {
+                        const objectGot = await minioWriter.getObject(bucket, obj.name, obj.name?.split(".").pop())
+                        read[index] = { raw: objectGot, record: { ...obj, bucketName: bucket }, name: obj.name }
+                    }
+                    catch (error) {
+                        logger.error(error)
                     }
                 }
-                catch (error) {
-                    logger.error(error)
-                }
-            }
+            }))
+            objects.push(...read.filter(Boolean))
+        }
         // API / Orion records are public data: searched for the public visibility (or everything, with disableAuth)
         if ((visibility == "public" || config.authConfig?.disableAuth) && (selected.has("api") || selected.has("orion"))) {
             warnings.push(...simpleSearch.limits().filter(w => w.collection != "minio" && selected.has(w.collection)))

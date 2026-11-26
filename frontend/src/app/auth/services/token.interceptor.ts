@@ -1,47 +1,25 @@
 import { Injectable } from '@angular/core';
 import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { NbAuthOAuth2JWTToken, NbAuthService } from '@nebular/auth';
-import { ConfigService } from '../../services/config.service';
+import { switchMap } from 'rxjs/operators';
+import { AuthService } from './auth.service';
 
-// Direct copy of the dashboard's TokenInterceptor: attaches the Keycloak
-// access token as a Bearer header on outgoing API calls.
-//
-// NB: `this.auth.getToken().subscribe(...)` right before reading
-// `this.token` relies on NbTokenService's token observable emitting
-// synchronously on subscribe (it's backed by a value already held in
-// storage, not an actual async call) - that's how the original dashboard
-// code works too, but it's worth knowing if this ever stops behaving
-// synchronously after a Nebular upgrade.
+// Adds the Keycloak access token (Authorization: Bearer) to the requests of the app, when someone is logged in.
+// Not to the files of the app (/assets/: config.json, translations) nor to Keycloak itself (the login uses those
+// requests: waiting for the login there would never end). A request that already has an Authorization header keeps it.
 @Injectable()
 export class TokenInterceptor implements HttpInterceptor {
 
-  token: NbAuthOAuth2JWTToken;
-
-  constructor(public auth: NbAuthService, public config: ConfigService) { }
+  constructor(private auth: AuthService) { }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    if (req.url.indexOf('/assets/') > -1) {
+    // /assets/ first: the request of assets/config.json comes before the settings
+    if (req.url.indexOf('/assets/') > -1 || !this.auth.enabled || this.auth.isKeycloakUrl(req.url) || req.headers.has('Authorization')) {
       return next.handle(req);
     }
-
-    if (req.url.indexOf('/oauth2/token') > -1
-      || req.url.indexOf('/openid-connect/token') > -1
-    ) {
-      return next.handle(req);
-    }
-
-    let newHeaders = req.headers;
-
-    if (this.config.getSettings('enableAuthentication')) {
-      this.auth.getToken().subscribe((x: NbAuthOAuth2JWTToken) => this.token = x);
-      if (this.token && this.token.getPayload() != null) {
-        newHeaders = newHeaders.append('Authorization', 'Bearer ' + this.token.getPayload().access_token);
-      }
-    }
-
-    const authReq = req.clone({ headers: newHeaders });
-    return next.handle(authReq);
+    return this.auth.accessToken().pipe(
+      switchMap(token => next.handle(token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req)),
+    );
   }
 
 }

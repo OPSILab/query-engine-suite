@@ -1,6 +1,7 @@
-const { gql } = require('apollo-server-express')
+const { parse } = require('graphql')
 
-const typeDefs = gql`
+// the schema as a parsed document (what gql`` gave with Apollo Server 3)
+const typeDefs = parse(/* GraphQL */ `
   
 
   # Source documents are schemaless (see api/models/Source.js, strict: false):
@@ -109,6 +110,6 @@ const typeDefs = gql`
   }
 
   # No Mutation type: the GraphQL API is read-only (createSource / updateSource / deleteSource were removed).
-`
+`)
 
 module.exports = typeDefs

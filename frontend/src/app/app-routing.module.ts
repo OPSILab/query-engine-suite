@@ -1,6 +1,5 @@
 import { ExtraOptions, RouterModule, Routes } from '@angular/router';
 import { NgModule } from '@angular/core';
-import { NbAuthComponent } from '@nebular/auth';
 
 import { HomeComponent } from './home/home.component';
 import { AuthLoginComponent } from './auth/login/auth-login.component';
@@ -41,15 +40,10 @@ export const routes: Routes = [
     component: CacheComponent,
     canActivate: [LoggedInGuard],
   },
-  {
-    path: 'keycloak-auth',
-    component: NbAuthComponent,
-    children: [
-      { path: '', component: AuthLoginComponent },
-      { path: 'callback', component: AuthCallbackComponent },
-      { path: 'logout', component: AuthLogoutComponent },
-    ],
-  },
+  // The Keycloak login: /keycloak-auth (to Keycloak), /keycloak-auth/callback (back from it), /keycloak-auth/logout
+  { path: 'keycloak-auth', component: AuthLoginComponent },
+  { path: 'keycloak-auth/callback', component: AuthCallbackComponent },
+  { path: 'keycloak-auth/logout', component: AuthLogoutComponent },
   { path: '**', redirectTo: '' },
 ];
 

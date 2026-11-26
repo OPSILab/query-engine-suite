@@ -3,7 +3,7 @@ const log = logger.info;
 const Dimensions = require("../models/Dimensions");
 const config = require("../../config");
 const minioWriter = require("../../inputConnectors/minioConnector");
-const axios = require("axios");
+const httpClient = require("../../utils/httpClient");
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
@@ -81,7 +81,8 @@ function withQuery(base, params) {
 // No keep-alive towards the mapper. Node >= 19 reuses sockets by default, the mapper (Node 16) closes the idle ones
 // after 5 s, and between two parts the database insert easily lasts longer: the next request went out on a socket
 // being closed and failed with ECONNRESET. These are a few short requests per part, a new connection costs nothing.
-const dmmAgents = { httpAgent: new http.Agent({ keepAlive: false }), httpsAgent: new https.Agent({ keepAlive: false }) }
+// proxyEnv: HTTP_PROXY / HTTPS_PROXY / NO_PROXY as for the other requests (utils/httpClient)
+const dmmAgents = { httpAgent: new http.Agent({ keepAlive: false, proxyEnv: process.env }), httpsAgent: new https.Agent({ keepAlive: false, proxyEnv: process.env }) }
 const CONNECTION_RESETS = new Set(["ECONNRESET", "EPIPE", "ECONNABORTED"])
 
 // a reset connection is retried at once (twice at most): the requests below are all safe to repeat
@@ -103,7 +104,7 @@ const tokenRefused = error => TOKEN_REFUSED.has(Number(error?.response?.status))
 
 // GET towards the Data Model Mapper; when the token is refused it is refreshed once (a long mapping outlives it)
 async function dmmGet(url) {
-  const get = () => retryOnReset(() => axios.get(url, { headers: { Authorization: `Bearer ${bearerToken}` }, ...dmmAgents }))
+  const get = () => retryOnReset(() => httpClient.get(url, { headers: { Authorization: `Bearer ${bearerToken}` }, ...dmmAgents }))
   try {
     return await get()
   } catch (error) {
@@ -290,7 +291,7 @@ async function executeRequest(req, res) {
     let correctlyInserted = false
     const sqlName = id + "-" + path.basename(new URL(downloadURL).pathname)
     if (!mapID) {
-      const response = await axios.get(downloadURL);
+      const response = await httpClient.get(downloadURL);
       if (response?.data?.data?.datapoints)
         await upsertDatapoints(response.data.data.datapoints, downloadURL, { logName: "orion-notify " + id, sqlName });
       else
@@ -318,7 +319,7 @@ async function executeRequest(req, res) {
           }
           try {
             logger.debug("Fetching map from API Connector for downloadURL:", downloadURL);
-            map = await axios.get(config.getMapEndpoint || "http://localhost:5500/api/map", {
+            map = await httpClient.get(config.getMapEndpoint || "http://localhost:5500/api/map", {
               params: {
                 description: downloadURL
               },
@@ -337,7 +338,7 @@ async function executeRequest(req, res) {
             logger.warn("No map. Parsing instead")
           }
           if (map?.data)
-            response = await axios.post(
+            response = await httpClient.post(
               config.mapEndpoint,
               {
                 sourceDataType: format.toLowerCase() === "xml" ? "sdmx-xml" : format.toLowerCase(),
@@ -369,7 +370,7 @@ async function executeRequest(req, res) {
               }
             );
           else
-            response = await axios.post(
+            response = await httpClient.post(
               config.parseEndpoint,
               //config.mapEndpoint,
               {

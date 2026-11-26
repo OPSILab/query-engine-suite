@@ -21,13 +21,9 @@
             ],
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.css",
-              "node_modules/eva-icons/style/eva-icons.css",
               "src/styles.scss"
             ],
             "scripts": [],
-            "allowedCommonJsDependencies": [
-              "eva-icons"
-            ],
             "vendorChunk": true,
             "extractLicenses": false,
             "buildOptimizer": false,

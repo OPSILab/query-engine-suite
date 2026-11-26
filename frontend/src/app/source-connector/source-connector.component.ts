@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import {
   IncrementalApi, NotificationQueue, RebuildStatus, ResetLogEntry, ResetStatus, SourceConnectorService,
 } from '../services/source-connector.service';
@@ -19,6 +19,7 @@ import {
   selector: 'app-source-connector',
   templateUrl: './source-connector.component.html',
   styleUrls: ['../shared/admin-page.scss', './source-connector.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class SourceConnectorComponent implements OnInit, OnDestroy {

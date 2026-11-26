@@ -5,5 +5,5 @@ COPY ./Source-connector/utils ./utils
 COPY ./Source-connector/config*.js ./
 COPY ./Source-connector/index.js ./
 COPY ./Source-connector/package*.json ./
-RUN npm install
+RUN npm ci --omit=dev
 CMD ["node", "index"]

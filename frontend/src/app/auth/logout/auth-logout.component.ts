@@ -1,46 +1,36 @@
-import { Component, Inject, OnInit, OnDestroy, DOCUMENT } from '@angular/core';
-
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
-import { NbAuthResult, NbAuthService } from '@nebular/auth';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ConfigService } from '../../services/config.service';
-import { environment } from '../../../environments/environment';
+import { AuthService } from '../services/auth.service';
 
-// Direct copy of the dashboard's AuthLogoutComponent, parameterized on
-// environment.keycloak.client_id instead of the hardcoded
-// "client_id=beopen-dashboard" the original had.
+// /keycloak-auth/logout: the tokens removed here, the Keycloak session ended (its logout page, with id_token_hint,
+// client_id and post_logout_redirect_uri = dashboardBaseURL), then back to the app. Authentication disabled: home.
 @Component({
     selector: 'ngx-oauth2-logout',
     template: ``,
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class AuthLogoutComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  constructor(private authService: NbAuthService,
-    private router: Router,
-    private configs: ConfigService,
-    // Angular's own SSR-safe window/document access, replacing Nebular's
-    // NB_WINDOW token (@nebular/theme) - this was the last thing in the app
-    // still pulling in that package outside of the invisible overlay-host
-    // <nb-layout>, which is gone too now (see app.component.ts).
-    @Inject(DOCUMENT) private document: Document) {
+  constructor(private authService: AuthService, private router: Router) {
   }
 
   ngOnInit(): void {
-    this.authService.logout(this.configs.getSettings('keycloak.authProfile'))
+    if (!this.authService.enabled) {
+      this.router.navigateByUrl('');
+      return;
+    }
+    this.authService.logout()
       .pipe(takeUntil(this.destroy$))
-      .subscribe((authResult: NbAuthResult) => {
-        if (authResult.isSuccess()) {
-          this.document.defaultView.location.href =
-            `${this.configs.getSettings('keycloak.baseURL')}/logout?post_logout_redirect_uri=${this.configs.getSettings('dashboardBaseURL')}&client_id=${environment.keycloak.client_id}`;
-        } else {
+      .subscribe({
+        error: (error) => {
+          console.error(error);
           this.router.navigateByUrl('');
-        }
-      }, (error) => {
-        console.error(error);
+        },
       });
   }
 

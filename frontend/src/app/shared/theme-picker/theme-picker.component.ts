@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener } from '@angular/core';
+import { Component, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { THEMES, ThemeId, ThemeService } from '../../services/theme.service';
 
 /**
@@ -10,6 +10,7 @@ import { THEMES, ThemeId, ThemeService } from '../../services/theme.service';
   selector: 'app-theme-picker',
   templateUrl: './theme-picker.component.html',
   styleUrls: ['./theme-picker.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class ThemePickerComponent {

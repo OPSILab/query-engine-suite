@@ -4,7 +4,7 @@ const { load, config } = require("./helpers/env")
 const db = require("./helpers/db")
 const { test, describe, before, after, beforeEach, afterEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 const { loadApiConnector } = require("./helpers/apiConnector")
 const { hideFields, hiddenPaths, pseudonym, PSEUDONYM } = require("../utils/hideFields")
 
@@ -61,14 +61,14 @@ describe("a poll of an API with hideFields", () => {
         Entries = load("api/models/Entries.js")
         await load("utils/pollStatus.js").ensurePgStatusTable()
         pollAPI = await loadApiConnector()
-        realGet = axios.get
+        realGet = httpClient.get
     })
     after(db.teardown)
     beforeEach(async () => {
         await db.clean()
         config.hideFieldsSecret = "a long random key"
     })
-    afterEach(() => { axios.get = realGet })
+    afterEach(() => { httpClient.get = realGet })
 
     const api = { name: "Appointments", url: "https://fhir.example/Appointment", fhir: true, upsertRecords: true, hideFields: [PATH] }
     const everything = async () => JSON.stringify([
@@ -78,7 +78,7 @@ describe("a poll of an API with hideFields", () => {
     ])
 
     test("stored with the pseudonyms: MongoDB, PostgreSQL, keys / values / entries; never the names", async () => {
-        axios.get = async () => ({ data: fhir() })
+        httpClient.get = async () => ({ data: fhir() })
         config.apiConnectorConfig.apiUrls = [api]
         await pollAPI()
         const [stored] = await Source.find({}).lean()
@@ -91,10 +91,10 @@ describe("a poll of an API with hideFields", () => {
     test("no hideFieldsSecret, or an answer that is not JSON: nothing stored", async () => {
         config.apiConnectorConfig.apiUrls = [api]
         config.hideFieldsSecret = ""
-        axios.get = async () => ({ data: fhir() })
+        httpClient.get = async () => ({ data: fhir() })
         await pollAPI()
         config.hideFieldsSecret = "a long random key"
-        axios.get = async () => ({ data: "<Bundle><display>Mario Rossi</display></Bundle>" })
+        httpClient.get = async () => ({ data: "<Bundle><display>Mario Rossi</display></Bundle>" })
         await pollAPI()
         assert.equal((await Source.find({}).lean()).length, 0)
         assert.ok(!(await everything()).includes("Mario Rossi"))

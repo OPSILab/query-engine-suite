@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 
 const COLLAPSED_KEY = 'data-space-intro-collapsed';
 
@@ -13,6 +13,7 @@ const COLLAPSED_KEY = 'data-space-intro-collapsed';
   selector: 'app-intro',
   templateUrl: './intro.component.html',
   styleUrls: ['./intro.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class IntroComponent {

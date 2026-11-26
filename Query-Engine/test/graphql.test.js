@@ -35,8 +35,8 @@ before(async () => {
     objectFilter = load("api/services/visibility.js").objectFilter
     typeDefs = load("api/graphql/typeDefs.js")
     const resolvers = load("api/graphql/resolvers.js")
-    const { ApolloServer } = require("apollo-server-express")
-    server = new ApolloServer({ typeDefs, resolvers, context: ({ req }) => ({ req }) })
+    const { ApolloServer } = require("@apollo/server")
+    server = new ApolloServer({ typeDefs, resolvers })
     await server.start()
     await Api.collection.insertMany(DOCS.filter(d => collectionOf(d) == "api").map(stored))
     await Minio.collection.insertMany(DOCS.filter(d => collectionOf(d) == "minio").map(stored))
@@ -54,8 +54,8 @@ const userReq = (visibility, prefix = PREFIX, bucketName = "pilot") => ({ header
 const anyReq = { headers: {}, body: {} }
 
 async function exec(query, req = anyReq, variables) {
-    const result = await server.executeOperation({ query, variables }, { req })
-    return JSON.parse(JSON.stringify(result)) // graphql-js returns null-prototype objects
+    const response = await server.executeOperation({ query, variables }, { contextValue: { req } })
+    return JSON.parse(JSON.stringify(response.body.singleResult)) // graphql-js returns null-prototype objects
 }
 const names = result => result.data.sources.map(s => s.name).sort()
 

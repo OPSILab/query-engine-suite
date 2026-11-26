@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges, ChangeDetectionStrategy } from '@angular/core';
 
 // Nesting levels rendered open; deeper tables start collapsed behind a
 // "{…} 5 keys" / "[…] 12 items" button, so a deep document can't turn the
@@ -40,6 +40,7 @@ type Kind = 'primitive' | 'empty' | 'object' | 'list' | 'rows' | 'inline' | 'num
   selector: 'ds-json-table',
   templateUrl: './json-table.component.html',
   styleUrls: ['./json-table.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class JsonTableComponent implements OnChanges {

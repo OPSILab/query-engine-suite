@@ -1,4 +1,4 @@
-const axios = require('axios')
+const httpClient = require('../../utils/httpClient')
 const IORedis = require('ioredis')
 const common = require('../../utils/common')
 const config = common.checkConfig(
@@ -70,7 +70,7 @@ async function translateText (text, targetLang) {
   try {
     //LibreTranslate
 
-    const res = await axios.post(
+    const res = await httpClient.post(
       `${TRANSLATOR_URL}/translate`,
       {
         q: text,
@@ -91,7 +91,7 @@ async function translateText (text, targetLang) {
 
     /*
     //EasyNMT(mBART-50)
-    const resBART = await axios.post(
+    const resBART = await httpClient.post(
       `${TRANSLATOR_URL_MBART}/translate`,
       {
         text: text,

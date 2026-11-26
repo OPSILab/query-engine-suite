@@ -160,17 +160,17 @@ describe("resetIncremental of a batch API (url with {batch})", () => {
         for (const url of [ITEM("a"), ITEM("b"), OTHER])
             await records.storeRecords([item(url, "old"), item(url, "old")], url)
         config.apiConnectorConfig.apiUrls = [batchApi, plain]
-        const axios = require("axios")
-        realGet = axios.get
+        const httpClient = require("../utils/httpClient")
+        realGet = httpClient.get
         requests = []
-        axios.get = async (url, options) => {
+        httpClient.get = async (url, options) => {
             requests.push({ url, params: structuredClone(options?.params) })
             if (url == LIST)
                 return { data: { items: [{ code: "a" }, { code: "b" }] } }
             return { data: [{ v: "new" }] }
         }
     })
-    afterEach(() => { require("axios").get = realGet })
+    afterEach(() => { require("../utils/httpClient").get = realGet })
 
     test("dry run: the records of all the elements", async () => {
         const result = await reset.resetIncremental({ dryRun: true, names: ["Stations"] })

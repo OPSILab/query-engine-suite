@@ -1,17 +1,17 @@
 import { Injectable } from '@angular/core';
 import { ActivatedRouteSnapshot, Router, RouterStateSnapshot } from '@angular/router';
-import { NbAuthService } from '@nebular/auth';
 import { ConfigService } from '../../services/config.service';
 import { tap } from 'rxjs/operators';
+import { AuthService } from './auth.service';
 import { saveReturnUrl } from './return-url';
 
-// Direct copy of the dashboard's AuthGuard.
+// The home page: with the login required, not logged in → to the Keycloak login and back to the page asked.
 @Injectable({
   providedIn: 'root'
 })
 export class AuthGuard {
 
-  constructor(private authService: NbAuthService, private router: Router, private configService: ConfigService) {
+  constructor(private authService: AuthService, private router: Router, private configService: ConfigService) {
   }
 
   canActivate(route?: ActivatedRouteSnapshot, state?: RouterStateSnapshot) {

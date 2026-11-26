@@ -19,21 +19,28 @@
   "author": "gabriele percoco",
   "license": "ISC",
   "dependencies": {
-    "apollo-server-express": "^3.13.0",
-    "axios": "1.7.2",
+    "@apollo/server": "^5.5.2",
+    "@as-integrations/express4": "^1.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "graphql": "^16.11.0",
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.3",
     "jwa": "^2.0.1",
     "minio": "^8.0.0",
     "mongoose": "^8.3.4",
-    "nodemon": "^3.1.0",
     "percocologger": "^1.0.20",
     "pg": "^8.11.5"
   },
   "stashDependencies": {
     "urlencode": "^2.0.0"
+  },
+  "devDependencies": {
+    "axios": "^1.21.1",
+    "nodemon": "^3.1.10"
+  },
+  "overrides": {
+    "nodemon": "^3.1.10"
   }
 }

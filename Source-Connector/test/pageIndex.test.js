@@ -4,7 +4,7 @@ const { load, config } = require("./helpers/env")
 const db = require("./helpers/db")
 const { test, describe, before, after, beforeEach, afterEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 const { loadApiConnector } = require("./helpers/apiConnector")
 
 const URL_D = "https://directory.example/api/data/v1/directory/businesses"
@@ -15,20 +15,20 @@ before(async () => {
     Source = load("utils/collections.js").collectionModel("api")
     await load("utils/pollStatus.js").ensurePgStatusTable()
     pollAPI = await loadApiConnector()
-    realGet = axios.get
+    realGet = httpClient.get
 })
 after(db.teardown)
 beforeEach(async () => {
     await db.clean()
     await db.query("TRUNCATE status RESTART IDENTITY")
 })
-afterEach(() => { axios.get = realGet })
+afterEach(() => { httpClient.get = realGet })
 
 // 7 businesses, answered as the directory does: { data, meta: { page, per_page, total }, links: { next } }
 const BUSINESSES = Array.from({ length: 7 }, (_, i) => ({ id: "b" + i }))
 function fakeDirectory() {
     const asked = []
-    axios.get = async (url, options) => {
+    httpClient.get = async (url, options) => {
         const { page, per_page } = options.params
         asked.push([page, per_page])
         const data = BUSINESSES.slice((page - 1) * per_page, page * per_page)
@@ -73,7 +73,7 @@ describe("offsetIncrement", () => {
 describe("pagination.condition on an answer that is not a list", () => {
     test("on the answer as it is (AgroTour: response.data.meta?.has_more): every page read", async () => {
         const asked = []
-        axios.get = async (url, options) => {
+        httpClient.get = async (url, options) => {
             const offset = options.params.offset
             asked.push(offset)
             const data = BUSINESSES.slice(offset, offset + 3)
@@ -88,7 +88,7 @@ describe("pagination.condition on an answer that is not a list", () => {
 
     test("as a list of it, as before (Regrowth: response.data[0]?.truncated, a cursor from the answer)", async () => {
         const asked = []
-        axios.get = async (url, options) => {
+        httpClient.get = async (url, options) => {
             const since = options.params.since
             asked.push(since)
             const k = ["2025-01-01T00:00:00Z", "c1", "c2"].indexOf(since)
@@ -101,7 +101,7 @@ describe("pagination.condition on an answer that is not a list", () => {
     })
 
     test("a condition failing on both shapes: the poll fails, nothing replaced", async () => {
-        axios.get = async () => ({ data: { data: [{ id: "x" }] } })
+        httpClient.get = async () => ({ data: { data: [{ id: "x" }] } })
         config.apiConnectorConfig.apiUrls = [{ name: "Broken", url: URL_D, upsertRecords: true,
             pagination: { offsetParam: "offset", limitParam: "limit", limit: 3, condition: response => response.data.nothing.here } }]
         await pollAPI()

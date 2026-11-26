@@ -37,7 +37,7 @@
     }
     @if (rebuild?.running) {
     <p class="ap-message"><span class="ap-badge">{{ 'Running' | translate }}</span>
-      {{ 'Started at' | translate }} {{ rebuild?.startedAt | date: 'yyyy-MM-dd HH:mm:ss' }}
+      {{ 'Started at' | translate }} {{ $safeNavigationMigration(rebuild?.startedAt) | date: 'yyyy-MM-dd HH:mm:ss' }}
       · {{ rebuild?.connector || ('All connectors' | translate) }}</p>
     } @else if (rebuild?.startedAt) {
     <p class="ap-message">
@@ -46,7 +46,7 @@
       } @else {
       <span class="ap-badge ap-badge--ok">{{ 'Done' | translate }}</span>
       }
-      {{ 'Last rebuild' | translate }}: {{ rebuild?.startedAt | date: 'yyyy-MM-dd HH:mm:ss' }} → {{ rebuild?.finishedAt | date: 'HH:mm:ss' }}
+      {{ 'Last rebuild' | translate }}: {{ $safeNavigationMigration(rebuild?.startedAt) | date: 'yyyy-MM-dd HH:mm:ss' }} → {{ $safeNavigationMigration(rebuild?.finishedAt) | date: 'HH:mm:ss' }}
       · {{ rebuild?.mode }} · {{ rebuild?.connector || ('All connectors' | translate) }}
     </p>
     @if (rebuild?.error) {
@@ -54,7 +54,7 @@
     } @else if (rebuild?.result) {
     <details>
       <summary class="ap-message">{{ 'Result' | translate }}</summary>
-      <pre class="ap-pre ds-mono">{{ pretty(rebuild?.result) }}</pre>
+      <pre class="ap-pre ds-mono">{{ pretty($safeNavigationMigration(rebuild?.result)) }}</pre>
     </details>
     }
     }

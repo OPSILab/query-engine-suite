@@ -9,9 +9,9 @@
 # builder stage is thrown away at the end anyway, so Debian costs nothing in
 # the final image - only Docker's build cache.
 #
-# Node 24: Angular 21 declares `engines.node: ^20.19.0 || ^22.12.0 || >=24.0.0`.
-# Note the gaps - plain "node:20" or "node:22" tags can resolve to a patch
-# below those floors, which is why this pins the major that has no floor.
+# Node 24: Angular 22 declares `engines.node: ^22.22.3 || ^24.15.0 || >=26.0.0`.
+# The floors are patch releases: the "node:24-slim" tag follows the latest
+# 24.x, well past 24.15 (an older pinned 24.x image would be refused).
 FROM node:24-slim AS builder
 
 WORKDIR /app

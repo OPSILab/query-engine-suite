@@ -6,7 +6,7 @@
 const { stub, load, config, resetConfig } = require("./helpers/env")
 const { test, describe, before, beforeEach, afterEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 
 let records = [], nextId = 1
 const matches = (doc, filter) => Object.entries(filter).every(([key, value]) => doc[key] === value)
@@ -38,7 +38,7 @@ stub("utils/incrementalState.js", { get: async () => null, windowDone: async () 
 
 const URL_A = "https://api.example/snapshot"
 let pollAPI, answer
-const realGet = axios.get
+const realGet = httpClient.get
 
 before(async () => {
     config.apiConnectorConfig.apiUrls = []
@@ -58,7 +58,7 @@ before(async () => {
 beforeEach(() => {
     resetConfig()
     records = []
-    axios.get = async (url, options) => {
+    httpClient.get = async (url, options) => {
         const offset = options?.params?.offset
         if (offset === undefined)
             return { data: structuredClone(answer) }
@@ -66,7 +66,7 @@ beforeEach(() => {
     }
     config.apiConnectorConfig.apiUrls = [{ name: "Snapshot", url: URL_A }]
 })
-afterEach(() => { axios.get = realGet })
+afterEach(() => { httpClient.get = realGet })
 
 const rec = v => ({ v })
 const thirty = [...Array.from({ length: 27 }, (_, i) => rec("r" + i)), rec("X"), rec("X"), rec("X")]

@@ -19,21 +19,21 @@ async function loadApiConnector() {
     return pollAPI
 }
 
-// A paginated API answering `pages` (limit 2): axios.get replaced, the requests recorded; failAt(offset) makes the
-// request of that offset fail. restore() puts the real axios.get back.
+// A paginated API answering `pages` (limit 2): httpClient.get replaced, the requests recorded; failAt(offset) makes the
+// request of that offset fail. restore() puts the real httpClient.get back.
 function fakePagedApi(pages) {
-    const axios = require("axios")
-    const realGet = axios.get
+    const httpClient = require("../../utils/httpClient")
+    const realGet = httpClient.get
     const api = { requests: [], failAtOffset: undefined, pages }
-    axios.get = async (url, options) => {
-        // offset and limit as query params (axios params) or, as before, in the url
+    httpClient.get = async (url, options) => {
+        // offset and limit as query params (httpClient params) or, as before, in the url
         const offset = Number(options?.params?.offset ?? new URL(url).searchParams.get("offset"))
         api.requests.push({ offset, params: structuredClone(options?.params) }) // the connector reuses the same object for every page
         if (offset === api.failAtOffset)
             throw new Error("connection reset")
         return { data: structuredClone(api.pages[offset / 2] || []) }
     }
-    api.restore = () => { axios.get = realGet }
+    api.restore = () => { httpClient.get = realGet }
     return api
 }
 

@@ -7,7 +7,7 @@
 const { stub, load, config, resetConfig } = require("./helpers/env")
 const { test, describe, before, beforeEach, afterEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 
 // records: { _id, source (the url of the element), datePolled, ... }
 let records = [], pending = [], nextId = 1
@@ -71,7 +71,7 @@ const LIST = "https://api.example/stations"
 const ITEM = id => `https://api.example/stations/${id}/readings`
 
 let pollAPI, requests, elements, failing, notFound, respond
-const realGet = axios.get
+const realGet = httpClient.get
 
 before(async () => {
     config.apiConnectorConfig.apiUrls = []
@@ -97,7 +97,7 @@ beforeEach(() => {
     elements = ["a", "b"]
     failing = {}
     notFound = {}
-    axios.get = async (url, options) => {
+    httpClient.get = async (url, options) => {
         requests.push({ url, params: structuredClone(options?.params) })
         if (url == LIST)
             return { data: { items: elements.map(id => ({ station: { code: id } })) } }
@@ -111,7 +111,7 @@ beforeEach(() => {
     }
     respond = (url, options, id) => ({ data: [{ reading: `${id}-${options?.params?.from}` }] })
 })
-afterEach(() => { axios.get = realGet })
+afterEach(() => { httpClient.get = realGet })
 
 const batchApi = (extra = {}) => ({
     name: "Stations",
@@ -200,7 +200,7 @@ describe("the request dates on the records of an incremental poll (incrementalPa
 
     test("paginated incremental API: the dates of the window on every page", async () => {
         const URL_P = "https://api.example/paged"
-        axios.get = async (url, options) => {
+        httpClient.get = async (url, options) => {
             requests.push({ url, params: structuredClone(options?.params) })
             return { data: options.params.offset == 0 ? [{ n: options.params.from }] : [] }
         }
@@ -283,7 +283,7 @@ describe("windows saved one by one (maxWindow) and 404", () => {
     test("paginated: a page that fails deletes only the pages of its window; a 404 after the first page ends the window", async () => {
         const URL_P = "https://api.example/paged"
         let calls = 0, fail = true
-        axios.get = async (url, options) => {
+        httpClient.get = async (url, options) => {
             calls++
             requests.push({ url, params: structuredClone(options?.params) })
             const { offset, from } = options.params
@@ -314,13 +314,13 @@ describe("windows saved one by one (maxWindow) and 404", () => {
 })
 
 describe("401: the token renewed and the request repeated, the poll goes on", () => {
-    const realPost = axios.post
+    const realPost = httpClient.post
     let issued
     beforeEach(() => {
         issued = 0
-        axios.post = async () => ({ data: { access_token: "tok-" + (++issued), expires_in: 3600 } })
+        httpClient.post = async () => ({ data: { access_token: "tok-" + (++issued), expires_in: 3600 } })
     })
-    afterEach(() => { axios.post = realPost })
+    afterEach(() => { httpClient.post = realPost })
 
     const withToken = (authUrl, extra = {}) => batchApi({
         incrementalParams: { ...batchApi().incrementalParams, maxWindow: DAY, startDateValue: daysAgo(3) },

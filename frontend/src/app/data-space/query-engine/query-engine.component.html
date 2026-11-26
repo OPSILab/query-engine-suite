@@ -405,7 +405,7 @@
 <ng-template #keyValueLine2 let-item="item" let-i="i">
   <div class="ds-kv-labels">
     <span>{{ "Enter a key that you want so search" | translate }}</span>
-    @if (item.type != 'Date') {
+    @if (item.type != 'Date' && item.type != 'Exists') {
       <span>{{ "Enter a value that you want so search" | translate }}</span>
     }
     @if (item.type == 'Date') {
@@ -421,7 +421,11 @@
         [v]="item.value" [value]="item.key" [placeholder]="'Key (E.g. name)'"
       (output)="onKeysChange($event, i)" (ver)="keyVerifiedChange($event, i)"></autocomplete>
     </div>
-    @if (item.type != 'Date') {
+    @if (item.type == 'Exists') {
+      <!-- a key and no value: the documents that have the field, whatever its value -->
+      <p class="ds-kv-field ds-kv-exists">{{ 'Exists info' | translate }}</p>
+    }
+    @if (item.type != 'Date' && item.type != 'Exists') {
       <div class="ds-kv-field">
         <autocomplete [otherVerified]="keyVerified[i]" [mode]="'value'" [preloaded]="preloadedValues" [collections]="suggestionCollections" [format]="suggestionFormat"
           [key]="item.key" [value]="item.value" [placeholder]="'Value (E.g. Geo data)'"
@@ -463,7 +467,7 @@
       </button>
     }
   </div>
-  @if (item.type != 'Date' && valuesNotSuggested(item.key)) {
+  @if (item.type != 'Date' && item.type != 'Exists' && valuesNotSuggested(item.key)) {
     <div class="ds-search-limits ds-search-limits--row" role="note">
       <svg class="ds-search-limits__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg>
       <div>{{ 'Values not suggested' | translate: { key: item.key } }}</div>

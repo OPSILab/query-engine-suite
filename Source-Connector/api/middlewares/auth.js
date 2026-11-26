@@ -1,5 +1,5 @@
 const config = require('../../config')
-const axios = require('axios');
+const httpClient = require('../../utils/httpClient');
 const jwt = require('jsonwebtoken');
 const authConfig = config.authConfig
 const keycloakServerURL = authConfig.idmHost;
@@ -95,7 +95,7 @@ module.exports = {
                     data.append('client_id', clientID);
                     data.append('client_secret', clientSecret);
 
-                    axios.post(introspectionEndpoint, data)
+                    httpClient.post(introspectionEndpoint, data)
                         .then(response => {
                             if (response.data.active) {
                                 logger.info('Token valid:', response.data);
@@ -119,7 +119,7 @@ module.exports = {
 
                         if (config.authConfig.userInfoEndpoint)
                             try {
-                                let data = (await axios.get(config.authConfig.userInfoEndpoint, { headers: { "Authorization": authHeader } })).data
+                                let data = (await httpClient.get(config.authConfig.userInfoEndpoint, { headers: { "Authorization": authHeader } })).data
                                 let { pilot, username, email } = data
                                 req.body.bucketName = pilot.toLowerCase() //+ "/" + email + "/" + config.minioConfig.defaultInputFolderName//{pilot, email}
                                 req.body.prefix = (email || username) + "/" + config.minioConfig.defaultInputFolderName
