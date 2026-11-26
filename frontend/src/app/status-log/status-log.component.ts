@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { BeopenAPIService, StatusLogFilters, StatusLogIgnoreMatch, StatusLogIgnoredUrl, StatusLogOutcome, StatusLogRecord } from '../services/be-open.service';
 import { ConfigService } from '../services/config.service';
@@ -31,6 +31,7 @@ export interface StatusLogDetail {
   selector: 'app-status-log',
   templateUrl: './status-log.component.html',
   styleUrls: ['./status-log.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class StatusLogComponent implements OnInit {

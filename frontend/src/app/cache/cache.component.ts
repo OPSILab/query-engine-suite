@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CacheAdminService, CacheVersion } from '../services/cache-admin.service';
 
 /** The versions of one cached query. */
@@ -36,6 +36,7 @@ export interface CacheBackup {
   selector: 'app-cache',
   templateUrl: './cache.component.html',
   styleUrls: ['../shared/admin-page.scss', './cache.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class CacheComponent implements OnInit, OnDestroy {

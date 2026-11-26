@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { GqlSchema } from './graphql-schema';
 import { GraphqlSchemaService } from './graphql-schema.service';
 import { Analysis, GqlToken, SuggestionItem, Suggestions, UnknownName, analyze, suggestAt } from './graphql-analyzer';
@@ -34,6 +34,7 @@ const MAX_UNKNOWN_SHOWN = 3;
   selector: 'bx-graphql-editor',
   templateUrl: './graphql-editor.component.html',
   styleUrls: ['./graphql-editor.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class GraphqlEditorComponent implements OnInit {

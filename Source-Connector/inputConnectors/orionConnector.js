@@ -1,5 +1,5 @@
 const express = require('express');
-const axios = require('axios');
+const httpClient = require('../utils/httpClient');
 const logger = require('percocologger')
 const config = require('../config.js');
 
@@ -64,7 +64,7 @@ async function createOrionSubscription({
 
     const url = `${orionBaseUrl.replace(/\/$/, '')}${getEndpointVersionApi()}`;
     logger.info(url, sub, { headers })
-    const res = await axios.post(url, sub, { headers });
+    const res = await httpClient.post(url, sub, { headers });
     logger.info({ status: res.status })
     config.orion.purgeSubscriptionsAtStart = false;//only purge at start if there are duplicates, otherwise we can end in a loop of deleting and creating subscription if the orion instance is restarted while the query engine is restarting
     return res.data;
@@ -91,7 +91,7 @@ if (config.orion.subscribe)
     })
 
 async function getSubscriptions() {
-    return (await axios.get((config.orion.orionBaseUrl || 'http://localhost:1027') + getEndpointVersionApi(),
+    return (await httpClient.get((config.orion.orionBaseUrl || 'http://localhost:1027') + getEndpointVersionApi(),
         (config?.orion?.fiwareService ?
             {
                 headers:
@@ -106,7 +106,7 @@ async function getSubscriptions() {
 }
 
 async function deleteSubscription(subId) {
-    return (await axios.delete(`${(config.orion.orionBaseUrl || 'http://localhost:1027')}${getEndpointVersionApi(subId)}/${subId}`, (config?.orion?.fiwareService ?
+    return (await httpClient.delete(`${(config.orion.orionBaseUrl || 'http://localhost:1027')}${getEndpointVersionApi(subId)}/${subId}`, (config?.orion?.fiwareService ?
         {
             headers:
             {

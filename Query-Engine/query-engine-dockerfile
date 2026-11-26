@@ -5,5 +5,5 @@ COPY ./Query-Engine/utils ./utils
 COPY ./Query-Engine/config*.js ./
 COPY ./Query-Engine/index.js ./
 COPY ./Query-Engine/package*.json ./
-RUN npm install
+RUN npm ci --omit=dev
 CMD ["node", "index"]

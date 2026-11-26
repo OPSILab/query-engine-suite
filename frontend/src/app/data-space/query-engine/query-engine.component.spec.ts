@@ -3,9 +3,6 @@ import { of, throwError, map } from 'rxjs';
 import { HttpHeaders, HttpResponse } from '@angular/common/http';
 import { DefaultUrlSerializer } from '@angular/router';
 
-// Only NbAuthService's getToken() is used (snippet with the real token): no need to load Nebular
-vi.mock('@nebular/auth', () => ({ NbAuthService: class { } }));
-
 import { QueryEngineComponent } from './query-engine.component';
 import { BeopenAPIService, QueryWarning } from '../../services/be-open.service';
 
@@ -65,11 +62,11 @@ function create({ backend = {} as Backend, settings = {}, token = null as string
   };
   const http = fakeHttp(backend);
   const api = new BeopenAPIService(http as any, config as any);
-  const nbAuth = { getToken: () => of({ getPayload: () => ({ access_token: token }) }) };
+  const auth = { accessToken: () => of(token), accessTokenNow: () => token };
   const shared = { userRoles$: of([]) };
   const toast = { show: vi.fn() };
   const comp = new QueryEngineComponent(
-    {} as any, api, translation, toast as any, {} as any, shared as any, { BucketObjectsPush: () => { } } as any, nbAuth as any, config as any,
+    {} as any, api, translation, toast as any, {} as any, shared as any, { BucketObjectsPush: () => { } } as any, auth as any, config as any,
     { nativeElement: document.createElement('div') } as any,
     { snapshot: { queryParamMap: new DefaultUrlSerializer().parse(url).queryParamMap } } as any,
   );
@@ -803,9 +800,41 @@ describe('ready searches (config.json "presetSearches")', () => {
     expect(comp.isPresetActive(first)).toBe(true);
   });
 
-  it('tooltip: the filters of the button', () => {
+  it('tooltip: the full name of the button, then a line per filter', () => {
     const { comp } = create({ settings: { presetSearches } });
-    expect(comp.presetTitle(comp.presetSearches[1])).toBe('source = https://api.example/x?a=1&b=2\nyear = 2026');
+    expect(comp.presetTitle(comp.presetSearches[1])).toBe('Two filters\nsource = https://api.example/x?a=1&b=2\nyear = 2026');
+  });
+
+  it('date ranges and Exists filters: read, filled in the form, green, in the tooltip', async () => {
+    const { comp, http } = create({ settings: { presetSearches: [{ label: 'Created in January, with a city', filters: [
+      { key: 'created', from: '2026-01-01', to: '2026-02-01' },
+      { key: 'updated', from: '2026-03-01T10:00', utc: false },
+      { key: 'city', exists: true },
+      { key: 'empty range', from: '', to: null },                       // no bound: left out
+    ] }] } });
+    const [preset] = comp.presetSearches;
+    expect(preset.filters).toEqual([
+      { key: 'created', type: 'Date', from: '2026-01-01', to: '2026-02-01', utc: true },
+      { key: 'updated', type: 'Date', from: '2026-03-01T10:00', utc: false },
+      { key: 'city', type: 'Exists' },
+    ]);
+    comp.applyPresetSearch(preset);
+    expect(comp.lines).toEqual([
+      { key: 'created', value: '', type: 'Date', from: '2026-01-01T00:00', to: '2026-02-01T00:00', utc: true },
+      { key: 'updated', value: '', type: 'Date', from: '2026-03-01T10:00', to: '', utc: false },
+      { key: 'city', value: '', type: 'Exists' },
+    ]);
+    expect(comp.isPresetActive(preset)).toBe(true);
+    expect(comp.presetTitle(preset)).toBe('Created in January, with a city\ncreated: 2026-01-01 → 2026-02-01 (UTC)\nupdated ≥ 2026-03-01T10:00\ncity: Field exists');
+    comp.minioQuery(false);
+    await flush();
+    expect(queries(http.requests)[0].mongoQuery).toEqual({
+      created: JSON.stringify({ $gte: '2026-01-01T00:00:00.000Z', $lt: '2026-02-01T00:00:00.000Z' }),
+      updated: JSON.stringify({ $gte: new Date('2026-03-01T10:00').toISOString() }),
+      city: JSON.stringify({ $exists: true }),
+    });
+    comp.lines[0].utc = false;
+    expect(comp.isPresetActive(preset)).toBe(false);
   });
 
   it('none configured, or not a list: no buttons; entries without a label or a key left out', () => {
@@ -817,7 +846,7 @@ describe('ready searches (config.json "presetSearches")', () => {
       { label: 'empty key', filters: [{ key: '', value: '1' }] },
       { label: '  ok  ', filters: [{ key: '', value: 'x' }, { key: 'k' }, null] },
     ] } });
-    expect(comp.presetSearches).toEqual([{ label: 'ok', filters: [{ key: 'k', value: '' }] }]);
+    expect(comp.presetSearches).toEqual([{ label: 'ok', filters: [{ key: 'k', type: 'String', value: '' }] }]);
   });
 });
 
@@ -963,6 +992,15 @@ describe('record and Date filters (Advanced search)', () => {
       {},
     ]);
     expect(QueryEngineComponent.isoDate('not a date')).toBeUndefined();
+  });
+
+  it('Exists: a key without a value, the documents that have the field ({ $exists: true }); without a key: no filter', async () => {
+    const { comp, http } = create({ backend: { query: () => [] } });
+    comp.lines = [{ key: 'city', value: 'ignored', type: 'Exists' }, { key: '', value: '', type: 'Exists' }, { key: 'kind', value: 'item', type: 'String' }];
+    comp.minioQuery(false);
+    await flush();
+    expect(mongoQueries(http.requests).pop()).toEqual({ city: JSON.stringify({ $exists: true }), kind: 'item' });
+    expect(comp.valueTypes).toEqual(['String', 'Date', 'Exists']);
   });
 
   it('UTC checked: the dates typed are UTC (a whole UTC day: from its midnight to the next one); unchecked: local time', async () => {

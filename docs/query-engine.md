@@ -15,12 +15,19 @@ Source-Connector. Every endpoint is under `/api` (`basePath` in the configuratio
 | Kind | Searches | Request |
 |---|---|---|
 | **Simple search** | A word or value anywhere: MinIO files, and live the APIs of `apiConnectorConfig.apiUrls` (their [hidden fields](source-connector.html#hidden-fields-personal-data) as pseudonyms, with `hideFieldsSecret`) and (if enabled) Orion, as `simpleSearchOptions` says | `GET /api/query?value=…` with header `isRawQuery: yes` |
-| **Advanced search** | Key / value filters (text or date range) on the MongoDB collections, optionally unwrapping arrays | `POST /api/query?<key>=<value>…` with `{ mongoQuery, page, collections }` in the body |
+| **Advanced search** | Key / value filters (text, date range, or just a key: the field exists) on the MongoDB collections, optionally unwrapping arrays | `POST /api/query?<key>=<value>…` with `{ mongoQuery, page, collections }` in the body |
 | **SQL** | The PostgreSQL tables (only the collections with `toPostgres`) | `POST /api/query` with `{ query }` |
 | **GraphQL** | The Orion datapoints (`datapoints` query, cached) and the sources | `POST /graphql` |
 
 What is left out of a search (a source disabled by the configuration, an API that did not answer, results cut) is
 reported in the `X-Query-Warnings` response header (URI-encoded JSON) and shown by the frontend as a warning.
+
+### Exists filters
+
+A filter of type **Exists** in the Advanced search has a key and no value: it finds the documents that have that field,
+whatever its value. The frontend sends `{ "$exists": true }` for the key (as text, as the date ranges, parsed by the
+Query-Engine), with the file type as for the other filters: a top-level field, a field of the JSON or CSV rows, a
+property of a GeoJSON feature. `{ "$exists": false }` (the field is missing) is accepted by the API too.
 
 ### Date filters
 
@@ -82,6 +89,11 @@ There is no limit on the total: a client reads every result page by page, see
 
 "Logged user", "administrator" and what changes with authentication disabled are explained in
 [Authentication](authentication.html).
+
+GraphQL is served by Apollo Server 5 (`@apollo/server`): send the queries as `POST` with
+`Content-Type: application/json`, as the frontend does. Apollo's CSRF prevention refuses a `GET` (or a `POST` with a
+form or text body) without the header `apollo-require-preflight` (any value): `400`. Invalid arguments (e.g.
+`limit: 0`) answer with `extensions.code: "BAD_USER_INPUT"`.
 
 ## Visibility and bucket
 

@@ -3,7 +3,7 @@
 const { stub, load, config, resetConfig } = require("./helpers/env")
 const { test, describe, beforeEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 
 // the entities collection: { entityId, downloadURL, byteSize }; findOne(...) awaitable or .lean()
 let stored = []
@@ -68,8 +68,8 @@ describe("daily check (verifyLostSubscriptionOrion)", () => {
         resetConfig()
         Object.assign(config.orion, { orionBaseUrl: "http://orion", subscribeType: "DistributionDCAT-AP", attrWithUrl: "downloadURL", useNgsiBroker: false })
         posted = []
-        axios.get = async url => ({ data: orion, headers: { "ngsild-results-count": String(orion.length) } })
-        axios.post = async (url, body) => { posted.push(...body.data.map(e => e.id)) }
+        httpClient.get = async url => ({ data: orion, headers: { "ngsild-results-count": String(orion.length) } })
+        httpClient.post = async (url, body) => { posted.push(...body.data.map(e => e.id)) }
     })
     test("an unchanged entity is not sent, a changed one is", async () => {
         orion = [entity(A, "1634109"), entity(B, "5")]
@@ -83,7 +83,7 @@ describe("daily check (verifyLostSubscriptionOrion)", () => {
         const page = (n, from) => Array.from({ length: n }, (_, i) => entity("urn:" + (from + i), "1", {}))
         const all = page(1500, 0).map((e, i) => ({ ...e, downloadURL: P(URL + i) }))
         stored = all.slice(0, 1000).map(e => ({ ...e, entityId: e.id }))
-        axios.get = async url => {
+        httpClient.get = async url => {
             const offset = Number(new URLSearchParams(url.split("?")[1]).get("offset") || 0)
             return { data: all.slice(offset, offset + 1000), headers: { "ngsild-results-count": "1500" } }
         }

@@ -12,7 +12,7 @@ Keycloak…), failed and successful, newest first.
 
 ## Recording (Source-Connector)
 
-Every axios request of the Source-Connector is saved in the MongoDB collection `statuslog`: when, outcome (`error` /
+Every HTTP request of the Source-Connector (made with its client `utils/httpClient.js`) is saved in the MongoDB collection `statuslog`: when, outcome (`error` /
 `success`), the API it belongs to (matched by url), method, url, query params, headers, body, status, response data or
 error, duration (`durationMs`). A request with no answer (timeout, connection refused, DNS) is an error too, and so is
 a request the code expects to fail (e.g. "no map yet" from the mapper).

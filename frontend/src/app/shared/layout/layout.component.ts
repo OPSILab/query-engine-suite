@@ -1,4 +1,4 @@
-import { Component, HostListener, Optional } from '@angular/core';
+import { Component, HostListener, Optional, ChangeDetectionStrategy } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { SessionService } from '../../services/session.service';
@@ -15,6 +15,7 @@ const COLLAPSED_KEY = 'ds-sidenav-collapsed';
 @Component({
   selector: 'app-layout',
   templateUrl: './layout.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class LayoutComponent {

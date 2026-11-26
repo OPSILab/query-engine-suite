@@ -1,6 +1,6 @@
 const config = require('../config')
 const logger = require('percocologger')
-const axios = require('axios')
+const httpClient = require('../utils/httpClient')
 const { createCollector } = require('../utils/entriesStore')
 const { makeItem, clearOrigin, storeRecords, pgQuery, waitForPostgreInit, ensurePgTable } = require('../utils/sourceRecords')
 const { collectionSettings, collectionModel } = require('../utils/collections')
@@ -133,8 +133,8 @@ function dateParamsOf(params, start, end) {
     return window
 }
 
-// The axios options for the query params of an API request. An incremental API using the same param for start and
-// end: a param with several values (an array) repeated as it is, p=a&p=b (axios would send p[]=a&p[]=b)
+// The httpClient options for the query params of an API request. An incremental API using the same param for start and
+// end: a param with several values (an array) repeated as it is, p=a&p=b (by default p[]=a&p[]=b)
 function requestParams(api, params) {
     const dates = api.incrementalParams
     if (api.incremental && dates?.startDateParam && dates.startDateParam === dates.endDateParam)
@@ -374,7 +374,7 @@ async function pollWindow(api, url, headers, window, { currentDate, collector, l
     const params = { ...api.queryParams, ...window }
     let response
     try {
-        response = await dataRequest(api, headers, headers => axios.get(url, { headers, ...requestParams(api, params) }))
+        response = await dataRequest(api, headers, headers => httpClient.get(url, { headers, ...requestParams(api, params) }))
     }
     catch (error) {
         if (!isNotFound(error))
@@ -426,7 +426,7 @@ function logPollError(label, error) {
     if (error.response) {
         logger.error("Status:", error.response.status)
         logger.error("Data:", error.response.data)
-        logger.error("Headers:", error.request.headers)
+        logger.error("Headers:", error.response.headers)
         logger.debug(error)
     }
     else
@@ -553,7 +553,7 @@ async function pollAPI(apis = config.apiConnectorConfig.apiUrls) {
                 logger.debug(api)
                 if (api.batch) {
                     logger.info(`Polling ${api.name} API for batch values from ${api.batch.from}...`)
-                    const batchResponse = await apiRequest(api, headers, headers => axios.get(api.batch.from, { headers }))
+                    const batchResponse = await apiRequest(api, headers, headers => httpClient.get(api.batch.from, { headers }))
                     let batchValues
                     if (api.batch.pick)
                         batchValues = batchResponse.data[api.batch.pick].map(item => getValueFromParam(item, api.batch.param))
@@ -576,7 +576,7 @@ async function pollAPI(apis = config.apiConnectorConfig.apiUrls) {
                             continue
                         }
                         const collector = createCollector(batchUrl, "api")
-                        const response = await dataRequest(api, headers, headers => axios.get(batchUrl, { headers }))
+                        const response = await dataRequest(api, headers, headers => httpClient.get(batchUrl, { headers }))
                         logger.info("api ", batchUrl, "called with ", {
                             headers
                         }, { response: response?.data?.length || response.data || "no response" })
@@ -625,7 +625,7 @@ async function pollAPI(apis = config.apiConnectorConfig.apiUrls) {
                                 headers
                             })
                             try {
-                                response = await dataRequest(api, headers, headers => axios.get(api.url, { headers, ...requestParams(api, queryParams) }))
+                                response = await dataRequest(api, headers, headers => httpClient.get(api.url, { headers, ...requestParams(api, queryParams) }))
                             }
                             catch (error) {
                                 if (!api.incremental || !isNotFound(error))
@@ -693,7 +693,7 @@ async function pollAPI(apis = config.apiConnectorConfig.apiUrls) {
                 }
                 else {
                     const collector = createCollector(api.url, "api")
-                    const response = await dataRequest(api, headers, headers => api.method?.toLowerCase() === "post" ? axios.post(api.url, api.body, { headers }) : axios.get(api.url, { headers }))
+                    const response = await dataRequest(api, headers, headers => api.method?.toLowerCase() === "post" ? httpClient.post(api.url, api.body, { headers }) : httpClient.get(api.url, { headers }))
                     logger.info("api ", api.url, "called with ", {
                         headers
                     }, { response: response?.data?.length || response.data || "no response" })
@@ -728,14 +728,14 @@ async function getToken(url, requestType, credentials, authProfile, body, header
         logger.debug(requestType.toLowerCase(), url, {
             headers
         })
-        return await axios[requestType.toLowerCase()](url, body, {
+        return await httpClient[requestType.toLowerCase()](url, body, {
             headers: {
                 'Authorization': authorization
             }
         });
     }
     else if (authProfile == "OAuth 2.0 Client Credentials Grant") {
-        return await axios.post(url,
+        return await httpClient.post(url,
             "client_id=" + credentials.client_id + "&client_secret=" + credentials.client_secret + "&grant_type=client_credentials",
             {
                 headers: {

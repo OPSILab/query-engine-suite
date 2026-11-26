@@ -1,6 +1,6 @@
 ﻿const logger = require('percocologger')
 const log = logger.info
-const axios = require("axios")
+const httpClient = require("./httpClient")
 const config = require("../config")
 const Entity = require("../api/models/Entity")
 const distributionCheck = require("./distributionCheck")
@@ -102,12 +102,12 @@ function syncEntries(obj, visibility, entries) {
 async function getFromOrion() {
   let collectedEntities = []
   let orionUrl = config.orion.orionBaseUrl + "/ngsi-ld/v1/entities?type=" + config.orion.subscribeType + "&limit=1000&count=true"
-  let entities = await axios.get(orionUrl)
+  let entities = await httpClient.get(orionUrl)
   collectedEntities = collectedEntities.concat(entities.data)
   // the http headers are lower case ("NGSILD-Results-Count" was always undefined: only the first 1000 were read)
   let totalEntities = Number(entities.headers["ngsild-results-count"]) || 0
   while (collectedEntities.length < totalEntities) {
-    const page = (await axios.get(orionUrl + "&offset=" + collectedEntities.length)).data
+    const page = (await httpClient.get(orionUrl + "&offset=" + collectedEntities.length)).data
     if (!Array.isArray(page) || !page.length)
       break
     collectedEntities = collectedEntities.concat(page)
@@ -191,7 +191,7 @@ module.exports = {
     try {
       let entities
       if (config.orion.useNgsiBroker)
-        entities = (await axios.get(config.orion.ngsiBrokerUrl)).data
+        entities = (await httpClient.get(config.orion.ngsiBrokerUrl)).data
       else
         entities = await getFromOrion()
       logger.debug("Entities retrieved: " + JSON.stringify(entities).substring(0, 100))
@@ -206,7 +206,7 @@ module.exports = {
         logger.info(ent)
         if (checkMustUpdateDistributionDcatAp(ent, existingEntity))
           try {
-            await axios.post(selfNotificationUrl(), {
+            await httpClient.post(selfNotificationUrl(), {
               "id": "self",
               "type": "Notification",
               "subscriptionId": "self",
@@ -216,13 +216,13 @@ module.exports = {
               ]
             })
           } catch (error) {
-            logger.error(error.response?.data ? { axios: error.response.data } : error)
+            logger.error(error.response?.data ? { response: error.response.data } : error)
           }
       }
       logger.info("Lost subscription verified")
     }
     catch (error) {
-      logger.error(error.response?.data ? { axios: error.response.data } : error)
+      logger.error(error.response?.data ? { response: error.response.data } : error)
     }
   },
 

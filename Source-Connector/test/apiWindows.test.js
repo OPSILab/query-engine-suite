@@ -5,7 +5,7 @@ const { load, config } = require("./helpers/env")
 const db = require("./helpers/db")
 const { test, describe, before, after, beforeEach, afterEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 const { loadApiConnector, fakePagedApi } = require("./helpers/apiConnector")
 
 const URL_A = "https://api.example/windows"
@@ -67,16 +67,16 @@ describe("paginated, YYYY-MM-DD, first poll from startDateValue (30 days ago), m
     test("a window that fails: the windows before it kept, the next poll starts from the one that failed", async () => {
         fake = fakePagedApi([[{ id: 1 }]])
         config.apiConnectorConfig.apiUrls = [{ name: "W", url: URL_A, pagination, incremental: true, incrementalParams: ymdParams("inclusive") }]
-        const get = axios.get
+        const get = httpClient.get
         let calls = 0
-        axios.get = async (url, options) => {
+        httpClient.get = async (url, options) => {
             if (++calls == 3) // the first page of the second window
                 throw new Error("connection reset")
             return get(url, options)
         }
         await pollAPI()
         assert.equal((await db.docs(Source)).length, 1)
-        axios.get = get
+        httpClient.get = get
         fake.requests.length = 0
         await pollAPI()
         assert.equal(fake.requests[0].params.from, daysAgo(20)) // the second window: the first one is never asked again
@@ -127,9 +127,9 @@ describe("millis, from the last poll (25 days ago), maxWindow 10 days", () => {
 describe("cursor pagination whose offset is the start date (since)", () => {
     test("each window starts from its date, not from the configured startFrom", async () => {
         const requests = []
-        const get = axios.get
-        axios.get = async (url, options) => { requests.push({ ...options.params }); return { data: [] } }
-        fake = { restore: () => { axios.get = get } }
+        const get = httpClient.get
+        httpClient.get = async (url, options) => { requests.push({ ...options.params }); return { data: [] } }
+        fake = { restore: () => { httpClient.get = get } }
         config.apiConnectorConfig.apiUrls = [{
             name: "W", url: URL_A, incremental: true,
             pagination: { offsetParam: "from", limitParam: "limit", limit: 100, offsetValue: { from: "response", value: "next", startFrom: "2000-01-01" }, condition: r => r.data?.[0]?.truncated },
@@ -159,9 +159,9 @@ describe("not paginated", () => {
     test("interrupted at the second window: the first one kept, the next poll (same day) starts from the second", async () => {
         fake = fakePagedApi([[{ id: 1 }, { id: 2 }]])
         config.apiConnectorConfig.apiUrls = [api()]
-        const get = axios.get
+        const get = httpClient.get
         let calls = 0
-        axios.get = async (url, options) => {
+        httpClient.get = async (url, options) => {
             if (++calls == 2)
                 throw new Error("connection reset")
             return get(url, options)
@@ -169,7 +169,7 @@ describe("not paginated", () => {
         await pollAPI()
         assert.equal((await db.docs(Source)).length, 2)
         assert.deepEqual(await db.docs(Status), []) // the first window is done
-        axios.get = get
+        httpClient.get = get
         fake.requests.length = 0
         await pollAPI()
         assert.deepEqual(fake.requests.map(r => [r.params.from, r.params.to]), [[daysAgo(20), daysAgo(11)], [daysAgo(10), daysAgo(1)]])

@@ -1,11 +1,11 @@
-// The axios requests, failed and successful, saved in the statuslog collection (utils/requestLog.js), on real MongoDB
+// The httpClient requests, failed and successful, saved in the statuslog collection (utils/requestLog.js), on real MongoDB
 // (see helpers/db.js), against a local HTTP server.
 const { load, config, resetConfig } = require("./helpers/env")
 const db = require("./helpers/db")
 const { test, describe, before, after, beforeEach } = require("node:test")
 const assert = require("node:assert/strict")
 const http = require("http")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 
 let server, base, requestLog, StatusLog
 
@@ -49,7 +49,7 @@ const docs = async () => {
 describe("statuslog", () => {
     test("an error answer: url, params, headers and body as they are, status and response data; the caller gets the same error", async () => {
         config.apiConnectorConfig.apiUrls = [{ name: "Records", url: base + "/records?fixed=1" }]
-        const error = await axios.post(base + "/records", { id: 7 }, { params: { from: "2026-10-01", to: "2026-10-31" }, headers: { Authorization: "Bearer secret-token", "X-Test": "yes" } })
+        const error = await httpClient.post(base + "/records", { id: 7 }, { params: { from: "2026-10-01", to: "2026-10-31" }, headers: { Authorization: "Bearer secret-token", "X-Test": "yes" } })
             .catch(error => error)
         assert.equal(error.response.status, 500) // unchanged for the caller
         const [doc] = await docs()
@@ -72,7 +72,7 @@ describe("statuslog", () => {
         await new Promise(resolve => closed.listen(0, "127.0.0.1", resolve))
         const url = `http://127.0.0.1:${closed.address().port}/down`
         await new Promise(resolve => closed.close(resolve))
-        await axios.get(url).catch(() => { })
+        await httpClient.get(url).catch(() => { })
         const [doc] = await docs()
         assert.equal(doc.url, url)
         assert.equal(doc.code, "ECONNREFUSED")
@@ -81,7 +81,7 @@ describe("statuslog", () => {
     })
 
     test("a successful request: saved with outcome success, status, data and duration; it expires after successRetentionDays", async () => {
-        await axios.get(base + "/ok", { params: { a: 1 } })
+        await httpClient.get(base + "/ok", { params: { a: 1 } })
         const [doc] = await docs()
         assert.equal(doc.outcome, "success")
         assert.equal(doc.method, "GET")
@@ -97,12 +97,12 @@ describe("statuslog", () => {
 
     test("successRetentionDays: the expiry of the successes; 0: kept forever", async () => {
         config.statusLog.successRetentionDays = 2
-        await axios.get(base + "/ok")
+        await httpClient.get(base + "/ok")
         const [doc] = await docs()
         assert.equal((new Date(doc.expiresAt) - new Date(doc.createdAt)) / (24 * 60 * 60 * 1000), 2)
         await StatusLog.collection.deleteMany({})
         config.statusLog.successRetentionDays = 0
-        await axios.get(base + "/ok")
+        await httpClient.get(base + "/ok")
         const [forever] = await docs()
         assert.equal(forever.outcome, "success")
         assert.equal(forever.expiresAt, undefined)
@@ -110,13 +110,13 @@ describe("statuslog", () => {
 
     test("statusLog.successes false: only the errors saved", async () => {
         config.statusLog.successes = false
-        await axios.get(base + "/ok")
-        await axios.get(base + "/fail").catch(() => { })
+        await httpClient.get(base + "/ok")
+        await httpClient.get(base + "/fail").catch(() => { })
         assert.deepEqual((await docs()).map(doc => [doc.outcome, doc.status]), [["error", 500]])
     })
 
     test("the errors: outcome error, never expire", async () => {
-        await axios.get(base + "/fail").catch(() => { })
+        await httpClient.get(base + "/fail").catch(() => { })
         const [doc] = await docs()
         assert.equal(doc.outcome, "error")
         assert.equal(doc.expiresAt, undefined)
@@ -125,7 +125,7 @@ describe("statuslog", () => {
 
     test("response data longer than maxDataSize: cut, with its length", async () => {
         config.statusLog.maxDataSize = 20
-        await axios.get(base + "/big").catch(() => { })
+        await httpClient.get(base + "/big").catch(() => { })
         const [doc] = await docs()
         assert.equal(doc.data.length, 20)
         assert.equal(doc.dataTruncated, true)
@@ -134,14 +134,14 @@ describe("statuslog", () => {
 
     test("statusLog.enabled false: nothing saved", async () => {
         config.statusLog.enabled = false
-        await axios.get(base + "/fail").catch(() => { })
+        await httpClient.get(base + "/fail").catch(() => { })
         assert.deepEqual(await docs(), [])
     })
 
     test("a request of a batch API (url with {batch}) is attributed to it", async () => {
         config.apiConnectorConfig.apiUrls = [{ name: "Batch", url: base + "/item/{batch}", batch: { from: base + "/ids", param: "id" } }]
-        await axios.get(base + "/item/42").catch(() => { })
-        await axios.get(base + "/ids").catch(() => { })
+        await httpClient.get(base + "/item/42").catch(() => { })
+        await httpClient.get(base + "/ids").catch(() => { })
         assert.deepEqual((await docs()).map(doc => doc.api), ["Batch", "Batch"])
     })
 
@@ -149,15 +149,45 @@ describe("statuslog", () => {
         const { pseudonym } = load("utils/hideFields.js")
         config.apiConnectorConfig.apiUrls = [{ name: "Appointments", url: base + "/fhir", hideFields: ["entry.resource.participant.actor.display"] }]
         config.hideFieldsSecret = "key"
-        const response = await axios.get(base + "/fhir")
+        const response = await httpClient.get(base + "/fhir")
         assert.equal(response.data.entry[0].resource.participant[0].actor.display, "Mario Rossi")
         let [doc] = await docs()
         assert.ok(!doc.data.includes("Mario Rossi"))
         assert.ok(doc.data.includes(pseudonym("Mario Rossi", "key")))
         await StatusLog.collection.deleteMany({})
         config.hideFieldsSecret = ""
-        await axios.get(base + "/fhir")
+        await httpClient.get(base + "/fhir")
         ;[doc] = await docs()
         assert.match(doc.data, /^\[not saved: Appointments: hideFields needs hideFieldsSecret/)
+    })
+})
+
+// The documents saved for requests made with utils/httpClient and with axios (devDependency, only for this check):
+// the same, but for the dates, the duration and the User-Agent
+describe("statuslog: httpClient as axios", () => {
+    test("the same document for the same request (success, error answer, form, timeout, refused, repeated params)", async () => {
+        const axios = require("axios")
+        const cases = [
+            c => c.get(base + "/ok", { params: { a: [1, 2], d: "2026-01-01T00:00:00Z" }, headers: { Authorization: "Bearer x" } }),
+            c => c.post(base + "/fail", { id: 7 }, { params: { from: "a" } }),
+            c => c.post(base + "/ok", new URLSearchParams({ grant_type: "password", username: "u" })),
+            c => c.get(base + "/ok", { params: { _lastUpdated: ["ge1", "lt2"] }, paramsSerializer: { indexes: null } }),
+            c => c.get("http://127.0.0.1:1/x"),
+        ]
+        const normalized = ({ createdAt, expiresAt, durationMs, headers, ...doc }) => {
+            const { "User-Agent": _, ...rest } = headers || {}
+            return { ...doc, headers: rest, timed: typeof durationMs == "number" }
+        }
+        for (const call of cases) {
+            const docs = []
+            for (const client of [axios, httpClient]) {
+                const id = client.interceptors.request.use(request => { request.requestLogStart = Date.now(); return request })
+                let result
+                try { result = { response: await call(client) } } catch (error) { result = { error } }
+                client.interceptors.request.eject(id)
+                docs.push(normalized(requestLog.record(result.error, result.response)))
+            }
+            assert.deepEqual(docs[1], docs[0])
+        }
     })
 })

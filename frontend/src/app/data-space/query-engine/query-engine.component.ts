@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { Observable, Subscription, defer, finalize, firstValueFrom, take } from 'rxjs';
 import { ToastService, ToastStatus } from '../../services/toast.service';
 
@@ -11,16 +11,29 @@ import { BeopenUser } from '../../model/beopen-user';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SharedService } from '../../services/shared.service';
 import { DataSpaceService } from '../data-space.service';
-import { NbAuthService } from '@nebular/auth';
+import { AuthService } from '../../auth/services/auth.service';
 import { ConfigService } from '../../services/config.service';
 import { QueryRequest, SNIPPET_LANGS, SnippetLang, toSnippet } from './request-snippets';
 import { FALLBACK_GQL_EXAMPLES, GqlExample, SOURCES_DISCOVERY_QUERY, SURVEYS_DISCOVERY_QUERY, buildGqlExamples } from './graphql-editor/graphql-examples';
 import { DEFAULT_SQL_EXAMPLES, SqlExample } from './sql-editor/sql-editor.component';
 
+/**
+ * A filter of a ready search, of the kind of an Advanced search line (its value type):
+ * String a value ({ key, value }), Date a range ({ key, from, to, utc }), Exists the field is there ({ key, exists: true }).
+ */
+export interface PresetFilter {
+  key: string;
+  type: 'String' | 'Date' | 'Exists';
+  value?: string;
+  from?: string;
+  to?: string;
+  utc?: boolean;
+}
+
 /** A ready Advanced search of config.json ("presetSearches"): a button that fills the filters. */
 export interface PresetSearch {
   label: string;
-  filters: { key: string; value: string }[];
+  filters: PresetFilter[];
 }
 
 /**
@@ -52,6 +65,7 @@ export interface PresetSearch {
   selector: 'ngx-query-engine',
   templateUrl: './query-engine.component.html',
   styleUrls: ['./query-engine.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
@@ -76,7 +90,8 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   beopenUser: BeopenUser;
   userRoles: string[] = [];
   types: string[] = ["CSV", "JSON", "GeoJSON"];
-  valueTypes: string[] = ["String", "Date"];
+  // Exists: the documents that have the field (any value), a key and no value ({ $exists: true } to the Query-Engine)
+  valueTypes: string[] = ["String", "Date", "Exists"];
   email: string | null = null;
 
   @Input() visibility!: string;
@@ -212,7 +227,7 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     private router: Router,
     private sharedService: SharedService,
     private dataSpaceService: DataSpaceService,
-    private nbAuth: NbAuthService,
+    private auth: AuthService,
     private configService: ConfigService,
     private host: ElementRef<HTMLElement>,
     private route?: ActivatedRoute
@@ -272,18 +287,36 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     const keys = params?.getAll('key') ?? [];
     if (!keys.some(key => key)) return;
     const values = params!.getAll('value');
-    this.fillFilters(keys.map((key, i) => ({ key, value: values[i] ?? '' })));
+    this.fillFilters(keys.map((key, i) => ({ key, type: 'String' as const, value: values[i] ?? '' })));
   }
 
-  /** Tooltip of a ready search button: its filters. */
+  /**
+   * Tooltip of a ready search button: its full name (the button may cut it), then a line per filter:
+   * key = value, key: from → to (or ≥ from / < to, a single bound), key: exists.
+   */
   presetTitle(preset: PresetSearch): string {
-    return preset.filters.map(f => `${f.key} = ${f.value}`).join('\n');
+    const describe = (f: PresetFilter): string => {
+      if (f.type === 'Exists') return `${f.key}: ${this.tr('Field exists')}`;
+      if (f.type === 'Date') {
+        const utc = f.utc ? ' (UTC)' : '';
+        if (f.from && f.to) return `${f.key}: ${f.from} → ${f.to}${utc}`;
+        return f.from ? `${f.key} ≥ ${f.from}${utc}` : `${f.key} < ${f.to}${utc}`;
+      }
+      return `${f.key} = ${f.value}`;
+    };
+    return [preset.label, ...preset.filters.map(describe)].join('\n');
   }
 
   /** The ready search whose filters are the ones in the form (green, like the GraphQL / SQL examples). */
   isPresetActive(preset: PresetSearch): boolean {
-    return this.lines.length === preset.filters.length && preset.filters.every((f, i) =>
-      this.lines[i].type !== 'Date' && this.lines[i].key === f.key && this.lines[i].value === f.value);
+    return this.lines.length === preset.filters.length && preset.filters.every((f, i) => {
+      const l = this.lines[i];
+      if (l.key !== f.key) return false;
+      if (f.type === 'Exists') return l.type === 'Exists';
+      if (f.type === 'Date')
+        return l.type === 'Date' && (l.from || '') === QueryEngineComponent.dateInput(f.from) && (l.to || '') === QueryEngineComponent.dateInput(f.to) && !!l.utc === !!f.utc;
+      return l.type !== 'Date' && l.type !== 'Exists' && l.value === f.value;
+    });
   }
 
   /** A button of the ready searches: fills the filters like a link does (the search starts with Apply Query). */
@@ -292,8 +325,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   }
 
   /** Advanced search with these filters (the ones without a key left out). */
-  private fillFilters(filters: { key: string; value: string }[]): void {
-    const lines = filters.filter(f => f.key).map(f => ({ key: f.key, value: f.value, type: 'String' }));
+  private fillFilters(filters: PresetFilter[]): void {
+    const lines = filters.filter(f => f.key).map(f =>
+      f.type === 'Date' ? { key: f.key, value: '', type: 'Date', from: QueryEngineComponent.dateInput(f.from), to: QueryEngineComponent.dateInput(f.to), utc: !!f.utc }
+        : f.type === 'Exists' ? { key: f.key, value: '', type: 'Exists' }
+          : { key: f.key, value: f.value ?? '', type: 'String' });
     if (!lines.length) return;
     this.form.get('mode')!.setValue('Advanced search');
     // New objects: the @for tracks them by identity, so the rows (and their autocompletes) are re-created
@@ -301,19 +337,39 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
   }
 
   /**
-   * config.json "presetSearches": [{ "label": "...", "filters": [{ "key": "...", "value": "..." }, ...] }, ...].
+   * config.json "presetSearches": [{ "label": "...", "filters": [...] }, ...], a filter being one of
+   *   { "key": "...", "value": "..." }                                   a value (String)
+   *   { "key": "...", "from": "2026-01-01", "to": "2026-02-01" }         a date range (Date): from included, to
+   *                                                                      excluded, one bound is enough; UTC unless
+   *                                                                      "utc": false (the time zone of the browser)
+   *   { "key": "...", "exists": true }                                   the field is there, any value (Exists)
    * Entries without a label or without a filter with a key are left out; values are kept as text.
    */
   static readPresetSearches(setting: unknown): PresetSearch[] {
     if (!Array.isArray(setting)) return [];
+    const text = (v: any): string | undefined => v === undefined || v === null || v === '' ? undefined : String(v);
     return setting
       .map((preset: any) => ({
         label: typeof preset?.label === 'string' ? preset.label.trim() : '',
         filters: (Array.isArray(preset?.filters) ? preset.filters : [])
           .filter((f: any) => typeof f?.key === 'string' && f.key)
-          .map((f: any) => ({ key: f.key, value: f.value === undefined || f.value === null ? '' : String(f.value) })),
+          .map((f: any): PresetFilter | null => {
+            if (f.exists === true || f.exists === 'true') return { key: f.key, type: 'Exists' };
+            if ('from' in f || 'to' in f) {
+              const from = text(f.from), to = text(f.to);
+              return from || to ? { key: f.key, type: 'Date', ...(from ? { from } : {}), ...(to ? { to } : {}), utc: f.utc !== false } : null;
+            }
+            return { key: f.key, type: 'String', value: f.value === undefined || f.value === null ? '' : String(f.value) };
+          })
+          .filter((f: PresetFilter | null): f is PresetFilter => !!f),
       }))
       .filter(preset => preset.label && preset.filters.length);
+  }
+
+  /** A date of config.json (2026-01-01, or with a time) as the date fields of a Date filter take it (datetime-local). */
+  static dateInput(value?: string): string {
+    if (!value) return '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value + 'T00:00' : value;
   }
 
   // ---- collections
@@ -434,9 +490,9 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
    */
   getUser() {
     if (this.configService.getSettings('userFromToken', false)) {
-      this.nbAuth.getToken().pipe(take(1)).subscribe({
-        next: (token: any) => {
-          const user = QueryEngineComponent.userFromToken(token?.getPayload?.()?.access_token);
+      this.auth.accessToken().pipe(take(1)).subscribe({
+        next: (token: string | null) => {
+          const user = QueryEngineComponent.userFromToken(token);
           this.beopenUser = user as BeopenUser;
           this.email = user?.email ?? null;
         },
@@ -810,6 +866,11 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
           if (to) range['$lt'] = to;
           if (l.key && Object.keys(range).length) mongoQuery[l.key] = JSON.stringify(range);
         }
+        // a key without a value: the documents that have the field (sent as text, as the dates: the Query-Engine
+        // parses it, see bodyCheck)
+        else if (l.type == "Exists") {
+          if (l.key) mongoQuery[l.key] = JSON.stringify({ $exists: true });
+        }
         else mongoQuery[l.key] = l.value;
       }
     return mongoQuery;
@@ -919,11 +980,9 @@ export class QueryEngineComponent implements OnInit, OnChanges, AfterViewInit, O
     return `Bearer ${token || '<TOKEN>'}`;
   }
 
-  // Read the same way TokenInterceptor does (NbAuthService emits the stored token synchronously).
+  // The access token now (AuthService reads it from the storage of the login, without waiting).
   private currentAccessToken(): string | null {
-    let token: string | null = null;
-    this.nbAuth.getToken().subscribe((t: any) => token = t?.getPayload?.()?.access_token || null).unsubscribe();
-    return token;
+    return this.auth.accessTokenNow();
   }
 
   // In the component, not the template: "<TOKEN>" inside {{ }} is read as an HTML tag by the template parser.

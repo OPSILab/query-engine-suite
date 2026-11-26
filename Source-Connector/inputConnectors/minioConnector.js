@@ -16,7 +16,7 @@ const logger = require('percocologger')
 const log = logger.info
 process.queryEngine = { updatedOwners: {} }
 const client = require("./postgresConnector");
-const axios = require('axios')
+const httpClient = require('../utils/httpClient')
 const { writeAccumulator, removeOrigin, entriesFormat, geojsonTopLevel } = require('../utils/entriesStore')
 let syncing
 let touchedDuringSync = new Set() // origins (re)indexed while a sync is running, never swept by that sync
@@ -308,7 +308,7 @@ async function insertInDBs(newObject, record, align) {
       owner = "unknown"
     else {
       if (config.minioConfig.ownerInfoEndpoint)
-        owner = (await axios.get(config.minioConfig.ownerInfoEndpoint + "/createdBy?filePath=" + queryName + "&etag=" + record.etag)).data
+        owner = (await httpClient.get(config.minioConfig.ownerInfoEndpoint + "/createdBy?filePath=" + queryName + "&etag=" + record.etag)).data
     }
   }
   catch (error) {

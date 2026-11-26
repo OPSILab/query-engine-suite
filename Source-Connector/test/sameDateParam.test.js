@@ -4,7 +4,7 @@ const { load, config } = require("./helpers/env")
 const db = require("./helpers/db")
 const { test, describe, before, after, beforeEach, afterEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 const { loadApiConnector } = require("./helpers/apiConnector")
 
 const URL_F = "https://fhir.example/baseDstu3/Appointment"
@@ -17,14 +17,14 @@ before(async () => {
     await load("utils/pollStatus.js").ensurePgStatusTable()
     pollAPI = await loadApiConnector()
     ;({ prepareIncremental, requestParams } = load("inputConnectors/apiConnector.js"))
-    realGet = axios.get
+    realGet = httpClient.get
 })
 after(db.teardown)
 beforeEach(async () => {
     await db.clean()
     await db.query("TRUNCATE status RESTART IDENTITY")
 })
-afterEach(() => { axios.get = realGet })
+afterEach(() => { httpClient.get = realGet })
 
 const fhirParams = (extra = {}) => ({
     startDateParam: "_lastUpdated", endDateParam: "_lastUpdated", startDatePrefix: "ge", endDatePrefix: "lt",
@@ -61,7 +61,7 @@ describe("date prefixes and the same param for start and end", () => {
 
     test("the url: the param repeated (p=a&p=b), not p[]=; other APIs as before", () => {
         const params = { _count: 1000, _lastUpdated: ["ge2026-01-01T00:00:00.000Z", "lt2026-01-02T00:00:00.000Z"] }
-        assert.equal(axios.getUri({ url: URL_F, ...requestParams(fhirApi(), params) }),
+        assert.equal(httpClient.getUri({ url: URL_F, ...requestParams(fhirApi(), params) }),
             URL_F + "?_count=1000&_lastUpdated=ge2026-01-01T00:00:00.000Z&_lastUpdated=lt2026-01-02T00:00:00.000Z")
         const other = { name: "O", url: URL_F, incremental: true, incrementalParams: { startDateParam: "from", endDateParam: "to" } }
         assert.deepEqual(requestParams(other, { a: [1, 2] }), { params: { a: [1, 2] } })
@@ -70,8 +70,8 @@ describe("date prefixes and the same param for start and end", () => {
     for (const paginated of [false, true])
         test(`a poll${paginated ? " (paginated)" : ""}: the requests as the server expects them, the records with the dates sent`, async () => {
             const urls = []
-            axios.get = async (url, options) => {
-                urls.push(axios.getUri({ url, ...options }))
+            httpClient.get = async (url, options) => {
+                urls.push(httpClient.getUri({ url, ...options }))
                 const offset = Number(options?.params?.offset ?? 0)
                 return { data: offset ? [] : [{ resourceType: "Bundle", n: urls.length }] }
             }

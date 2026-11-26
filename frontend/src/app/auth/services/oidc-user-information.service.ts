@@ -1,11 +1,9 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { OidcJWTToken, UserClaims } from '../oidc';
-import { NbAuthService } from '@nebular/auth';
+import { UserClaims } from '../oidc';
+import { AuthService } from './auth.service';
 
-// Direct copy of the dashboard's OidcUserInformationService: decodes the
-// Keycloak access token's payload into UserClaims whenever Nebular's token
-// changes.
+// The claims of the Keycloak access token of the user logged in (UserClaims), published at every login change.
 @Injectable({
   providedIn: 'root'
 })
@@ -14,18 +12,18 @@ export class OidcUserInformationService {
   user: UserClaims;
   protected user$: BehaviorSubject<any> = new BehaviorSubject(null);
 
-  constructor(private authService: NbAuthService) {
-    this.authService.onTokenChange()
-      .subscribe((token: OidcJWTToken) => {
-        if (token.isValid()) {
-          this.user = token.getAccessTokenPayload();
+  constructor(private authService: AuthService) {
+    this.authService.claims$
+      .subscribe((claims: UserClaims | null) => {
+        if (claims) {
+          this.user = claims;
           this.publishUser(this.user);
         }
       });
   }
 
   getRole(): Observable<string[]> {
-    return this.user ? of(this.user.roles.map(role => role.toUpperCase())) : of(['USER']);
+    return this.user?.roles ? of(this.user.roles.map(role => role.toUpperCase())) : of(['USER']);
   }
 
   getUser(): Observable<UserClaims> {

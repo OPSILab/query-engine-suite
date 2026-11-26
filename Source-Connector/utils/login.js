@@ -1,5 +1,5 @@
 
-const axios = require('axios');
+const httpClient = require('./httpClient');
 
 const KEYCLOAK_URL = 'https://platform.beopendep.it/auth';
 const REALM = 'master';             
@@ -15,7 +15,7 @@ async function authenticate() {
   params.append('client_secret', CLIENT_SECRET);
 
   try {
-    const response = await axios.post(tokenUrl, params, {
+    const response = await httpClient.post(tokenUrl, params, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
 

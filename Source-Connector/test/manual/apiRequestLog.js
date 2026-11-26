@@ -70,7 +70,7 @@ stub("utils/entriesStore.js", {
 })
 
 const config = require(path.join(ROOT, "config.js"))
-const axios = require("axios")
+const httpClient = require("../../utils/httpClient")
 const locks = require(path.join(ROOT, "utils/jobLocks.js"))
 
 const apis = config.apiConnectorConfig?.apiUrls || []
@@ -98,8 +98,8 @@ function write(entry) {
 }
 
 let sequence = 0
-axios.interceptors.request.use(request => {
-    const url = axios.getUri({ ...request, params: undefined })
+httpClient.interceptors.request.use(request => {
+    const url = httpClient.getUri({ ...request, params: undefined })
     request.requestLog = {
         n: ++sequence,
         api: apiOf(request.url, request.method),
@@ -108,13 +108,13 @@ axios.interceptors.request.use(request => {
             method: request.method?.toUpperCase(),
             url,
             params: request.params,
-            fullUrl: axios.getUri(request),
+            fullUrl: httpClient.getUri(request),
             body: request.data
         }
     }
     return request
 })
-axios.interceptors.response.use(
+httpClient.interceptors.response.use(
     response => {
         const log = response.config.requestLog
         if (log)

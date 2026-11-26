@@ -1,41 +1,17 @@
-import { Component, OnDestroy } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { NbAuthResult, NbAuthService, NbAuthOAuth2JWTToken } from '@nebular/auth';
-import { ConfigService } from '../../services/config.service';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { AuthService } from '../services/auth.service';
 
-// Direct copy of the dashboard's AuthLoginComponent: kicks off the redirect
-// to Keycloak as soon as the route is activated.
+// /keycloak-auth: straight to the Keycloak login page.
 @Component({
     selector: 'ngx-oauth2-login',
     template: ``,
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
-export class AuthLoginComponent implements OnDestroy {
-  token: NbAuthOAuth2JWTToken;
-  private destroy$ = new Subject<void>();
+export class AuthLoginComponent {
 
-  constructor(private authService: NbAuthService, private configService: ConfigService) {
-    this.login();
-    this.authService.onTokenChange()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((token: NbAuthOAuth2JWTToken) => {
-        this.token = null;
-        if (token && token.isValid()) {
-          this.token = token;
-        }
-      });
+  constructor(authService: AuthService) {
+    authService.login();
   }
 
-  login() {
-    this.authService.authenticate(this.configService.getSettings('keycloak.authProfile'))
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((authResult: NbAuthResult) => {
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
 }

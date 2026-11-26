@@ -60,9 +60,18 @@ language of the site, else English); `level` `"info"` (blue) or `"warning"` (yel
 
 ```json
 "presetSearches": [
-  { "label": "Regrowth observations", "filters": [ { "key": "source", "value": "https://api.regrowth.example/observations" } ] }
+  { "label": "Regrowth observations", "filters": [ { "key": "source", "value": "https://api.regrowth.example/observations" } ] },
+  { "label": "Created in January, with a city", "filters": [
+    { "key": "created", "from": "2026-01-01", "to": "2026-02-01" },
+    { "key": "city", "exists": true }
+  ] }
 ]
 ```
+
+A filter is one of the value types of the Advanced search: `{ key, value }` a value (String); `{ key, from, to }` a date
+range (Date: from included, to excluded, one bound is enough; `YYYY-MM-DD` or a date and time; UTC unless
+`"utc": false`, the time zone of the browser); `{ key, "exists": true }` the field is there, any value (Exists). The
+tooltip of a button shows its full name, then one line per filter.
 
 ## Login modes
 
@@ -84,6 +93,13 @@ These settings change only the frontend. What a backend answers without a token 
 and shows "Could not load the current user" when that fails. A standalone frontend sets `"userFromToken": true`: the
 user (e-mail, name) is read from the claims of the access token, with no request.
 
+**The login.** Authorization code flow with PKCE (`angular-auth-oidc-client`), the client id of
+`environment.keycloak.client_id`. In Keycloak the client is public, with valid redirect URI
+`{dashboardBaseURL}/keycloak-auth/callback`, valid post logout redirect URI `{dashboardBaseURL}` (or `+`) and web origin
+the url of the frontend: the browser itself asks Keycloak for the tokens. The tokens are kept in `localStorage` (shared
+by the tabs) and the access token is renewed with the refresh token while the app is open; when the Keycloak session
+ends, the next page that needs the login goes back to Keycloak. Logout ends the Keycloak session as well.
+
 ## `config.json` reference
 
 | Key | Meaning |
@@ -95,7 +111,8 @@ user (e-mail, name) is read from the claims of the access token, with no request
 | `dashboardBaseURL` | public url of the frontend: Keycloak redirects back to `{dashboardBaseURL}/keycloak-auth/callback` |
 | `enableAuthentication`, `authNotRequired` | login modes, above |
 | `userFromToken` | read the user from the token instead of `/api/user` |
-| `keycloak.baseURL`, `keycloak.authProfile` | OIDC endpoint of the realm, profile (`oidc`) |
+| `keycloak.baseURL` | OIDC endpoint of the realm: `https://<host>/auth/realms/<realm>/protocol/openid-connect` (`/auth` only if your Keycloak has that path) |
+| `keycloak.issuer` | only when the tokens carry another issuer than the realm url of `baseURL` (Keycloak reached through another host name) |
 | `defaultTheme` | `light`, `dark` or `system`, until the user chooses |
 | `fontScale` | text size factor (e.g. `1.5`) |
 | `collectionLabels` | names shown for the collections, e.g. `{ "api": "Sources", "orion": "Datapoints", "minio": "MinIO" }` |

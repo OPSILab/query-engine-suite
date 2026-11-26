@@ -13,7 +13,14 @@
 // - visibility: the same rule as visibility.objectFilter, translated into the query (so limit/skip and the
 //   count apply to what the user may see); the resolvers still check every document with objectFilter.
 
-const { UserInputError } = require('apollo-server-express')
+const { GraphQLError } = require('graphql')
+
+// A wrong argument: an error with code BAD_USER_INPUT (UserInputError of Apollo Server 3)
+class UserInputError extends GraphQLError {
+    constructor(message) {
+        super(message, { extensions: { code: "BAD_USER_INPUT" } })
+    }
+}
 const config = require('../../config')
 const { collectionVisibilityFilter } = require('../services/visibility')
 const guards = require('../services/queryGuards')

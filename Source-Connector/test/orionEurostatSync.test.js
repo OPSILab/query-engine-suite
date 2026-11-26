@@ -11,7 +11,7 @@
 const { stub, load, config, resetConfig } = require("./helpers/env")
 const { test, describe, before, beforeEach } = require("node:test")
 const assert = require("node:assert/strict")
-const axios = require("axios")
+const httpClient = require("../utils/httpClient")
 
 const ORION = require("./fixtures/orion-eurostat/orion-sdmx-distributions.json")
 const STORED = require("./fixtures/orion-eurostat/stored-entities.json")
@@ -58,7 +58,7 @@ beforeEach(() => {
     posted = []
     synchronized = []
     results = []
-    axios.get = async (url, options) => {
+    httpClient.get = async (url, options) => {
         if (url.startsWith("http://orion/ngsi-ld/v1/entities")) {
             const offset = Number(new URL(url).searchParams.get("offset") || 0)
             return { data: structuredClone(orion.slice(offset, offset + 1000)), headers: { "ngsild-results-count": String(orion.length) } }
@@ -69,7 +69,7 @@ beforeEach(() => {
         }
         throw new Error("unexpected GET " + url)
     }
-    axios.post = async (url, body) => {
+    httpClient.post = async (url, body) => {
         if (url.endsWith("/api/orion/subscribe/" + MAP_ID)) {
             posted.push(...body.data.map(entity => entity.id))
             results.push(await notify(body))

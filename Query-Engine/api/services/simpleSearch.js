@@ -14,12 +14,12 @@
 // Warnings ({ kind: "config" | "runtime", code, source?, message }) tell the caller what was not searched or is
 // incomplete: limits() for the configuration, searchLive() also for the failures and truncations of this search.
 
-const axios = require('axios')
+const httpClient = require('../../utils/httpClient')
 const { hideFields, hiddenPaths } = require('./hideFields')
 const logger = require('percocologger')
 const config = require('../../config')
 
-const DEFAULTS = { minio: true, api: true, orion: false, maxPages: 20, maxOrionEntities: 20, maxResults: 1000, timeout: 30000 }
+const DEFAULTS = { minio: true, api: true, orion: false, maxPages: 20, maxOrionEntities: 20, maxResults: 1000, timeout: 30000, minioConcurrency: 1 }
 const ORION_PAGE = 1000
 
 function options() {
@@ -65,9 +65,9 @@ async function fetchToken(header) {
     const { authUrl, credentials, authProfile } = header
     let response
     if (authProfile === "basic")
-        response = await axios.request({ method: (authUrl.requestType || "POST").toLowerCase(), url: authUrl.value, headers: { Authorization: basicAuth(credentials) }, timeout: options().timeout })
+        response = await httpClient.request({ method: (authUrl.requestType || "POST").toLowerCase(), url: authUrl.value, headers: { Authorization: basicAuth(credentials) }, timeout: options().timeout })
     else if (authProfile == "OAuth 2.0 Client Credentials Grant")
-        response = await axios.post(authUrl.value,
+        response = await httpClient.post(authUrl.value,
             new URLSearchParams({ client_id: credentials.client_id, client_secret: credentials.client_secret, grant_type: "client_credentials" }).toString(),
             { headers: { "Content-Type": "application/x-www-form-urlencoded" }, timeout: options().timeout })
     else
@@ -113,7 +113,7 @@ function formatDate(date, format) {
         return date.toISOString().split("T")[0]
     if (format === "millis")
         return date.getTime()
-    // other formats: no value, as in apiConnector (axios leaves the parameter out)
+    // other formats: no value, as in apiConnector (httpClient leaves the parameter out)
 }
 
 const asItems = data => Array.isArray(data) ? data : [data]
@@ -123,7 +123,7 @@ const asItems = data => Array.isArray(data) ? data : [data]
 async function* apiPages(api, warnings) {
     const o = options()
     const headers = await apiHeaders(api)
-    const get = (url, params) => axios.get(url, { headers, params, timeout: o.timeout })
+    const get = (url, params) => httpClient.get(url, { headers, params, timeout: o.timeout })
 
     if (api.batch) {
         const batch = (await get(api.batch.from)).data
@@ -160,7 +160,7 @@ async function* apiPages(api, warnings) {
     }
     else {
         const response = api.method?.toLowerCase() === "post"
-            ? await axios.post(api.url, api.body, { headers, timeout: o.timeout })
+            ? await httpClient.post(api.url, api.body, { headers, timeout: o.timeout })
             : await get(api.url)
         yield { origin: api.url, items: asItems(response.data) }
     }
@@ -176,7 +176,7 @@ async function getMapperToken(force) {
     if (!force && mapperToken && (!mapperToken.expiry || Date.now() < mapperToken.expiry))
         return mapperToken.token
     const a = config.authConfig || {}
-    const response = await axios.post(
+    const response = await httpClient.post(
         `${a.idmHost}/realms/${a.authRealm || "master"}/protocol/openid-connect/token`,
         new URLSearchParams({ grant_type: "password", client_id: a.clientId, username: a.username, password: a.password }).toString(),
         { headers: { "Content-Type": "application/x-www-form-urlencoded" }, timeout: options().timeout }
@@ -204,14 +204,14 @@ function downloadURLOf(ent) {
 async function orionEntities(max) {
     const o = options()
     if (config.orion?.useNgsiBroker) {
-        const entities = asItems((await axios.get(config.orion.ngsiBrokerUrl, { timeout: o.timeout })).data)
+        const entities = asItems((await httpClient.get(config.orion.ngsiBrokerUrl, { timeout: o.timeout })).data)
         return { entities: entities.slice(0, max), more: entities.length > max }
     }
     const type = config.orion?.subscribeType || "DistributionDCAT-AP"
     const base = `${config.orion?.orionBaseUrl}/ngsi-ld/v1/entities?type=${encodeURIComponent(type)}`
     const entities = []
     for (let offset = 0; entities.length <= max; offset += ORION_PAGE) {
-        const page = asItems((await axios.get(`${base}&limit=${ORION_PAGE}&offset=${offset}`, { timeout: o.timeout })).data)
+        const page = asItems((await httpClient.get(`${base}&limit=${ORION_PAGE}&offset=${offset}`, { timeout: o.timeout })).data)
         entities.push(...page)
         if (page.length < ORION_PAGE)
             break
@@ -225,7 +225,7 @@ async function* orionDatasetPages(ent, downloadURL) {
     const o = options()
     const mapID = ent.mapID || config.mapID
     if (!mapID) {
-        const data = (await axios.get(downloadURL, { timeout: o.timeout })).data
+        const data = (await httpClient.get(downloadURL, { timeout: o.timeout })).data
         yield asItems(data?.data?.datapoints || data)
         return
     }
@@ -237,7 +237,7 @@ async function* orionDatasetPages(ent, downloadURL) {
             const auth = { Authorization: `Bearer ${await getMapperToken(attempt > 0)}` }
             let map
             try {
-                map = await axios.get(config.getMapEndpoint || "http://localhost:5500/api/map", { params: { description: downloadURL }, headers: auth, timeout: o.timeout })
+                map = await httpClient.get(config.getMapEndpoint || "http://localhost:5500/api/map", { params: { description: downloadURL }, headers: auth, timeout: o.timeout })
             }
             catch (error) {
                 if (error.response?.status != 404)
@@ -250,12 +250,12 @@ async function* orionDatasetPages(ent, downloadURL) {
                 config: { NGSI_entity: false, ignoreValidation: true, writers: [], disableAjv: true, mappingReport: true, newSdmxDecode: !!map?.data }
             }
             const mapped = map?.data
-                ? await axios.post(config.mapEndpoint, { ...body, mapDescription: downloadURL }, { headers: auth, timeout: o.timeout })
-                : await axios.post(config.parseEndpoint, body, { headers: auth, timeout: o.timeout })
+                ? await httpClient.post(config.mapEndpoint, { ...body, mapDescription: downloadURL }, { headers: auth, timeout: o.timeout })
+                : await httpClient.post(config.parseEndpoint, body, { headers: auth, timeout: o.timeout })
             const outputId = mapped.data[mapped.data.length - 1].MAPPING_REPORT.outputId
             let lastId
             for (let index = 0; ; index++) {
-                const chunk = (await axios.get((config.sessionEndpoint || "http://localhost:5500/api/output?") + "id=" + outputId + "&lastId=" + lastId + "&index=" + index, { headers: auth, timeout: o.timeout })).data
+                const chunk = (await httpClient.get((config.sessionEndpoint || "http://localhost:5500/api/output?") + "id=" + outputId + "&lastId=" + lastId + "&index=" + index, { headers: auth, timeout: o.timeout })).data
                 if (!Array.isArray(chunk) || !chunk.length)
                     return
                 yielded = true

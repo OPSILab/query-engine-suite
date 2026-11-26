@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, HostListener, Injector, NgZone, OnDestroy, ViewChild, afterNextRender } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, Injector, NgZone, OnDestroy, ViewChild, afterNextRender, ChangeDetectionStrategy } from '@angular/core';
 import { ThemeService } from '../services/theme.service';
 
 const RESULTS_VIEW_KEY = 'data-space-results-view';
@@ -9,6 +9,7 @@ const RESULTS_VIEW_KEY = 'data-space-results-view';
   selector: 'app-home',
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class HomeComponent implements AfterViewInit, OnDestroy {

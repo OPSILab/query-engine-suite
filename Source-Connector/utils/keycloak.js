@@ -1,4 +1,4 @@
-﻿const axios = require("axios");
+﻿const httpClient = require("./httpClient");
 const config = require("../config.js")
 const keycloakBaseUrl = config.authConfig.idmHost + "/realms/" + (config.authConfig.authRealm || "master")
 const { clientId, username, password } = config.authConfig;
@@ -17,7 +17,7 @@ async function updateJWT(update) {
             console.error("Error loading token:", error);
         }
     console.log("Update token")
-    const response = await axios.post(
+    const response = await httpClient.post(
         `${keycloakBaseUrl}/protocol/openid-connect/token`,
         new URLSearchParams({
             grant_type: "password",

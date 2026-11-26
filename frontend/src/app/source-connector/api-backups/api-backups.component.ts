@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ApiBackup, BackupLogEntry, BackupStatus, SourceConnectorService } from '../../services/source-connector.service';
 import { SourceConnectorComponent } from '../source-connector.component';
 
@@ -13,6 +13,7 @@ import { SourceConnectorComponent } from '../source-connector.component';
   selector: 'app-api-backups',
   templateUrl: './api-backups.component.html',
   styleUrls: ['../../shared/admin-page.scss', '../source-connector.component.scss', './api-backups.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class ApiBackupsComponent implements OnInit, OnDestroy {

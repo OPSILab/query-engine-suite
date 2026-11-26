@@ -48,7 +48,7 @@ On the same machine, give each its own: `sourceConnectorPort` and `queryEnginePo
 | `cache.keepVersions` | `3` | [versions kept per query](cache.html#pruning-keepversions), active included |
 | `cache.maxDatapoints` | `5000000` | cache size limit; `0`: none |
 | `statusLog.ignoredUrls` / `ignoredPrefixes` | `[]` | [ignored urls](status-log.html#ignored-urls) that cannot be listed again from the frontend |
-| `simpleSearchOptions` | | live sources of the Simple search (`minio`, `api`, `orion`), pages, timeouts |
+| `simpleSearchOptions` | | live sources of the Simple search (`minio`, `api`, `orion`), pages, timeouts, `minioConcurrency` (MinIO files read at the same time, default 1) |
 
 ## Source-Connector
 

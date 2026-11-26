@@ -1,10 +1,10 @@
 import { Injectable, Optional } from '@angular/core';
 import { Router } from '@angular/router';
-import { NbAuthService } from '@nebular/auth';
-import { Observable, defer, merge, of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { catchError, distinctUntilChanged, map, shareReplay } from 'rxjs/operators';
 import { ConfigService } from './config.service';
 import { saveReturnUrl } from '../auth/services/return-url';
+import { AuthService } from '../auth/services/auth.service';
 
 /** How the login works, from assets/config.json. */
 export type AuthMode = 'disabled' | 'required' | 'optional';
@@ -26,11 +26,11 @@ export class SessionService {
   /** Whether someone is logged in (always false with authentication disabled); updated at login / logout. */
   readonly loggedIn$: Observable<boolean>;
 
-  constructor(config: ConfigService, @Optional() private auth?: NbAuthService, @Optional() private router?: Router) {
+  constructor(config: ConfigService, @Optional() private auth?: AuthService, @Optional() private router?: Router) {
     this.mode = SessionService.modeOf(config.getSettings('enableAuthentication', false), config.getSettings('authNotRequired', false));
     this.loggedIn$ = this.mode === 'disabled' || !auth
       ? of(false)
-      : merge(defer(() => auth.isAuthenticated()), auth.onAuthenticationChange()).pipe(
+      : auth.authenticated$.pipe(
         map(value => !!value),
         catchError(() => of(false)),
         distinctUntilChanged(),

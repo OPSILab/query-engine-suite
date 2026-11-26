@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { NoticesService, SiteNotice } from '../../services/notices.service';
 
 const DISMISSED_KEY = 'ds-dismissed-notices';
@@ -12,6 +12,7 @@ const DISMISSED_KEY = 'ds-dismissed-notices';
   selector: 'app-site-notices',
   templateUrl: './site-notices.component.html',
   styleUrls: ['./site-notices.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class SiteNoticesComponent {

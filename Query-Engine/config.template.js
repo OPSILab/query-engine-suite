@@ -150,7 +150,8 @@ module.exports = {
     maxPages: 20,          // pages read from a paginated API
     maxOrionEntities: 20,  // Orion entities downloaded per search
     maxResults: 1000,      // results of the API / Orion sources
-    timeout: 30000         // ms, per request
+    timeout: 30000,        // ms, per request
+    minioConcurrency: 1    // MinIO files read at the same time (1-64; the results keep the order of the listing)
   },
   apiConnectorConfig: {
     upsertRecords: false,

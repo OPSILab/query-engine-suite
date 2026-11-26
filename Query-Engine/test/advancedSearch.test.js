@@ -109,6 +109,16 @@ describe("file types", () => {
         assert.deepEqual(names((await search(query, { format: "GeoJSON", collections: ["api"] })).body), ["Villages"]) // 30: another feature
     })
 
+    test("a key without a value ({ $exists: true }, as the frontend's Exists filter sends it): the documents with that field", async () => {
+        const exists = { $exists: true }
+        assert.deepEqual(names((await search({ survey: exists }, ALL)).body), ["Datapoint"])
+        assert.deepEqual(names((await search({ survey: { $exists: false } }, { collections: ["orion"] })).body), [])
+        // JSON: top-level fields or JSON rows; CSV rows; GeoJSON feature properties
+        assert.deepEqual(names((await search({ n: exists }, { format: "JSON" })).body), [...Array.from({ length: 7 }, (_, i) => "Item " + i), "public-a.json"].sort())
+        assert.deepEqual(names((await search({ city: exists }, { format: "CSV" })).body), ["public.csv"])
+        assert.deepEqual(names((await search({ population: exists }, { format: "GeoJSON", collections: ["api"] })).body), ["Villages"])
+    })
+
     test("an array field matches any of its elements (dimensions = Lovech)", async () => {
         assert.deepEqual(names((await search({ dimensions: "Lovech" }, ALL)).body), ["Datapoint"])
     })

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { PolledApi, PublicConfiguration, SourceConnectorService } from '../services/source-connector.service';
 import { SourceConnectorComponent } from '../source-connector/source-connector.component';
 
@@ -16,6 +16,7 @@ const DAY = 24 * HOUR;
   selector: 'app-configuration',
   templateUrl: './configuration.component.html',
   styleUrls: ['../shared/admin-page.scss', './configuration.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class ConfigurationComponent implements OnInit {

@@ -531,7 +531,7 @@ a.ds-external-link:hover .ds-external-link__icon {
 }
 
 .ds-preset {
-  max-width: 320px;
+  max-width: 400px;
   padding: 7px 12px;
   border: 1px solid var(--ds-border);
   border-radius: 8px;
@@ -585,4 +585,12 @@ a.ds-external-link:hover .ds-external-link__icon {
     color: inherit;
     text-decoration: underline;
   }
+}
+
+// Exists filter: in place of the value, what it searches
+.ds-kv-exists {
+  margin: 0;
+  align-self: center;
+  color: var(--ds-text-muted);
+  font-size: calc(12.5px * var(--ds-font-scale));
 }

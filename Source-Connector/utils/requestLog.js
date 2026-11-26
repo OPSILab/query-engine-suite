@@ -1,4 +1,4 @@
-// Every axios request of the Source-Connector saved in the MongoDB collection "statuslog": the failed ones - an error
+// Every HTTP request of the Source-Connector (utils/httpClient) saved in the MongoDB collection "statuslog": the failed ones - an error
 // answer (status outside 2xx) or no answer (timeout, connection refused, DNS) - and the successful ones. When,
 // outcome ("error" / "success"), which API (by url, from apiConnectorConfig.apiUrls), method, url, query params,
 // headers, body, status and response data (or the error), how long it took (durationMs).
@@ -8,7 +8,7 @@
 // The errors are kept forever; the successes for statusLog.successRetentionDays (default 30, 0: forever: expiresAt,
 // with a TTL index of MongoDB). statusLog.successes false: only the errors. Off with statusLog.enabled false.
 // The requests the code expects to fail (e.g. a map not found yet) are saved too: they are failed requests.
-const axios = require("axios")
+const httpClient = require("./httpClient")
 const logger = require("percocologger")
 const config = require("../config")
 const StatusLog = require("../api/models/StatusLog")
@@ -79,7 +79,7 @@ function plainHeaders(headers) {
 
 function fullUrl(request) {
     try {
-        return axios.getUri(request)
+        return httpClient.getUri(request)
     }
     catch {
         return request.url
@@ -101,7 +101,7 @@ function savedData(api, data) {
     }
 }
 
-// The statuslog document of a request: a failed one (an axios error) or a successful one (an axios response)
+// The statuslog document of a request: a failed one (an httpClient error) or a successful one (an httpClient response)
 function record(error, success) {
     const request = (success || error).config || {}
     const response = success || error.response
@@ -147,7 +147,7 @@ function record(error, success) {
 
 const asJson = value => value === undefined ? undefined : JSON.stringify(value)
 
-// Saves a request (error: an axios error; success: an axios response); never throws (a failed save is only logged).
+// Saves a request (error: an httpClient error; success: an httpClient response); never throws (a failed save is only logged).
 // Field names with "$" or "." in params / headers can be refused by older MongoDB versions: then they are saved as
 // JSON text.
 function save(error, success) {
@@ -166,16 +166,16 @@ function save(error, success) {
     return saving
 }
 
-// On the default axios instance (the one every module of the Source-Connector uses). The response / error goes on to
+// On the interceptors of utils/httpClient (the client every module of the Source-Connector uses). The response / error goes on to
 // the caller as it was; the save runs in the background (a slow or unavailable MongoDB does not delay the caller).
 function install() {
     if (interceptor !== undefined)
         return
-    requestInterceptor = axios.interceptors.request.use(request => {
+    requestInterceptor = httpClient.interceptors.request.use(request => {
         request.requestLogStart = Date.now()
         return request
     })
-    interceptor = axios.interceptors.response.use(response => {
+    interceptor = httpClient.interceptors.response.use(response => {
         save(undefined, response)
         return response
     }, error => {
@@ -193,8 +193,8 @@ function install() {
 function uninstall() {
     if (interceptor === undefined)
         return
-    axios.interceptors.response.eject(interceptor)
-    axios.interceptors.request.eject(requestInterceptor)
+    httpClient.interceptors.response.eject(interceptor)
+    httpClient.interceptors.request.eject(requestInterceptor)
     interceptor = requestInterceptor = undefined
 }
 
